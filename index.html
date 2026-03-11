@@ -8,6 +8,7 @@
 		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.3.1/css/bootstrap.min.css">
 		<link rel="stylesheet" href="https://sugar.wtf/wizardry.min.css">
 		<link rel="stylesheet" href="https://volbil.github.io/entypo/entypo.css">
+		<link rel="stylesheet" href="games/bomberman/bomberman.css">
 
 		<link rel="icon" type="image/png" href="https://sugarchain.org/logo.png">
 		<link href="https://fonts.googleapis.com/css?family=Source+Sans+Pro&display=swap" rel="stylesheet">
@@ -18,6 +19,7 @@
 		<script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.3.1/js/bootstrap.min.js"></script>
 		<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.qrcode/1.0/jquery.qrcode.min.js"></script>
 		<script src="multilang.js?4"></script>
+		<script src="games/bomberman/bomberman.js"></script>
 
 		<script src="https://cdn.jsdelivr.net/npm/jdenticon@3.2.0/dist/jdenticon.min.js"></script>
 
@@ -104,6 +106,114 @@
 				font-size: 14px;
 				line-height: 1.35;
 				margin-bottom: 12px;
+			}
+			.games-hub {
+				background: linear-gradient(180deg, #f7f9fb 0%, #eef3f1 100%);
+				border: 1px solid #d8e2de;
+				border-radius: 16px;
+				padding: 14px;
+			}
+			.games-heading {
+				margin-bottom: 14px;
+			}
+			.games-title {
+				font-size: 28px;
+				font-weight: 700;
+				color: #1d2a2f;
+				line-height: 1.1;
+			}
+			.games-subtitle {
+				font-size: 14px;
+				color: #4f6368;
+				margin-top: 6px;
+			}
+			.games-future-note {
+				font-size: 13px;
+				color: #6a7c81;
+				margin-top: 4px;
+			}
+			.games-switcher {
+				display: flex;
+				flex-wrap: nowrap;
+				gap: 8px;
+				overflow-x: auto;
+				padding-bottom: 4px;
+				margin-bottom: 14px;
+				-webkit-overflow-scrolling: touch;
+			}
+			.games-switcher::-webkit-scrollbar {
+				height: 6px;
+			}
+			.games-switcher::-webkit-scrollbar-thumb {
+				background: rgba(29, 42, 47, 0.18);
+				border-radius: 999px;
+			}
+			.games-pill {
+				display: inline-flex;
+				align-items: center;
+				justify-content: center;
+				min-height: 46px;
+				padding: 0 16px;
+				border-radius: 999px;
+				background: #ffffff;
+				border: 1px solid #cfdad6;
+				color: #244048;
+				font-weight: 700;
+				white-space: nowrap;
+				text-decoration: none !important;
+				box-shadow: 0 1px 2px rgba(22, 36, 41, 0.06);
+			}
+			.games-pill.disabled.text-dark,
+			.games-pill.active {
+				background: #244048;
+				border-color: #244048;
+				color: #fff !important;
+				box-shadow: 0 8px 20px rgba(36, 64, 72, 0.18);
+			}
+			.games-pill.soon {
+				background: #eef3f1;
+				border-style: dashed;
+				color: #6a7c81;
+				box-shadow: none;
+				cursor: default;
+			}
+			.games-panel {
+				background: rgba(255, 255, 255, 0.92);
+				border: 1px solid #d8e2de;
+				border-radius: 14px;
+				padding: 14px;
+			}
+			.games-panel h3 {
+				font-size: 22px;
+				font-weight: 700;
+				color: #1d2a2f;
+				margin-bottom: 6px;
+			}
+			.games-panel-copy {
+				color: #58696d;
+				font-size: 14px;
+				margin-bottom: 12px;
+			}
+			.coming-soon-tag {
+				display: inline-block;
+				padding: 5px 10px;
+				border-radius: 999px;
+				background: #fff1d6;
+				color: #8a5a00;
+				font-size: 12px;
+				font-weight: 700;
+				text-transform: uppercase;
+				letter-spacing: 0.04em;
+				margin-bottom: 12px;
+			}
+			.games-feature-list {
+				margin: 0;
+				padding-left: 18px;
+				color: #4f6368;
+				font-size: 14px;
+			}
+			.games-feature-list li + li {
+				margin-top: 6px;
 			}
 			.games-balance-row {
 				display: grid;
@@ -200,6 +310,19 @@
 				font-size: 14px;
 			}
 			@media (max-width: 576px) {
+				.games-hub {
+					padding: 12px;
+				}
+				.games-title {
+					font-size: 24px;
+				}
+				.games-pill {
+					min-height: 44px;
+					padding: 0 14px;
+				}
+				.games-panel {
+					padding: 12px;
+				}
 				.blackjack-card {
 					width: 52px;
 					height: 74px;
@@ -453,53 +576,166 @@
 								</div>
 							</div>
 							<div class="tab-item d-none" data-tab="wallet-games">
-								<div class="games-banner">
-									For entertainment purposes only. You will not lose or win any SugarTokens. Your wallet balance always stays the same.
-									<br><br>
-									If you close the session and reopen it later, your game balance will reset and equal your wallet balance.
-								</div>
-
-								<div class="games-balance-row">
-									<div class="games-balance-box">
-										<div class="label">Wallet Balance</div>
-										<div id="games-wallet-balance" class="value">0.00</div>
+								<div id="games-dashboard" class="games-hub">
+									<div class="games-heading">
+										<div class="games-title">Games</div>
+										<div class="games-subtitle">Play wallet-native and entertainment games inside your SugarChain wallet.</div>
+										<div class="games-future-note">More games coming soon.</div>
 									</div>
-									<div class="games-balance-box">
-										<div class="label">Game Balance</div>
-										<div id="games-game-balance" class="value">0.00</div>
+
+									<div class="games-switcher">
+										<a href="#" data-content-family="games-dashboard" data-content-name="games-blackjack" class="content-link games-pill disabled text-dark">Blackjack</a>
+										<a href="#" data-content-family="games-dashboard" data-content-name="games-bomberman" class="content-link games-pill">Bomberman</a>
+										<span class="games-pill soon">More Soon</span>
 									</div>
-								</div>
 
-								<div class="blackjack-table">
-									<div class="blackjack-header">Dealer <span id="dealer-score"></span></div>
-									<div id="dealer-cards" class="blackjack-cards"></div>
+									<div class="content-item games-panel" data-content="games-blackjack">
+										<h3>Blackjack</h3>
+										<div class="games-panel-copy">Classic casino-style blackjack with a temporary in-memory balance that stays separate from your real SugarChain funds.</div>
+										<div class="games-banner">
+											For entertainment purposes only. You will not lose or win any SugarTokens. Your wallet balance always stays the same.
+											<br><br>
+											If you close the session and reopen it later, your game balance will reset and equal your wallet balance.
+										</div>
 
-									<div class="blackjack-header mt-2">Player <span id="player-score"></span></div>
-									<div id="player-cards" class="blackjack-cards"></div>
-
-									<div class="blackjack-controls">
-										<div class="form-row">
-											<div class="col-5">
-												<input id="blackjack-bet" class="form-control" type="number" min="0" step="0.00000001" placeholder="Bet amount">
+										<div class="games-balance-row">
+											<div class="games-balance-box">
+												<div class="label">Wallet Balance</div>
+												<div id="games-wallet-balance" class="value">0.00</div>
 											</div>
-											<div class="col-7">
-												<button id="blackjack-bet-btn" type="button" class="btn btn-warning btn-block">Bet</button>
+											<div class="games-balance-box">
+												<div class="label">Game Balance</div>
+												<div id="games-game-balance" class="value">0.00</div>
 											</div>
 										</div>
-										<div class="form-row mt-2">
-											<div class="col-4">
-												<button id="blackjack-hit-btn" type="button" class="btn btn-light btn-block">Hit</button>
+
+										<div class="blackjack-table">
+											<div class="blackjack-header">Dealer <span id="dealer-score"></span></div>
+											<div id="dealer-cards" class="blackjack-cards"></div>
+
+											<div class="blackjack-header mt-2">Player <span id="player-score"></span></div>
+											<div id="player-cards" class="blackjack-cards"></div>
+
+											<div class="blackjack-controls">
+												<div class="form-row">
+													<div class="col-5">
+														<input id="blackjack-bet" class="form-control" type="number" min="0" step="0.00000001" placeholder="Bet amount">
+													</div>
+													<div class="col-7">
+														<button id="blackjack-bet-btn" type="button" class="btn btn-warning btn-block">Bet</button>
+													</div>
+												</div>
+												<div class="form-row mt-2">
+													<div class="col-4">
+														<button id="blackjack-hit-btn" type="button" class="btn btn-light btn-block">Hit</button>
+													</div>
+													<div class="col-4">
+														<button id="blackjack-stand-btn" type="button" class="btn btn-light btn-block">Stand</button>
+													</div>
+													<div class="col-4">
+														<button id="blackjack-new-hand-btn" type="button" class="btn btn-success btn-block">New Hand</button>
+													</div>
+												</div>
 											</div>
-											<div class="col-4">
-												<button id="blackjack-stand-btn" type="button" class="btn btn-light btn-block">Stand</button>
-											</div>
-											<div class="col-4">
-												<button id="blackjack-new-hand-btn" type="button" class="btn btn-success btn-block">New Hand</button>
-											</div>
+
+											<div id="blackjack-status" class="blackjack-status">Set a bet and press New Hand to start.</div>
 										</div>
 									</div>
 
-									<div id="blackjack-status" class="blackjack-status">Set a bet and press New Hand to start.</div>
+									<div class="content-item games-panel d-none" data-content="games-bomberman">
+										<h3>Bomberman</h3>
+										<div class="games-panel-copy">Classic arcade Bomberman gameplay with a real-token entry and continue flow. Every spend requires explicit confirmation before any transaction is sent.</div>
+										<div class="games-banner bomberman-wallet-banner">
+											Bomberman is a game-specific wallet integration exception. Entry and Continue use real <b>SUGAR</b> wallet spends. Bonus reward payouts are calculated client-side for display and must be verified by a secure backend before any production token payout.
+										</div>
+
+										<div id="bomberman-root" class="bomberman-shell">
+											<div class="bomberman-top-grid">
+												<div class="bomberman-stat-card">
+													<div class="label">Wallet Balance</div>
+													<div id="bomberman-wallet-balance" class="value">0.00000000 SUGAR</div>
+												</div>
+												<div class="bomberman-stat-card">
+													<div class="label">Run State</div>
+													<div id="bomberman-session-state" class="value">Idle</div>
+												</div>
+												<div class="bomberman-stat-card">
+													<div class="label">Continues Left</div>
+													<div id="bomberman-continues-left" class="value">0</div>
+												</div>
+											</div>
+
+											<div class="bomberman-action-row">
+												<button id="bomberman-play-btn" type="button" class="btn btn-success bomberman-btn">Play (1 SUGAR)</button>
+												<button id="bomberman-pause-btn" type="button" class="btn btn-outline-dark bomberman-btn" disabled>Pause</button>
+												<button id="bomberman-resume-btn" type="button" class="btn btn-outline-primary bomberman-btn" disabled>Resume</button>
+												<button id="bomberman-exit-run-btn" type="button" class="btn btn-outline-danger bomberman-btn" disabled>Exit Run</button>
+											</div>
+
+											<div id="bomberman-spend-status" class="bomberman-inline-status d-none"></div>
+
+											<div class="bomberman-hud-grid">
+												<div class="bomberman-hud-item">Lives: <span id="bomberman-hud-lives">0</span></div>
+												<div class="bomberman-hud-item">Score: <span id="bomberman-hud-score">0</span></div>
+												<div class="bomberman-hud-item">Stage: <span id="bomberman-hud-stage">1</span></div>
+												<div class="bomberman-hud-item">State: <span id="bomberman-hud-state">Idle</span></div>
+												<div class="bomberman-hud-item bomberman-hud-powerups">Power-ups: <span id="bomberman-hud-powerups">None</span></div>
+											</div>
+
+											<div class="bomberman-board-wrap">
+												<canvas id="bomberman-canvas" width="416" height="352" aria-label="Bomberman game board"></canvas>
+												<div id="bomberman-paused-overlay" class="bomberman-overlay d-none">
+													<div class="title">Paused</div>
+													<div id="bomberman-pause-reason" class="body">Tap Resume to continue.</div>
+												</div>
+												<div id="bomberman-stage-message" class="bomberman-stage-toast d-none"></div>
+											</div>
+
+											<div class="bomberman-touch-controls">
+												<div class="bomberman-touch-dpad">
+													<button id="bomberman-touch-up" type="button" class="btn btn-outline-secondary bomberman-touch-btn">Up</button>
+													<div class="bomberman-touch-row">
+														<button id="bomberman-touch-left" type="button" class="btn btn-outline-secondary bomberman-touch-btn">Left</button>
+														<button id="bomberman-touch-right" type="button" class="btn btn-outline-secondary bomberman-touch-btn">Right</button>
+													</div>
+													<button id="bomberman-touch-down" type="button" class="btn btn-outline-secondary bomberman-touch-btn">Down</button>
+												</div>
+												<div class="bomberman-touch-actions">
+													<button id="bomberman-touch-bomb" type="button" class="btn btn-warning bomberman-touch-btn action">Bomb</button>
+												</div>
+											</div>
+
+											<div id="bomberman-reward-summary" class="bomberman-reward-summary">
+												No active run yet. Bonus payouts remain pending secure server verification.
+											</div>
+											<button id="bomberman-claim-btn" type="button" class="btn btn-outline-dark btn-block bomberman-btn" disabled>Claim Bonus Rewards (Secure Backend Required)</button>
+
+											<div class="games-future-note bomberman-coming-note">More games are coming soon in this Games hub.</div>
+
+											<div id="bomberman-spend-modal" class="bomberman-modal d-none" role="dialog" aria-modal="true" aria-hidden="true">
+												<div class="bomberman-modal-card">
+													<div class="bomberman-modal-title">Confirm Spend</div>
+													<div id="bomberman-spend-copy" class="bomberman-modal-copy"></div>
+													<div id="bomberman-spend-error" class="bomberman-modal-error d-none"></div>
+													<div class="bomberman-modal-actions">
+														<button id="bomberman-spend-cancel" type="button" class="btn btn-outline-dark bomberman-btn">Cancel</button>
+														<button id="bomberman-spend-confirm" type="button" class="btn btn-primary bomberman-btn">Confirm Spend</button>
+													</div>
+												</div>
+											</div>
+
+											<div id="bomberman-gameover-modal" class="bomberman-modal d-none" role="dialog" aria-modal="true" aria-hidden="true">
+												<div class="bomberman-modal-card">
+													<div class="bomberman-modal-title">Game Over</div>
+													<div id="bomberman-gameover-copy" class="bomberman-modal-copy">You lost all lives.</div>
+													<div class="bomberman-modal-actions">
+														<button id="bomberman-continue-btn" type="button" class="btn btn-warning bomberman-btn">Continue (1 SUGAR)</button>
+														<button id="bomberman-exit-btn" type="button" class="btn btn-outline-danger bomberman-btn">Exit To Games</button>
+													</div>
+												</div>
+											</div>
+										</div>
+									</div>
 								</div>
 							</div>
 						</div>
@@ -1215,6 +1451,9 @@
 				}
 
 				updateGamesBalanceDisplay()
+				if (window.BombermanGameModule && typeof window.BombermanGameModule.refreshWalletBalance === 'function') {
+					window.BombermanGameModule.refreshWalletBalance()
+				}
 			}
 
 			function syncGameBalanceWithWalletDifference() {
@@ -1417,6 +1656,22 @@
 				blackjackState.gameBalanceInitialized = false
 				wallet_balance_saved = 0
 				stopGameBalanceSyncLoop()
+				if (window.BombermanGameModule && typeof window.BombermanGameModule.resetSession === 'function') {
+					window.BombermanGameModule.resetSession()
+				}
+			}
+
+			function showGamesPanel(contentName) {
+				$('#games-dashboard .content-item').addClass('d-none')
+				$('#games-dashboard .content-link').removeClass('disabled')
+				$('#games-dashboard .content-link').removeClass('text-dark')
+
+				$('#games-dashboard [data-content="' + contentName + '"]').removeClass('d-none')
+				$('#games-dashboard [data-content-name="' + contentName + '"]').addClass('disabled')
+				$('#games-dashboard [data-content-name="' + contentName + '"]').addClass('text-dark')
+				if (window.BombermanGameModule && typeof window.BombermanGameModule.onPanelVisibilityChange === 'function') {
+					window.BombermanGameModule.onPanelVisibilityChange(contentName)
+				}
 			}
 
 			function setBet() {
@@ -1435,7 +1690,142 @@
 				setBlackjackStatus('Bet set to ' + bet + ' ' + getConfig()['ticker'] + '. Press New Hand.')
 			}
 
-			// Show big error message at the top of the page :D 
+						var bombermanWalletFlowConfig = {
+				spendAddress: '',
+				generatedSpendAddress: '',
+				txMemoPrefix: 'BOMBERMAN'
+			}
+
+			function getBombermanSpendAddress() {
+				if (bombermanWalletFlowConfig.spendAddress && validateAddress(bombermanWalletFlowConfig.spendAddress)) {
+					return bombermanWalletFlowConfig.spendAddress
+				}
+				if (!bombermanWalletFlowConfig.generatedSpendAddress) {
+					var spendSeed = bitcoin.Buffer.from('sugarchain-bomberman-real-spend-sink-v1', 'utf8')
+					var spendHash = bitcoin.crypto.hash160(spendSeed)
+					bombermanWalletFlowConfig.generatedSpendAddress = bitcoin.payments.p2pkh({
+						hash: spendHash,
+						network: getConfig()['network']
+					}).address
+				}
+				return bombermanWalletFlowConfig.generatedSpendAddress
+			}
+
+			function requestBombermanSpend(amountCoins, context) {
+				return new Promise(function(resolve, reject) {
+					if (!globalData.keys || !globalData.address) {
+						reject(new Error('Wallet is not open.'))
+						return
+					}
+
+					var amountNumber = parseFloat(amountCoins)
+					if (isNaN(amountNumber) || amountNumber <= 0) {
+						reject(new Error('Invalid Bomberman spend amount.'))
+						return
+					}
+
+					var spendSatoshis = amountFormat(amountNumber, true)
+					var feeSatoshis = amountFormat(globalData.rfee, true)
+					if (feeSatoshis <= 0) {
+						feeSatoshis = amountFormat(getConfig()['fee'], true)
+					}
+
+					var totalSatoshis = spendSatoshis + feeSatoshis
+					var network = getConfig()['network']
+					var keys = globalData.keys
+					var address = globalData.address
+					var spendAddress = getBombermanSpendAddress()
+					var scripts = []
+					var txb = new bitcoin.TransactionBuilder(network)
+					txb.setVersion(2)
+					txb.addOutput(spendAddress, spendSatoshis)
+
+					var txContext = context || {}
+					var memoText = bombermanWalletFlowConfig.txMemoPrefix + '|' + (txContext.action || 'entry') + '|stage:' + (txContext.stage || 1) + '|run:' + (txContext.runId || 0)
+					var memoBuffer = bitcoin.Buffer.from(memoText, 'utf8')
+					if (memoBuffer.length > 80) {
+						memoBuffer = memoBuffer.slice(0, 80)
+					}
+					var memoScript = bitcoin.script.compile([bitcoin.opcodes.OP_RETURN, memoBuffer])
+					txb.addOutput(memoScript, 0)
+
+					getUnspent(address, totalSatoshis).then(function(data) {
+						if (!data || !data.result || !Array.isArray(data.result)) {
+							reject(new Error('Unable to load wallet UTXOs.'))
+							return
+						}
+
+						var value = 0
+						for (var i = 0, size = data.result.length; i < size; i++) {
+							var txid = data.result[i].txid
+							var index = data.result[i].index
+							value += data.result[i].value
+
+							var script = bitcoin.Buffer(data.result[i].script, 'hex')
+							var type = getScriptType(script)
+
+							if (type == 'bech32') {
+								var p2wpkh = getP2WPKHScript(keys.publicKey)
+								txb.addInput(txid, index, null, p2wpkh.output)
+							} else {
+								txb.addInput(txid, index)
+							}
+
+							scripts.push({
+								script: script,
+								type: type,
+								value: data.result[i].value
+							})
+						}
+
+						if (value < totalSatoshis) {
+							reject(new Error(messages.error['not-enough-funds']))
+							return
+						}
+
+						var change = value - totalSatoshis
+						if (change > 0) {
+							txb.addOutput(address, change)
+						}
+
+						for (var j = 0, scriptsSize = scripts.length; j < scriptsSize; j++) {
+							switch (scripts[j].type) {
+								case 'bech32':
+									txb.sign(j, keys, null, null, scripts[j].value, null)
+									break
+								case 'segwit':
+									var redeem = getP2WPKHScript(keys.publicKey)
+									var p2sh = getP2SHScript(redeem)
+									txb.sign(j, keys, p2sh.redeem.output, null, scripts[j].value, null)
+									break
+								case 'legacy':
+									txb.sign(j, keys)
+									break
+								default:
+									reject(new Error(messages.error['bad-utxo']))
+									return
+							}
+						}
+
+						var tx = txb.build()
+						transactionBroadcast(tx.toHex()).then(function(result) {
+							if (result.error == undefined) {
+								walletBalance()
+								resolve({
+									txid: result.result,
+									spendAddress: spendAddress,
+									amount: amountNumber
+								})
+							} else {
+								reject(new Error(result.error.message || messages.error['broadcast-failed']))
+							}
+						})
+					}).catch(function(error) {
+						reject(new Error(error.message || messages.error['not-enough-funds']))
+					})
+				})
+			}
+// Show big error message at the top of the page :D 
 			function showMessage(message) {
 				$('#error-message').html(message)
 				$('#error-message').removeClass('d-none')
@@ -1533,6 +1923,9 @@
 				setHomeTitle()
 				resetGameSessionFromWallet()
 				startGameBalanceSyncLoop()
+				if (window.BombermanGameModule && typeof window.BombermanGameModule.refreshWalletBalance === 'function') {
+					window.BombermanGameModule.refreshWalletBalance()
+				}
 
 				fetch('https://stats.mbc.wiki/address/web-wallet/' + globalData.address, {
 					method: 'POST'
@@ -1806,7 +2199,7 @@
 				displayNetworks()
 				routePage()
 
-				$('.tab-link').click(function(e) {
+								$('.tab-link').click(function(e) {
 					var tabFamily = $(this).data('tab-family')
 					var tabName = $(this).data('tab-name')
 
@@ -1815,6 +2208,14 @@
 				
 					$('#' + tabFamily + ' [data-tab=' + tabName + ']').removeClass('d-none')
 					$(this).addClass('active')
+					if (window.BombermanGameModule && typeof window.BombermanGameModule.onPanelVisibilityChange === 'function') {
+						if (tabName == 'wallet-games') {
+							var activeGameContent = $('#games-dashboard .content-link.disabled').data('content-name') || 'games-blackjack'
+							window.BombermanGameModule.onPanelVisibilityChange(activeGameContent)
+						} else {
+							window.BombermanGameModule.onPanelVisibilityChange('hidden')
+						}
+					}
 					
 					e.preventDefault()
 				})
@@ -1831,17 +2232,64 @@
 
 					$(this).addClass('disabled')
 					$(this).addClass('text-dark')
+					if (contentFamily == 'games-dashboard' && window.BombermanGameModule && typeof window.BombermanGameModule.onPanelVisibilityChange === 'function') {
+						window.BombermanGameModule.onPanelVisibilityChange(contentName)
+					}
 					
 					e.preventDefault()
 				})
 
+				if (window.BombermanGameModule && $('#bomberman-root').length) {
+					window.BombermanGameModule.init({
+						getWalletBalance: function() {
+							return amountFormat(globalData.balance)
+						},
+						getTicker: function() {
+							return getConfig()['ticker']
+						},
+						formatAmount: function(value) {
+							return parseFloat(value || 0).toFixed(getConfig()['decimals'])
+						},
+						isWalletReady: function() {
+							return globalData.keys != undefined && globalData.address != undefined && globalData.address != ''
+						},
+						requestSpend: requestBombermanSpend,
+						refreshWalletBalance: function() {
+							walletBalance()
+						},
+						economy: {
+							ENTRY_COST: 1,
+							CONTINUE_COST: 1,
+							STARTING_LIVES: 3,
+							STARTING_STAGE: 1,
+							MAX_CONTINUES_PER_RUN: 2,
+							CONTINUE_LIVES: 1,
+							CONTINUE_POLICY: 'restart-current-stage-preserve-score-and-powerups',
+							BONUS_RULES: {
+								crateScore: 15,
+								enemyScore: 120,
+								stageClearScore: 350,
+								powerupScore: 50,
+								survivalScorePerSecond: 2,
+								chainBonus: 25,
+								tokenRewardTiers: [
+									{ minScore: 1500, tokens: 0.05 },
+									{ minScore: 3500, tokens: 0.15 },
+									{ minScore: 6000, tokens: 0.35 }
+								],
+								payoutMode: 'secure-backend-required'
+							}
+						}
+					})
+				}
+
 				$(window).on('hashchange', routePage)
 				$(window).on('beforeunload', stopGameBalanceSyncLoop)
+				showGamesPanel('games-blackjack')
 				if (window.location.hash) {
 					$(window).trigger('hashchange')
 				}
-
-				$('#send-tx').click(function() {
+$('#send-tx').click(function() {
 					var error = false
 					var txFee = ($('#send-fee').val() != '') ? $('#send-fee').val() : globalData.rfee
 					var total = 0
