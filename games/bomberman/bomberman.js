@@ -35,19 +35,19 @@
 	};
 
 	var ASSET_PATHS = {
-		tileFloor: 'assets/games/bomberman/floor-tile.svg',
-		tileSolid: 'assets/games/bomberman/solid-wall.svg',
-		tileCrate: 'assets/games/bomberman/breakable-crate.svg',
-		player: 'assets/games/bomberman/player.svg',
-		enemy: 'assets/games/bomberman/enemy.svg',
-		bomb: 'assets/games/bomberman/bomb.svg',
-		explosionCenter: 'assets/games/bomberman/explosion-center.svg',
-		explosionArm: 'assets/games/bomberman/explosion-arm.svg',
-		exit: 'assets/games/bomberman/exit-tile.svg',
-		powerBomb: 'assets/games/bomberman/power-bomb.svg',
-		powerFlame: 'assets/games/bomberman/power-flame.svg',
-		powerSpeed: 'assets/games/bomberman/power-speed.svg',
-		powerLife: 'assets/games/bomberman/power-life.svg'
+		tileFloor: '/assets/games/bomberman/floor-tile.svg',
+		tileSolid: '/assets/games/bomberman/solid-wall.svg',
+		tileCrate: '/assets/games/bomberman/breakable-crate.svg',
+		player: '/assets/games/bomberman/player.svg',
+		enemy: '/assets/games/bomberman/enemy.svg',
+		bomb: '/assets/games/bomberman/bomb.svg',
+		explosionCenter: '/assets/games/bomberman/explosion-center.svg',
+		explosionArm: '/assets/games/bomberman/explosion-arm.svg',
+		exit: '/assets/games/bomberman/exit-tile.svg',
+		powerBomb: '/assets/games/bomberman/power-bomb.svg',
+		powerFlame: '/assets/games/bomberman/power-flame.svg',
+		powerSpeed: '/assets/games/bomberman/power-speed.svg',
+		powerLife: '/assets/games/bomberman/power-life.svg'
 	};
 
 	var deps = {
@@ -160,6 +160,7 @@
 
 		cacheElements();
 		if (!canvas || !ctx) {
+			console.error('Bomberman init failed: canvas/context missing.');
 			return;
 		}
 
@@ -227,11 +228,26 @@
 		elements.claim.addEventListener('click', function() {
 			showStatus('Bonus payout submission needs secure server verification before token issuance.', 'info');
 		});
-		elements.touchBomb.addEventListener('click', function() {
-			if (state.status === 'running') {
-				placeBomb();
-			}
-		});
+		if (elements.touchBomb) {
+			elements.touchBomb.addEventListener('click', function(e) {
+				e.preventDefault();
+				if (state.status === 'running') {
+					placeBomb();
+				}
+			});
+			elements.touchBomb.addEventListener('touchstart', function(e) {
+				e.preventDefault();
+				if (state.status === 'running') {
+					placeBomb();
+				}
+			}, { passive: false });
+			elements.touchBomb.addEventListener('mousedown', function(e) {
+				e.preventDefault();
+				if (state.status === 'running') {
+					placeBomb();
+				}
+			});
+		}
 		bindTouchDirection(elements.touchUp, 'up');
 		bindTouchDirection(elements.touchDown, 'down');
 		bindTouchDirection(elements.touchLeft, 'left');
@@ -241,11 +257,42 @@
 	}
 
 	function bindTouchDirection(element, directionKey) {
-		element.addEventListener('touchstart', function(e) { e.preventDefault(); state.input[directionKey] = true; }, { passive: false });
-		element.addEventListener('touchend', function(e) { e.preventDefault(); state.input[directionKey] = false; }, { passive: false });
-		element.addEventListener('mousedown', function(e) { e.preventDefault(); state.input[directionKey] = true; });
-		element.addEventListener('mouseup', function(e) { e.preventDefault(); state.input[directionKey] = false; });
-		element.addEventListener('mouseleave', function() { state.input[directionKey] = false; });
+		if (!element) {
+			return;
+		}
+		element.addEventListener('touchstart', function(e) {
+			e.preventDefault();
+			queueTapMove(directionKey);
+		}, { passive: false });
+		element.addEventListener('touchend', function(e) {
+			e.preventDefault();
+			state.input[directionKey] = false;
+		}, { passive: false });
+		element.addEventListener('mousedown', function(e) {
+			e.preventDefault();
+			queueTapMove(directionKey);
+		});
+		element.addEventListener('mouseup', function(e) {
+			e.preventDefault();
+			state.input[directionKey] = false;
+		});
+		element.addEventListener('mouseleave', function() {
+			state.input[directionKey] = false;
+		});
+		element.addEventListener('click', function(e) {
+			e.preventDefault();
+			queueTapMove(directionKey);
+		});
+	}
+
+	function queueTapMove(directionKey) {
+		if (state.status !== 'running') {
+			return;
+		}
+		state.input[directionKey] = true;
+		window.setTimeout(function() {
+			state.input[directionKey] = false;
+		}, 110);
 	}
 
 	function bindAutoPause() {
@@ -294,7 +341,7 @@
 			var image = new Image();
 			assets[key] = { image: image, loaded: false };
 			image.onload = (function(assetKey) { return function() { assets[assetKey].loaded = true; }; })(key);
-			image.onerror = (function(assetKey) { return function() { assets[assetKey].loaded = false; }; })(key);
+			image.onerror = (function(assetKey) { return function() { assets[assetKey].loaded = false; console.warn('Bomberman asset failed to load:', ASSET_PATHS[assetKey]); }; })(key);
 			image.src = ASSET_PATHS[key];
 		}
 	}
@@ -766,11 +813,11 @@
 			return;
 		}
 		refreshWalletBalance();
-		if (state.walletBalance < economy.ENTRY_COST) {
-			showStatus('Not enough balance for entry. Need ' + economy.ENTRY_COST + ' ' + deps.getTicker() + '.', 'error');
+		if (state.gameBalance < economy.ENTRY_COST) {
+			showStatus('Not enough game balance for entry. Need ' + economy.ENTRY_COST + ' ' + deps.getTicker() + '.', 'error');
 			return;
 		}
-		openSpendModal({ type: 'entry', cost: economy.ENTRY_COST, title: 'Start Bomberman Run', description: 'Starting a run spends ' + economy.ENTRY_COST + ' ' + deps.getTicker() + '. Continue charges are separate and always require a new confirmation.' });
+		openSpendModal({ type: 'entry', cost: economy.ENTRY_COST, title: 'Start Bomberman Run', description: 'Starting a run spends ' + economy.ENTRY_COST + ' ' + deps.getTicker() + ' from your Bomberman game balance. Continue charges are separate and always require a new confirmation.' });
 	}
 
 	function requestContinueSpend() {
@@ -779,8 +826,8 @@
 			return;
 		}
 		refreshWalletBalance();
-		if (state.walletBalance < economy.CONTINUE_COST) {
-			showStatus('Not enough balance to continue. Need ' + economy.CONTINUE_COST + ' ' + deps.getTicker() + '.', 'error');
+		if (state.gameBalance < economy.CONTINUE_COST) {
+			showStatus('Not enough game balance to continue. Need ' + economy.CONTINUE_COST + ' ' + deps.getTicker() + '.', 'error');
 			return;
 		}
 		openSpendModal({ type: 'continue', cost: economy.CONTINUE_COST, title: 'Continue Run', description: 'Continue policy: ' + economy.CONTINUE_POLICY + '. This restarts the current stage with preserved score/powerups.' });
@@ -797,9 +844,8 @@
 		elements.spendError.textContent = '';
 		elements.spendConfirm.disabled = false;
 		elements.spendCancel.disabled = false;
-		var projectedWalletBalance = Math.max(0, state.walletBalance - context.cost);
 		var projectedGameBalance = Math.max(0, state.gameBalance - context.cost);
-		elements.spendCopy.innerHTML = '<b>' + context.title + '</b><br>' + context.description + '<br><br>Wallet balance: ' + deps.formatAmount(state.walletBalance) + ' ' + deps.getTicker() + '<br>Game balance: ' + deps.formatAmount(state.gameBalance) + ' ' + deps.getTicker() + '<br>After spend (wallet): ' + deps.formatAmount(projectedWalletBalance) + ' ' + deps.getTicker() + '<br>After spend (game): ' + deps.formatAmount(projectedGameBalance) + ' ' + deps.getTicker() + '<br>Spend now?';
+		elements.spendCopy.innerHTML = '<b>' + context.title + '</b><br>' + context.description + '<br><br>Wallet balance (real): ' + deps.formatAmount(state.walletBalance) + ' ' + deps.getTicker() + '<br>Game balance: ' + deps.formatAmount(state.gameBalance) + ' ' + deps.getTicker() + '<br>After spend (game): ' + deps.formatAmount(projectedGameBalance) + ' ' + deps.getTicker() + '<br>Spend now?';
 		elements.spendModal.classList.remove('d-none');
 	}
 
@@ -817,28 +863,28 @@
 		if (!state.pendingSpendContext || state.spendPending) {
 			return;
 		}
+		var spendContext = deepClone(state.pendingSpendContext);
 		state.spendPending = true;
 		elements.spendConfirm.disabled = true;
 		elements.spendCancel.disabled = true;
-		showStatus('Applying local ' + state.pendingSpendContext.type + ' spend...', 'info');
+		showStatus('Applying local ' + spendContext.type + ' spend...', 'info');
 
-		if (state.walletBalance < state.pendingSpendContext.cost || state.gameBalance < state.pendingSpendContext.cost) {
+		if (state.gameBalance < spendContext.cost) {
 			state.spendPending = false;
 			elements.spendConfirm.disabled = false;
 			elements.spendCancel.disabled = false;
 			elements.spendError.classList.remove('d-none');
-			elements.spendError.textContent = 'Insufficient in-memory balance for this spend.';
+			elements.spendError.textContent = 'Insufficient in-memory game balance for this spend.';
 			showStatus('Spend failed. No run state changed.', 'error');
 			return;
 		}
 
-		state.walletBalance = roundToGameAmount(state.walletBalance - state.pendingSpendContext.cost);
-		state.gameBalance = roundToGameAmount(state.gameBalance - state.pendingSpendContext.cost);
+		state.gameBalance = roundToGameAmount(state.gameBalance - spendContext.cost);
 		state.spendPending = false;
-		showStatus('Local spend applied: -' + deps.formatAmount(state.pendingSpendContext.cost) + ' ' + deps.getTicker() + '.', 'success');
+		showStatus('Local spend applied: -' + deps.formatAmount(spendContext.cost) + ' ' + deps.getTicker() + ' from game balance.', 'success');
 		closeSpendModal();
-		if (state.pendingSpendContext && state.pendingSpendContext.type === 'entry') { startRunAfterEntry(); }
-		if (state.pendingSpendContext && state.pendingSpendContext.type === 'continue') { resumeFromContinue(); }
+		if (spendContext.type === 'entry') { startRunAfterEntry(); }
+		if (spendContext.type === 'continue') { resumeFromContinue(); }
 		state.pendingSpendContext = null;
 	}
 
@@ -859,7 +905,7 @@
 		state.status = 'running';
 		startStage(state.stage);
 		playSfx('resume');
-		showStageMessage('Run started. Entry cost deducted from in-memory wallet balance.');
+		showStageMessage('Run started. Bomberman game balance charged.');
 	}
 
 	function resumeFromContinue() {
@@ -869,7 +915,7 @@
 		state.status = 'running';
 		restartCurrentStage();
 		playSfx('resume');
-		showStageMessage('Continue accepted. In-memory wallet balance updated.');
+		showStageMessage('Continue accepted. Bomberman game balance charged.');
 	}
 
 	function openGameOverModal() {
@@ -982,14 +1028,21 @@
 		if (!isFinite(value) || value < 0) {
 			value = 0;
 		}
+		state.walletBalance = value;
 		if (!state.gameBalanceInitialized) {
-			state.walletBalance = value;
 			state.gameBalance = value;
 			state.gameBalanceInitialized = true;
+			return;
+		}
+		if (state.status === 'idle' && state.runId === 0 && state.continuesUsed === 0 && state.score === 0) {
+			state.gameBalance = value;
 		}
 	}
 
 	function onPanelVisibilityChange(contentName) {
+		if (!state.initialized) {
+			return;
+		}
 		state.panelVisible = contentName === 'games-bomberman';
 		if (!state.panelVisible && state.status === 'running') {
 			pauseRun('Paused automatically because you switched away from Bomberman.', true);
@@ -997,10 +1050,16 @@
 	}
 
 	function resetSession() {
+		if (!state.initialized) {
+			state = createInitialState();
+			return;
+		}
 		exitRunToIdle();
 		state.walletBalance = 0;
 		state.gameBalance = 0;
 		state.gameBalanceInitialized = false;
+		state.runId = 0;
+		state.score = 0;
 	}
 
 	function roundToGameAmount(value) {

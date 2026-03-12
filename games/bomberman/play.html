@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>SugarChain Bomberman</title>
+	<link rel="stylesheet" href="bomberman.css">
+	<style>
+		body {
+			margin: 0;
+			font-family: "Segoe UI", Tahoma, sans-serif;
+			background: linear-gradient(180deg, #0d1f14 0%, #132b1b 100%);
+			color: #ecffee;
+		}
+		.page {
+			max-width: 980px;
+			margin: 0 auto;
+			padding: 14px;
+		}
+		.page-header {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			gap: 10px;
+			margin-bottom: 12px;
+		}
+		.page-title {
+			font-size: 28px;
+			font-weight: 800;
+		}
+		.page-copy {
+			margin-top: 2px;
+			font-size: 14px;
+			color: #c6e5cc;
+		}
+		.page-link {
+			display: inline-block;
+			padding: 10px 14px;
+			border-radius: 10px;
+			border: 1px solid #7eb489;
+			background: #22432b;
+			color: #ecffee;
+			text-decoration: none;
+			font-weight: 700;
+		}
+		.page-link:hover {
+			color: #ffffff;
+			background: #2b5637;
+			text-decoration: none;
+		}
+		.bomberman-btn {
+			border: 0;
+			border-radius: 10px;
+			padding: 10px 12px;
+			cursor: pointer;
+		}
+		.btn-success { background: #2d9f4c; color: #ffffff; }
+		.btn-outline-dark { background: #e8f2ea; color: #1b2e1f; border: 1px solid #c5d6c9; }
+		.btn-outline-primary { background: #eef4ff; color: #26478f; border: 1px solid #bfcbf0; }
+		.btn-outline-danger { background: #ffeef0; color: #8e2535; border: 1px solid #eabdc4; }
+		.btn-warning { background: #f8c84f; color: #2c2000; }
+		.btn-outline-secondary { background: #eff3ef; color: #2a3b2e; border: 1px solid #ccd6ce; }
+	</style>
+</head>
+<body>
+	<div class="page">
+		<div class="page-header">
+			<div>
+				<div class="page-title">Bomberman</div>
+				<div class="page-copy">Dedicated game tab. Wallet balance is real wallet data. Game balance starts equal at session start.</div>
+			</div>
+			<a class="page-link" href="/index.html#/" target="_self">Back To Wallet</a>
+		</div>
+
+		<div id="bomberman-root" class="bomberman-shell">
+			<div class="bomberman-top-grid">
+				<div class="bomberman-stat-card">
+					<div class="label">Wallet Balance</div>
+					<div id="bomberman-wallet-balance" class="value">0.00000000 SUGAR</div>
+				</div>
+				<div class="bomberman-stat-card">
+					<div class="label">Game Balance</div>
+					<div id="bomberman-game-balance" class="value">0.00000000 SUGAR</div>
+				</div>
+				<div class="bomberman-stat-card">
+					<div class="label">Run State</div>
+					<div id="bomberman-session-state" class="value">Idle</div>
+				</div>
+				<div class="bomberman-stat-card">
+					<div class="label">Continues Left</div>
+					<div id="bomberman-continues-left" class="value">0</div>
+				</div>
+			</div>
+
+			<div class="bomberman-action-row">
+				<button id="bomberman-play-btn" type="button" class="btn-success bomberman-btn">Play (1 SUGAR)</button>
+				<button id="bomberman-pause-btn" type="button" class="btn-outline-dark bomberman-btn" disabled>Pause</button>
+				<button id="bomberman-resume-btn" type="button" class="btn-outline-primary bomberman-btn" disabled>Resume</button>
+				<button id="bomberman-exit-run-btn" type="button" class="btn-outline-danger bomberman-btn" disabled>Exit Run</button>
+			</div>
+
+			<div id="bomberman-spend-status" class="bomberman-inline-status d-none"></div>
+
+			<div class="bomberman-hud-grid">
+				<div class="bomberman-hud-item">Lives: <span id="bomberman-hud-lives">0</span></div>
+				<div class="bomberman-hud-item">Score: <span id="bomberman-hud-score">0</span></div>
+				<div class="bomberman-hud-item">Stage: <span id="bomberman-hud-stage">1</span></div>
+				<div class="bomberman-hud-item">State: <span id="bomberman-hud-state">Idle</span></div>
+				<div class="bomberman-hud-item bomberman-hud-powerups">Power-ups: <span id="bomberman-hud-powerups">None</span></div>
+			</div>
+
+			<div class="bomberman-board-wrap">
+				<canvas id="bomberman-canvas" width="416" height="352" aria-label="Bomberman game board"></canvas>
+				<div id="bomberman-paused-overlay" class="bomberman-overlay d-none">
+					<div class="title">Paused</div>
+					<div id="bomberman-pause-reason" class="body">Tap Resume to continue.</div>
+				</div>
+				<div id="bomberman-stage-message" class="bomberman-stage-toast d-none"></div>
+			</div>
+
+			<div class="bomberman-touch-controls">
+				<div class="bomberman-touch-dpad">
+					<button id="bomberman-touch-up" type="button" class="btn-outline-secondary bomberman-touch-btn">Up</button>
+					<div class="bomberman-touch-row">
+						<button id="bomberman-touch-left" type="button" class="btn-outline-secondary bomberman-touch-btn">Left</button>
+						<button id="bomberman-touch-right" type="button" class="btn-outline-secondary bomberman-touch-btn">Right</button>
+					</div>
+					<button id="bomberman-touch-down" type="button" class="btn-outline-secondary bomberman-touch-btn">Down</button>
+				</div>
+				<div class="bomberman-touch-actions">
+					<button id="bomberman-touch-bomb" type="button" class="btn-warning bomberman-touch-btn action">Bomb</button>
+				</div>
+			</div>
+
+			<div id="bomberman-reward-summary" class="bomberman-reward-summary">
+				No active run yet. Bonus payouts remain pending secure server verification.
+			</div>
+			<button id="bomberman-claim-btn" type="button" class="btn-outline-dark bomberman-btn" disabled>Claim Bonus Rewards (Secure Backend Required)</button>
+
+			<div id="bomberman-spend-modal" class="bomberman-modal d-none" role="dialog" aria-modal="true" aria-hidden="true">
+				<div class="bomberman-modal-card">
+					<div class="bomberman-modal-title">Confirm Spend</div>
+					<div id="bomberman-spend-copy" class="bomberman-modal-copy"></div>
+					<div id="bomberman-spend-error" class="bomberman-modal-error d-none"></div>
+					<div class="bomberman-modal-actions">
+						<button id="bomberman-spend-cancel" type="button" class="btn-outline-dark bomberman-btn">Cancel</button>
+						<button id="bomberman-spend-confirm" type="button" class="btn-outline-primary bomberman-btn">Confirm Spend</button>
+					</div>
+				</div>
+			</div>
+
+			<div id="bomberman-gameover-modal" class="bomberman-modal d-none" role="dialog" aria-modal="true" aria-hidden="true">
+				<div class="bomberman-modal-card">
+					<div class="bomberman-modal-title">Game Over</div>
+					<div id="bomberman-gameover-copy" class="bomberman-modal-copy">You lost all lives.</div>
+					<div class="bomberman-modal-actions">
+						<button id="bomberman-continue-btn" type="button" class="btn-warning bomberman-btn">Continue (1 SUGAR)</button>
+						<button id="bomberman-exit-btn" type="button" class="btn-outline-danger bomberman-btn">Exit To Games</button>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<script src="bomberman.js"></script>
+	<script src="play.js"></script>
+</body>
+</html>

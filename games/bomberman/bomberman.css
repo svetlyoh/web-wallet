@@ -311,3 +311,73 @@
 		grid-template-columns: 1fr;
 	}
 }
+
+
+.d-none {
+	display: none !important;
+}
+
+.bomberman-launch-panel {
+	margin-top: 12px;
+	background: #ffffff;
+	border: 1px solid #d5e6d5;
+	border-radius: 12px;
+	padding: 12px;
+}
+
+.bomberman-launch-title {
+	font-size: 20px;
+	font-weight: 800;
+	color: #1a3d24;
+}
+
+.bomberman-launch-copy {
+	margin-top: 6px;
+	font-size: 14px;
+	color: #3f5847;
+}
+
+.bomberman-launch-balances {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 8px;
+	margin-top: 10px;
+}
+
+.bomberman-launch-balance-item {
+	background: #f5faf5;
+	border: 1px solid #d8e8d8;
+	border-radius: 10px;
+	padding: 10px;
+}
+
+.bomberman-launch-balance-item .label {
+	font-size: 11px;
+	text-transform: uppercase;
+	color: #607260;
+	font-weight: 700;
+}
+
+.bomberman-launch-balance-item .value {
+	margin-top: 6px;
+	font-size: 16px;
+	font-weight: 800;
+	color: #17331f;
+}
+
+.bomberman-launch-actions {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 8px;
+	margin-top: 10px;
+}
+
+@media (max-width: 767.98px) {
+	.bomberman-launch-balances {
+		grid-template-columns: 1fr;
+	}
+
+	.bomberman-launch-actions {
+		grid-template-columns: 1fr;
+	}
+}

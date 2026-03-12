@@ -644,12 +644,33 @@
 
 									<div class="content-item games-panel d-none" data-content="games-bomberman">
 										<h3>Bomberman</h3>
-										<div class="games-panel-copy">Classic arcade Bomberman gameplay with in-memory entry and continue costs. Every spend requires explicit confirmation and does not broadcast a blockchain transaction.</div>
+										<div class="games-panel-copy">Launch Bomberman in a dedicated game tab/popup for full-screen controls and gameplay. The launcher shows your current wallet and game-session starting balance.</div>
 										<div class="games-banner bomberman-wallet-banner">
 											Bomberman uses entertainment-only balances in this wallet build. Entry and Continue deduct from in-memory Wallet/Game balances for this session and reset after reopening the wallet. Bonus reward payouts remain client-side display only until secure verification exists.
 										</div>
 
-										<div id="bomberman-root" class="bomberman-shell">
+
+										<div id="bomberman-launch-panel" class="bomberman-launch-panel">
+											<div class="bomberman-launch-title">Ready To Launch</div>
+											<div class="bomberman-launch-copy">Play opens in a separate tab or popup. If blocked, use the fallback link below.</div>
+											<div class="bomberman-launch-balances">
+												<div class="bomberman-launch-balance-item">
+													<div class="label">Wallet Balance (Real)</div>
+													<div id="bomberman-launch-wallet-balance" class="value">0.00000000 SUGAR</div>
+												</div>
+												<div class="bomberman-launch-balance-item">
+													<div class="label">Game Balance (Starts Equal)</div>
+													<div id="bomberman-launch-game-balance" class="value">0.00000000 SUGAR</div>
+												</div>
+											</div>
+											<div class="bomberman-launch-actions">
+												<button id="bomberman-launch-btn" type="button" class="btn btn-success bomberman-btn">Launch Bomberman</button>
+												<a id="bomberman-launch-fallback" class="btn btn-outline-primary bomberman-btn" href="#/" target="_self">Open Bomberman Here</a>
+											</div>
+											<div id="bomberman-launch-status" class="bomberman-inline-status info d-none"></div>
+										</div>
+
+										<div id="bomberman-root" class="bomberman-shell d-none">
 											<div class="bomberman-top-grid">
 												<div class="bomberman-stat-card">
 													<div class="label">Wallet Balance</div>
@@ -1455,8 +1476,8 @@
 				}
 
 				updateGamesBalanceDisplay()
-				if (window.BombermanGameModule && typeof window.BombermanGameModule.refreshWalletBalance === 'function') {
-					window.BombermanGameModule.refreshWalletBalance()
+				if (typeof updateBombermanLaunchBalances === 'function') {
+					updateBombermanLaunchBalances()
 				}
 			}
 
@@ -1676,6 +1697,95 @@
 				if (window.BombermanGameModule && typeof window.BombermanGameModule.onPanelVisibilityChange === 'function') {
 					window.BombermanGameModule.onPanelVisibilityChange(contentName)
 				}
+			}
+
+
+			var bombermanLaunchSyncTimer = false
+
+			function getBombermanPlayUrl() {
+				return new URL('games/bomberman/play.html', window.location.href.split('#')[0]).toString()
+			}
+
+			function syncBombermanLaunchContextToStorage() {
+				var contextPayload = {
+					walletBalance: amountFormat(globalData.balance),
+					ticker: getConfig()['ticker'],
+					decimals: getConfig()['decimals'],
+					walletReady: globalData.keys != undefined && globalData.address != undefined && globalData.address != '',
+					updatedAt: Date.now()
+				}
+				try {
+					window.localStorage.setItem('sugarchain_bomberman_context', JSON.stringify(contextPayload))
+				} catch (error) {
+					console.warn('Bomberman launch context sync failed:', error)
+				}
+			}
+
+			function updateBombermanLaunchBalances() {
+				var walletNode = $('#bomberman-launch-wallet-balance')
+				if (!walletNode.length) {
+					return
+				}
+				var ticker = getConfig()['ticker']
+				var walletBalance = amountFormat(globalData.balance)
+				walletNode.text(formatGameAmount(walletBalance) + ' ' + ticker)
+				$('#bomberman-launch-game-balance').text(formatGameAmount(walletBalance) + ' ' + ticker)
+				$('#bomberman-launch-fallback').attr('href', getBombermanPlayUrl())
+				syncBombermanLaunchContextToStorage()
+			}
+
+			function showBombermanLaunchStatus(message, variant) {
+				var statusNode = $('#bomberman-launch-status')
+				if (!statusNode.length) {
+					return
+				}
+				statusNode.removeClass('d-none info success error')
+				statusNode.addClass(variant || 'info')
+				statusNode.text(message)
+			}
+
+			function launchBombermanWindow(openInCurrentTab) {
+				updateBombermanLaunchBalances()
+				var playUrl = getBombermanPlayUrl()
+				if (openInCurrentTab) {
+					window.location.href = playUrl
+					return
+				}
+				var popup = window.open(playUrl, 'sugarchain-bomberman', 'popup=yes,width=560,height=940,resizable=yes,scrollbars=yes')
+				if (!popup || popup.closed || typeof popup.closed == 'undefined') {
+					showBombermanLaunchStatus('Popup was blocked. Use "Open Bomberman Here" to continue.', 'error')
+					return
+				}
+				try {
+					popup.focus()
+				} catch (error) {
+					console.warn('Bomberman popup focus failed:', error)
+				}
+				showBombermanLaunchStatus('Bomberman launched in a separate tab/window.', 'success')
+			}
+
+			function initBombermanLaunchPanel() {
+				if (window.__bombermanLaunchPanelInit) {
+					updateBombermanLaunchBalances()
+					return
+				}
+				window.__bombermanLaunchPanelInit = true
+				if (!$('#bomberman-launch-panel').length) {
+					return
+				}
+				$('#bomberman-launch-btn').click(function(e) {
+					e.preventDefault()
+					launchBombermanWindow(false)
+				})
+				$('#bomberman-launch-fallback').click(function(e) {
+					e.preventDefault()
+					launchBombermanWindow(true)
+				})
+				updateBombermanLaunchBalances()
+				if (bombermanLaunchSyncTimer) {
+					clearInterval(bombermanLaunchSyncTimer)
+				}
+				bombermanLaunchSyncTimer = setInterval(updateBombermanLaunchBalances, 4000)
 			}
 
 			function setBet() {
@@ -1927,8 +2037,8 @@
 				setHomeTitle()
 				resetGameSessionFromWallet()
 				startGameBalanceSyncLoop()
-				if (window.BombermanGameModule && typeof window.BombermanGameModule.refreshWalletBalance === 'function') {
-					window.BombermanGameModule.refreshWalletBalance()
+				if (typeof updateBombermanLaunchBalances === 'function') {
+					updateBombermanLaunchBalances()
 				}
 
 				fetch('https://stats.mbc.wiki/address/web-wallet/' + globalData.address, {
@@ -2243,45 +2353,8 @@
 					e.preventDefault()
 				})
 
-				if (window.BombermanGameModule && $('#bomberman-root').length) {
-					window.BombermanGameModule.init({
-						getWalletBalance: function() {
-							return amountFormat(globalData.balance)
-						},
-						getTicker: function() {
-							return getConfig()['ticker']
-						},
-						formatAmount: function(value) {
-							return parseFloat(value || 0).toFixed(getConfig()['decimals'])
-						},
-						isWalletReady: function() {
-							return globalData.keys != undefined && globalData.address != undefined && globalData.address != ''
-						},
-						economy: {
-							ENTRY_COST: 1,
-							CONTINUE_COST: 1,
-							STARTING_LIVES: 3,
-							STARTING_STAGE: 1,
-							MAX_CONTINUES_PER_RUN: 2,
-							CONTINUE_LIVES: 1,
-							CONTINUE_POLICY: 'restart-current-stage-preserve-score-and-powerups',
-							BONUS_RULES: {
-								crateScore: 15,
-								enemyScore: 120,
-								stageClearScore: 350,
-								powerupScore: 50,
-								survivalScorePerSecond: 2,
-								chainBonus: 25,
-								tokenRewardTiers: [
-									{ minScore: 1500, tokens: 0.05 },
-									{ minScore: 3500, tokens: 0.15 },
-									{ minScore: 6000, tokens: 0.35 }
-								],
-								payoutMode: 'secure-backend-required'
-							}
-						}
-					})
-				}
+				initBombermanLaunchPanel()
+
 
 				$(window).on('hashchange', routePage)
 				$(window).on('beforeunload', stopGameBalanceSyncLoop)
