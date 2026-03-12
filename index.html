@@ -644,9 +644,9 @@
 
 									<div class="content-item games-panel d-none" data-content="games-bomberman">
 										<h3>Bomberman</h3>
-										<div class="games-panel-copy">Classic arcade Bomberman gameplay with a real-token entry and continue flow. Every spend requires explicit confirmation before any transaction is sent.</div>
+										<div class="games-panel-copy">Classic arcade Bomberman gameplay with in-memory entry and continue costs. Every spend requires explicit confirmation and does not broadcast a blockchain transaction.</div>
 										<div class="games-banner bomberman-wallet-banner">
-											Bomberman is a game-specific wallet integration exception. Entry and Continue use real <b>SUGAR</b> wallet spends. Bonus reward payouts are calculated client-side for display and must be verified by a secure backend before any production token payout.
+											Bomberman uses entertainment-only balances in this wallet build. Entry and Continue deduct from in-memory Wallet/Game balances for this session and reset after reopening the wallet. Bonus reward payouts remain client-side display only until secure verification exists.
 										</div>
 
 										<div id="bomberman-root" class="bomberman-shell">
@@ -654,6 +654,10 @@
 												<div class="bomberman-stat-card">
 													<div class="label">Wallet Balance</div>
 													<div id="bomberman-wallet-balance" class="value">0.00000000 SUGAR</div>
+												</div>
+												<div class="bomberman-stat-card">
+													<div class="label">Game Balance</div>
+													<div id="bomberman-game-balance" class="value">0.00000000 SUGAR</div>
 												</div>
 												<div class="bomberman-stat-card">
 													<div class="label">Run State</div>
@@ -2252,10 +2256,6 @@
 						},
 						isWalletReady: function() {
 							return globalData.keys != undefined && globalData.address != undefined && globalData.address != ''
-						},
-						requestSpend: requestBombermanSpend,
-						refreshWalletBalance: function() {
-							walletBalance()
 						},
 						economy: {
 							ENTRY_COST: 1,

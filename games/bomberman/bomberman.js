@@ -54,8 +54,6 @@
 		getWalletBalance: function() { return 0; },
 		getTicker: function() { return 'SUGAR'; },
 		formatAmount: function(value) { return value.toFixed(8); },
-		requestSpend: function() { return Promise.reject(new Error('Wallet spend bridge not configured.')); },
-		refreshWalletBalance: function() {},
 		isWalletReady: function() { return false; }
 	};
 
@@ -101,6 +99,8 @@
 			initialized: false,
 			status: 'idle',
 			walletBalance: 0,
+			gameBalance: 0,
+			gameBalanceInitialized: false,
 			score: 0,
 			stage: 1,
 			lives: 3,
@@ -179,6 +179,7 @@
 	function cacheElements() {
 		elements.root = document.getElementById('bomberman-root');
 		elements.walletBalance = document.getElementById('bomberman-wallet-balance');
+		elements.gameBalance = document.getElementById('bomberman-game-balance');
 		elements.sessionState = document.getElementById('bomberman-session-state');
 		elements.continuesLeft = document.getElementById('bomberman-continues-left');
 		elements.play = document.getElementById('bomberman-play-btn');
@@ -727,6 +728,7 @@
 
 	function renderHud() {
 		elements.walletBalance.textContent = deps.formatAmount(state.walletBalance) + ' ' + deps.getTicker();
+		elements.gameBalance.textContent = deps.formatAmount(state.gameBalance) + ' ' + deps.getTicker();
 		elements.sessionState.textContent = readableStateLabel(state.status);
 		elements.continuesLeft.textContent = String(Math.max(0, economy.MAX_CONTINUES_PER_RUN - state.continuesUsed));
 		elements.hudLives.textContent = String(state.lives);
@@ -776,6 +778,7 @@
 			showStatus('No continues left for this run.', 'error');
 			return;
 		}
+		refreshWalletBalance();
 		if (state.walletBalance < economy.CONTINUE_COST) {
 			showStatus('Not enough balance to continue. Need ' + economy.CONTINUE_COST + ' ' + deps.getTicker() + '.', 'error');
 			return;
@@ -794,8 +797,9 @@
 		elements.spendError.textContent = '';
 		elements.spendConfirm.disabled = false;
 		elements.spendCancel.disabled = false;
-		var projectedBalance = Math.max(0, state.walletBalance - context.cost);
-		elements.spendCopy.innerHTML = '<b>' + context.title + '</b><br>' + context.description + '<br><br>Wallet balance: ' + deps.formatAmount(state.walletBalance) + ' ' + deps.getTicker() + '<br>After spend: ' + deps.formatAmount(projectedBalance) + ' ' + deps.getTicker() + '<br>Spend now?';
+		var projectedWalletBalance = Math.max(0, state.walletBalance - context.cost);
+		var projectedGameBalance = Math.max(0, state.gameBalance - context.cost);
+		elements.spendCopy.innerHTML = '<b>' + context.title + '</b><br>' + context.description + '<br><br>Wallet balance: ' + deps.formatAmount(state.walletBalance) + ' ' + deps.getTicker() + '<br>Game balance: ' + deps.formatAmount(state.gameBalance) + ' ' + deps.getTicker() + '<br>After spend (wallet): ' + deps.formatAmount(projectedWalletBalance) + ' ' + deps.getTicker() + '<br>After spend (game): ' + deps.formatAmount(projectedGameBalance) + ' ' + deps.getTicker() + '<br>Spend now?';
 		elements.spendModal.classList.remove('d-none');
 	}
 
@@ -807,8 +811,8 @@
 		elements.spendModal.classList.add('d-none');
 	}
 
-	// Security boundary: this client only requests wallet-confirmed spends.
-	// Token-denominated bonus payouts are intentionally not issued client-side.
+	// Entertainment-only balance flow: entry/continue spends are local session deductions.
+	// This does not submit blockchain transactions and resets when wallet session resets.
 	function confirmSpend() {
 		if (!state.pendingSpendContext || state.spendPending) {
 			return;
@@ -816,27 +820,29 @@
 		state.spendPending = true;
 		elements.spendConfirm.disabled = true;
 		elements.spendCancel.disabled = true;
-		showStatus('Submitting wallet transaction for ' + state.pendingSpendContext.type + '...', 'info');
-		deps.requestSpend(state.pendingSpendContext.cost, { action: state.pendingSpendContext.type, stage: state.stage, runId: state.runId, score: Math.floor(state.score) }).then(function(result) {
-			state.spendPending = false;
-			showStatus('Transaction sent: ' + result.txid, 'success');
-			closeSpendModal();
-			deps.refreshWalletBalance();
-			refreshWalletBalance();
-			if (state.pendingSpendContext && state.pendingSpendContext.type === 'entry') { startRunAfterEntry(result.txid); }
-			if (state.pendingSpendContext && state.pendingSpendContext.type === 'continue') { resumeFromContinue(result.txid); }
-			state.pendingSpendContext = null;
-		}).catch(function(error) {
+		showStatus('Applying local ' + state.pendingSpendContext.type + ' spend...', 'info');
+
+		if (state.walletBalance < state.pendingSpendContext.cost || state.gameBalance < state.pendingSpendContext.cost) {
 			state.spendPending = false;
 			elements.spendConfirm.disabled = false;
 			elements.spendCancel.disabled = false;
 			elements.spendError.classList.remove('d-none');
-			elements.spendError.textContent = error.message ? error.message : String(error);
+			elements.spendError.textContent = 'Insufficient in-memory balance for this spend.';
 			showStatus('Spend failed. No run state changed.', 'error');
-		});
+			return;
+		}
+
+		state.walletBalance = roundToGameAmount(state.walletBalance - state.pendingSpendContext.cost);
+		state.gameBalance = roundToGameAmount(state.gameBalance - state.pendingSpendContext.cost);
+		state.spendPending = false;
+		showStatus('Local spend applied: -' + deps.formatAmount(state.pendingSpendContext.cost) + ' ' + deps.getTicker() + '.', 'success');
+		closeSpendModal();
+		if (state.pendingSpendContext && state.pendingSpendContext.type === 'entry') { startRunAfterEntry(); }
+		if (state.pendingSpendContext && state.pendingSpendContext.type === 'continue') { resumeFromContinue(); }
+		state.pendingSpendContext = null;
 	}
 
-	function startRunAfterEntry(txid) {
+	function startRunAfterEntry() {
 		state.runId += 1;
 		state.score = 0;
 		state.stage = economy.STARTING_STAGE;
@@ -853,17 +859,17 @@
 		state.status = 'running';
 		startStage(state.stage);
 		playSfx('resume');
-		showStageMessage('Run started. Entry tx: ' + txid);
+		showStageMessage('Run started. Entry cost deducted from in-memory wallet balance.');
 	}
 
-	function resumeFromContinue(txid) {
+	function resumeFromContinue() {
 		state.continuesUsed += 1;
 		state.lives = economy.CONTINUE_LIVES;
 		hideGameOverModal();
 		state.status = 'running';
 		restartCurrentStage();
 		playSfx('resume');
-		showStageMessage('Continue accepted. Tx: ' + txid);
+		showStageMessage('Continue accepted. In-memory wallet balance updated.');
 	}
 
 	function openGameOverModal() {
@@ -976,7 +982,11 @@
 		if (!isFinite(value) || value < 0) {
 			value = 0;
 		}
-		state.walletBalance = value;
+		if (!state.gameBalanceInitialized) {
+			state.walletBalance = value;
+			state.gameBalance = value;
+			state.gameBalanceInitialized = true;
+		}
 	}
 
 	function onPanelVisibilityChange(contentName) {
@@ -989,6 +999,12 @@
 	function resetSession() {
 		exitRunToIdle();
 		state.walletBalance = 0;
+		state.gameBalance = 0;
+		state.gameBalanceInitialized = false;
+	}
+
+	function roundToGameAmount(value) {
+		return Math.round(Number(value) * 100000000) / 100000000;
 	}
 
 	function playSfx(kind) {
@@ -1037,3 +1053,5 @@
 		getEconomyConfig: function() { return deepClone(economy); }
 	};
 })(window);
+
+
