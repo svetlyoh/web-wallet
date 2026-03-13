@@ -381,3 +381,12 @@
 		grid-template-columns: 1fr;
 	}
 }
+
+
+#bomberman-gameover-modal {
+	z-index: 20;
+}
+
+#bomberman-spend-modal {
+	z-index: 30;
+}

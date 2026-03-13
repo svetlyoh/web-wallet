@@ -108,6 +108,7 @@
 			autoPaused: false,
 			spendPending: false,
 			pendingSpendContext: null,
+			continueFlowState: 'idle',
 			runId: 0,
 			survivalSeconds: 0,
 			rewardEvents: [],
@@ -221,7 +222,7 @@
 		elements.pause.addEventListener('click', function() { pauseRun('Paused by player.', false); });
 		elements.resume.addEventListener('click', resumeRun);
 		elements.exitRun.addEventListener('click', exitRunToIdle);
-		elements.spendCancel.addEventListener('click', closeSpendModal);
+		elements.spendCancel.addEventListener('click', handleSpendCancel);
 		elements.spendConfirm.addEventListener('click', confirmSpend);
 		elements.continueBtn.addEventListener('click', requestContinueSpend);
 		elements.exitBtn.addEventListener('click', function() { hideGameOverModal(); exitRunToIdle(); });
@@ -830,7 +831,10 @@
 			showStatus('Not enough game balance to continue. Need ' + economy.CONTINUE_COST + ' ' + deps.getTicker() + '.', 'error');
 			return;
 		}
+		state.continueFlowState = 'pendingContinueApproval';
+		hideGameOverModal();
 		openSpendModal({ type: 'continue', cost: economy.CONTINUE_COST, title: 'Continue Run', description: 'Continue policy: ' + economy.CONTINUE_POLICY + '. This restarts the current stage with preserved score/powerups.' });
+		showStatus('Continue pending approval...', 'info');
 	}
 
 	function canContinue() {
@@ -838,6 +842,9 @@
 	}
 
 	function openSpendModal(context) {
+		if (context && context.type === 'continue') {
+			hideGameOverModal();
+		}
 		state.pendingSpendContext = context;
 		state.spendPending = false;
 		elements.spendError.classList.add('d-none');
@@ -857,6 +864,19 @@
 		elements.spendModal.classList.add('d-none');
 	}
 
+	function handleSpendCancel() {
+		if (state.spendPending) {
+			return;
+		}
+		var wasContinue = state.pendingSpendContext && state.pendingSpendContext.type === 'continue';
+		closeSpendModal();
+		if (wasContinue) {
+			state.continueFlowState = 'continueRejected';
+			openGameOverModal('Continue cancelled.');
+			showStatus('Continue cancelled.', 'info');
+		}
+	}
+
 	// Entertainment-only balance flow: entry/continue spends are local session deductions.
 	// This does not submit blockchain transactions and resets when wallet session resets.
 	function confirmSpend() {
@@ -873,6 +893,13 @@
 			state.spendPending = false;
 			elements.spendConfirm.disabled = false;
 			elements.spendCancel.disabled = false;
+			if (spendContext.type === 'continue') {
+				closeSpendModal();
+				state.continueFlowState = 'continueRejected';
+				openGameOverModal('Continue failed: insufficient game balance.');
+				showStatus('Continue failed: insufficient game balance.', 'error');
+				return;
+			}
 			elements.spendError.classList.remove('d-none');
 			elements.spendError.textContent = 'Insufficient in-memory game balance for this spend.';
 			showStatus('Spend failed. No run state changed.', 'error');
@@ -884,11 +911,15 @@
 		showStatus('Local spend applied: -' + deps.formatAmount(spendContext.cost) + ' ' + deps.getTicker() + ' from game balance.', 'success');
 		closeSpendModal();
 		if (spendContext.type === 'entry') { startRunAfterEntry(); }
-		if (spendContext.type === 'continue') { resumeFromContinue(); }
+		if (spendContext.type === 'continue') {
+			state.continueFlowState = 'continueApproved';
+			resumeFromContinue();
+		}
 		state.pendingSpendContext = null;
 	}
 
 	function startRunAfterEntry() {
+		state.continueFlowState = 'resumedPlaying';
 		state.runId += 1;
 		state.score = 0;
 		state.stage = economy.STARTING_STAGE;
@@ -909,6 +940,7 @@
 	}
 
 	function resumeFromContinue() {
+		state.continueFlowState = 'resumedPlaying';
 		state.continuesUsed += 1;
 		state.lives = economy.CONTINUE_LIVES;
 		hideGameOverModal();
@@ -918,10 +950,12 @@
 		showStageMessage('Continue accepted. Bomberman game balance charged.');
 	}
 
-	function openGameOverModal() {
+	function openGameOverModal(note) {
 		var left = Math.max(0, economy.MAX_CONTINUES_PER_RUN - state.continuesUsed);
-		elements.gameOverCopy.textContent = 'Score: ' + Math.floor(state.score) + '. Stage reached: ' + state.stage + '. Continues left: ' + left + '.';
+		var summary = 'Score: ' + Math.floor(state.score) + '. Stage reached: ' + state.stage + '. Continues left: ' + left + '.';
+		elements.gameOverCopy.textContent = note ? (summary + ' ' + note) : summary;
 		elements.continueBtn.disabled = !canContinue();
+		state.continueFlowState = 'gameOver';
 		elements.gameOverModal.classList.remove('d-none');
 	}
 
@@ -999,6 +1033,7 @@
 	function exitRunToIdle() {
 		hideGameOverModal();
 		closeSpendModal();
+		state.continueFlowState = 'idle';
 		state.status = 'idle';
 		state.autoPaused = false;
 		state.soundSuspended = false;
