@@ -9,6 +9,7 @@
 		<link rel="stylesheet" href="https://sugar.wtf/wizardry.min.css">
 		<link rel="stylesheet" href="https://volbil.github.io/entypo/entypo.css">
 		<link rel="stylesheet" href="games/bomberman/bomberman.css">
+		<link rel="stylesheet" href="games/mall-mayhem/mall-mayhem.css">
 
 		<link rel="icon" type="image/png" href="https://sugarchain.org/logo.png">
 		<link href="https://fonts.googleapis.com/css?family=Source+Sans+Pro&display=swap" rel="stylesheet">
@@ -20,6 +21,7 @@
 		<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.qrcode/1.0/jquery.qrcode.min.js"></script>
 		<script src="multilang.js?4"></script>
 		<script src="games/bomberman/bomberman.js"></script>
+		<script src="games/mall-mayhem/mall-mayhem.js"></script>
 
 		<script src="https://cdn.jsdelivr.net/npm/jdenticon@3.2.0/dist/jdenticon.min.js"></script>
 
@@ -362,6 +364,9 @@
 						<li class="nav-item">
 							<a href="#/settings" class="nav-link router-link mr-md-2" data-route="settings" tkey="settings"></a>
 						</li>
+						<li class="nav-item">
+							<a href="#/physics-forge" class="nav-link router-link mr-md-2" data-route="physics-forge">Physics Forge</a>
+						</li>
 						<li class="nav-item dropdown" id="network-list">
 							<a class="nav-item nav-link dropdown-toggle" href="#" id="network-versions" data-toggle="dropdown">NETWORK</a>
 							<div class="dropdown-menu dropdown-menu-right" aria-labelledby="network-versions" ></div>
@@ -586,7 +591,8 @@
 									<div class="games-switcher">
 										<a href="#" data-content-family="games-dashboard" data-content-name="games-blackjack" class="content-link games-pill disabled text-dark">Blackjack</a>
 										<a href="#" data-content-family="games-dashboard" data-content-name="games-bomberman" class="content-link games-pill">Bomberman</a>
-										<span class="games-pill soon">More Soon</span>
+										<a href="#" data-content-family="games-dashboard" data-content-name="games-mall-mayhem" class="content-link games-pill">MALL MAYHEM '99</a>
+										<a href="#/physics-forge" class="games-pill">Physics Forge</a>
 									</div>
 
 									<div class="content-item games-panel" data-content="games-blackjack">
@@ -761,6 +767,79 @@
 											</div>
 										</div>
 									</div>
+
+									<div class="content-item games-panel d-none" data-content="games-mall-mayhem">
+										<div id="mall99-root" class="mall99-panel">
+											<div class="mall99-header">
+												<div class="mall99-logo">MALL MAYHEM '99</div>
+												<div class="mall99-tagline">After-hours neon run. One more run. Then another.</div>
+											</div>
+
+											<div id="mall99-launch" class="mall99-launch">
+												<div class="mall99-launch-copy">
+													Top-down arcade survival inside a stylized late-90s mall. Clear short encounters, keep combo alive, find hidden secrets, and beat themed bosses to unlock new characters.
+												</div>
+												<div class="mall99-hint">Controls: WASD / arrows to move, Space to burst attack, P to pause.</div>
+												<div class="mall99-launch-controls">
+													<button id="mall99-open-arcade-btn" type="button" class="btn btn-outline-info">Launch Cabinet</button>
+													<button id="mall99-start-run-btn" type="button" class="btn btn-success">Start Run</button>
+													<button id="mall99-quick-restart-btn" type="button" class="btn btn-warning">Quick Restart</button>
+													<button id="mall99-close-arcade-btn" type="button" class="btn btn-outline-light">Close Cabinet</button>
+												</div>
+												<div id="mall99-status" class="mall99-status">Initializing game systems.</div>
+												<div id="mall99-character-list" class="mall99-character-list"></div>
+											</div>
+
+											<div id="mall99-arcade" class="mall99-arcade d-none">
+												<div class="mall99-hud">
+													<div class="mall99-hud-item"><div class="mall99-hud-label">Score</div><div id="mall99-hud-score" class="mall99-hud-value">0</div></div>
+													<div class="mall99-hud-item"><div class="mall99-hud-label">High Score</div><div id="mall99-hud-high-score" class="mall99-hud-value">0</div></div>
+													<div class="mall99-hud-item"><div class="mall99-hud-label">Lives</div><div id="mall99-hud-lives" class="mall99-hud-value">3</div></div>
+													<div class="mall99-hud-item"><div class="mall99-hud-label">Combo</div><div id="mall99-hud-combo" class="mall99-hud-value">1.0x</div></div>
+												</div>
+												<div class="mall99-stagebar">
+													<div class="mall99-stage-cell">Run Timer: <span id="mall99-hud-timer">0.0s</span></div>
+													<div class="mall99-stage-cell">Stage: <span id="mall99-hud-stage">1</span> | Zone: <span id="mall99-hud-zone">Food Court</span></div>
+													<div class="mall99-stage-cell">Tokens: <span id="mall99-hud-tokens">0</span> | Secrets: <span id="mall99-hud-secrets">0</span></div>
+												</div>
+												<div class="mall99-canvas-wrap">
+													<canvas id="mall99-canvas" width="960" height="540" aria-label="Mall Mayhem 99 game canvas"></canvas>
+													<div id="mall99-overlay" class="mall99-overlay d-none">
+														<div id="mall99-overlay-title" class="mall99-overlay-title">MALL MAYHEM '99</div>
+														<div id="mall99-overlay-copy" class="mall99-overlay-copy">Launch your run and survive the after-hours mall rush.</div>
+														<div class="mall99-overlay-actions">
+															<button id="mall99-overlay-primary" type="button" class="btn btn-success">Play Again</button>
+															<button id="mall99-overlay-secondary" type="button" class="btn btn-outline-light">Exit Cabinet</button>
+														</div>
+													</div>
+												</div>
+												<div class="mall99-toolbar">
+													<button id="mall99-pause-btn" type="button" class="btn btn-outline-light">Pause</button>
+													<button id="mall99-resume-btn" type="button" class="btn btn-outline-info">Resume</button>
+													<button id="mall99-newrun-btn" type="button" class="btn btn-success">New Run</button>
+													<button id="mall99-exit-btn" type="button" class="btn btn-outline-danger">Exit To Games</button>
+												</div>
+												<div class="mall99-touch">
+													<div class="mall99-pad">
+														<div class="blank">.</div>
+														<button id="mall99-touch-up" type="button" class="btn btn-outline-secondary mall99-touch-btn">Up</button>
+														<div class="blank">.</div>
+														<button id="mall99-touch-left" type="button" class="btn btn-outline-secondary mall99-touch-btn">Left</button>
+														<div class="blank">.</div>
+														<button id="mall99-touch-right" type="button" class="btn btn-outline-secondary mall99-touch-btn">Right</button>
+														<div class="blank">.</div>
+														<button id="mall99-touch-down" type="button" class="btn btn-outline-secondary mall99-touch-btn">Down</button>
+														<div class="blank">.</div>
+													</div>
+													<div class="mall99-actions">
+														<button id="mall99-touch-attack" type="button" class="btn btn-warning mall99-touch-btn">Burst</button>
+														<button id="mall99-touch-pause" type="button" class="btn btn-outline-light mall99-touch-btn">Pause / Resume</button>
+													</div>
+												</div>
+												<div id="mall99-ticker" class="mall99-ticker">Arcade announcer online.</div>
+											</div>
+										</div>
+									</div>
 								</div>
 							</div>
 						</div>
@@ -772,6 +851,23 @@
 			</div>
 		</div>
 
+		<div id="physics-forge" class="router-page">
+			<div class="container">
+				<div class="card mb-3">
+					<div class="card-header">
+						<b>Physics Forge</b>
+					</div>
+					<div class="card-body p-2 p-md-3">
+						<div class="games-banner mb-3">
+							Two challenge levels: Reactor Overheat and Zero-G Cargo. Gameplay uses local simulation only and does not interact with wallet transaction flows.
+						</div>
+						<div class="embed-responsive embed-responsive-16by9" style="min-height: 720px;">
+							<iframe class="embed-responsive-item" title="Physics Forge game" src="packages/physics-forge/dist/index.html"></iframe>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
 		<!-- Generate address -->
 		<div id="create" class="router-page">
 			<div class="container">
@@ -1271,6 +1367,10 @@
 							setTitle(getText('wallet-settings'))
 							break
 
+						case 'physics-forge':
+							setTitle('Physics Forge')
+							break
+
 						// Swith network
 						case 'network':
 							network = urlParams[2]
@@ -1684,6 +1784,9 @@
 				if (window.BombermanGameModule && typeof window.BombermanGameModule.resetSession === 'function') {
 					window.BombermanGameModule.resetSession()
 				}
+				if (window.MallMayhemGameModule && typeof window.MallMayhemGameModule.resetSession === 'function') {
+					window.MallMayhemGameModule.resetSession()
+				}
 			}
 
 			function showGamesPanel(contentName) {
@@ -1696,6 +1799,9 @@
 				$('#games-dashboard [data-content-name="' + contentName + '"]').addClass('text-dark')
 				if (window.BombermanGameModule && typeof window.BombermanGameModule.onPanelVisibilityChange === 'function') {
 					window.BombermanGameModule.onPanelVisibilityChange(contentName)
+				}
+				if (window.MallMayhemGameModule && typeof window.MallMayhemGameModule.onPanelVisibilityChange === 'function') {
+					window.MallMayhemGameModule.onPanelVisibilityChange(contentName)
 				}
 			}
 
@@ -2313,7 +2419,7 @@
 				displayNetworks()
 				routePage()
 
-								$('.tab-link').click(function(e) {
+				$('.tab-link').click(function(e) {
 					var tabFamily = $(this).data('tab-family')
 					var tabName = $(this).data('tab-name')
 
@@ -2328,6 +2434,14 @@
 							window.BombermanGameModule.onPanelVisibilityChange(activeGameContent)
 						} else {
 							window.BombermanGameModule.onPanelVisibilityChange('hidden')
+						}
+					}
+					if (window.MallMayhemGameModule && typeof window.MallMayhemGameModule.onPanelVisibilityChange === 'function') {
+						if (tabName == 'wallet-games') {
+							var activeMallContent = $('#games-dashboard .content-link.disabled').data('content-name') || 'games-blackjack'
+							window.MallMayhemGameModule.onPanelVisibilityChange(activeMallContent)
+						} else {
+							window.MallMayhemGameModule.onPanelVisibilityChange('hidden')
 						}
 					}
 					
@@ -2349,11 +2463,17 @@
 					if (contentFamily == 'games-dashboard' && window.BombermanGameModule && typeof window.BombermanGameModule.onPanelVisibilityChange === 'function') {
 						window.BombermanGameModule.onPanelVisibilityChange(contentName)
 					}
+					if (contentFamily == 'games-dashboard' && window.MallMayhemGameModule && typeof window.MallMayhemGameModule.onPanelVisibilityChange === 'function') {
+						window.MallMayhemGameModule.onPanelVisibilityChange(contentName)
+					}
 					
 					e.preventDefault()
 				})
 
 				initBombermanLaunchPanel()
+				if (window.MallMayhemGameModule && typeof window.MallMayhemGameModule.init === 'function') {
+					window.MallMayhemGameModule.init('mall99-root')
+				}
 
 
 				$(window).on('hashchange', routePage)
