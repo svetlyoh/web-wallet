@@ -10,6 +10,7 @@
 		<link rel="stylesheet" href="https://volbil.github.io/entypo/entypo.css">
 		<link rel="stylesheet" href="games/bomberman/bomberman.css">
 		<link rel="stylesheet" href="games/mall-mayhem/mall-mayhem.css">
+		<link rel="stylesheet" href="games/polygon-plaza-panic/polygon-plaza-panic.css">
 
 		<link rel="icon" type="image/png" href="https://sugarchain.org/logo.png">
 		<link href="https://fonts.googleapis.com/css?family=Source+Sans+Pro&display=swap" rel="stylesheet">
@@ -22,6 +23,7 @@
 		<script src="multilang.js?4"></script>
 		<script src="games/bomberman/bomberman.js"></script>
 		<script src="games/mall-mayhem/mall-mayhem.js"></script>
+		<script src="games/polygon-plaza-panic/polygon-plaza-panic.js"></script>
 
 		<script src="https://cdn.jsdelivr.net/npm/jdenticon@3.2.0/dist/jdenticon.min.js"></script>
 
@@ -592,6 +594,7 @@
 										<a href="#" data-content-family="games-dashboard" data-content-name="games-blackjack" class="content-link games-pill disabled text-dark">Blackjack</a>
 										<a href="#" data-content-family="games-dashboard" data-content-name="games-bomberman" class="content-link games-pill">Bomberman</a>
 										<a href="#" data-content-family="games-dashboard" data-content-name="games-mall-mayhem" class="content-link games-pill">MALL MAYHEM '99</a>
+										<a href="#" data-content-family="games-dashboard" data-content-name="games-polygon-plaza-panic" class="content-link games-pill">POLYGON PLAZA PANIC</a>
 										<a href="#/physics-forge" class="games-pill">Physics Forge</a>
 									</div>
 
@@ -837,6 +840,88 @@
 													</div>
 												</div>
 												<div id="mall99-ticker" class="mall99-ticker">Arcade announcer online.</div>
+											</div>
+										</div>
+									</div>
+
+									<div class="content-item games-panel d-none" data-content="games-polygon-plaza-panic">
+										<div id="ppp-root" class="ppp-panel">
+											<div class="ppp-header">
+												<div class="ppp-logo">POLYGON PLAZA PANIC</div>
+												<div class="ppp-tagline">Toy-diorama score attack. Bright, weird, and built for one more run.</div>
+											</div>
+
+											<div id="ppp-launch" class="ppp-launch">
+												<div class="ppp-title-card">
+													<div>
+														<div class="ppp-title-art">POLYGON PLAZA PANIC</div>
+														<div class="ppp-title-sub">Arcade Cabinet: Version 99-A</div>
+													</div>
+													<div class="ppp-title-sub">Original late-90s inspired action</div>
+												</div>
+												<div class="ppp-launch-copy">
+													Isometric arcade shooter set in a miniature plaza world. Dash through short waves, keep combo alive, drop bombs at clutch moments, and decode hidden object secrets for massive score bonuses.
+												</div>
+												<div class="ppp-hint">Controls: WASD/Arrows move, Space or Z shoot, X bomb, P or Esc pause.</div>
+												<div class="ppp-launch-actions">
+													<button id="ppp-open-cabinet-btn" type="button" class="btn btn-outline-info ppp-btn">Launch Cabinet</button>
+													<button id="ppp-start-run-btn" type="button" class="btn btn-success ppp-btn">Start Run</button>
+													<button id="ppp-quick-restart-btn" type="button" class="btn btn-warning ppp-btn">Quick Restart</button>
+													<button id="ppp-close-cabinet-btn" type="button" class="btn btn-outline-light ppp-btn">Close Cabinet</button>
+												</div>
+												<div id="ppp-status" class="ppp-status">Initializing game systems.</div>
+												<div id="ppp-character-list" class="mt-2"></div>
+											</div>
+
+											<div id="ppp-arcade" class="ppp-arcade d-none">
+												<div class="ppp-hud">
+													<div class="ppp-hud-item"><div class="ppp-hud-label">Score</div><div id="ppp-hud-score" class="ppp-hud-value">0</div></div>
+													<div class="ppp-hud-item"><div class="ppp-hud-label">High Score</div><div id="ppp-hud-high-score" class="ppp-hud-value">0</div></div>
+													<div class="ppp-hud-item"><div class="ppp-hud-label">Lives</div><div id="ppp-hud-lives" class="ppp-hud-value">3</div></div>
+													<div class="ppp-hud-item"><div class="ppp-hud-label">Combo</div><div id="ppp-hud-combo" class="ppp-hud-value">1.0x</div></div>
+													<div class="ppp-hud-item"><div class="ppp-hud-label">Bombs</div><div id="ppp-hud-bombs" class="ppp-hud-value">3</div></div>
+												</div>
+												<div class="ppp-stagebar">
+													<div class="ppp-stage-cell">Run Timer: <span id="ppp-hud-timer">0.0s</span></div>
+													<div class="ppp-stage-cell">Stage: <span id="ppp-hud-stage">1</span> | Zone: <span id="ppp-hud-zone">Atrium Court</span></div>
+													<div class="ppp-stage-cell">Secrets: <span id="ppp-hud-secrets">0</span></div>
+												</div>
+												<div class="ppp-canvas-wrap">
+													<canvas id="ppp-canvas" width="960" height="540" aria-label="Polygon Plaza Panic game canvas"></canvas>
+													<div id="ppp-overlay" class="ppp-overlay d-none">
+														<div id="ppp-overlay-title" class="ppp-overlay-title">POLYGON PLAZA PANIC</div>
+														<div id="ppp-overlay-copy" class="ppp-overlay-copy">Launch your run and chase secret multipliers.</div>
+														<div class="ppp-overlay-actions">
+															<button id="ppp-overlay-primary" type="button" class="btn btn-success ppp-btn">Play Again</button>
+															<button id="ppp-overlay-secondary" type="button" class="btn btn-outline-light ppp-btn">Exit Cabinet</button>
+														</div>
+													</div>
+												</div>
+												<div class="ppp-toolbar">
+													<button id="ppp-pause-btn" type="button" class="btn btn-outline-light ppp-btn">Pause</button>
+													<button id="ppp-resume-btn" type="button" class="btn btn-outline-info ppp-btn">Resume</button>
+													<button id="ppp-newrun-btn" type="button" class="btn btn-success ppp-btn">New Run</button>
+													<button id="ppp-exit-btn" type="button" class="btn btn-outline-danger ppp-btn">Exit To Games</button>
+												</div>
+												<div class="ppp-touch">
+													<div class="ppp-pad">
+														<div></div>
+														<button id="ppp-touch-up" type="button" class="btn btn-outline-secondary ppp-touch-btn">Up</button>
+														<div></div>
+														<button id="ppp-touch-left" type="button" class="btn btn-outline-secondary ppp-touch-btn">Left</button>
+														<div></div>
+														<button id="ppp-touch-right" type="button" class="btn btn-outline-secondary ppp-touch-btn">Right</button>
+														<div></div>
+														<button id="ppp-touch-down" type="button" class="btn btn-outline-secondary ppp-touch-btn">Down</button>
+														<div></div>
+													</div>
+													<div class="ppp-actions">
+														<button id="ppp-touch-shoot" type="button" class="btn btn-warning ppp-touch-btn">Shoot</button>
+														<button id="ppp-touch-bomb" type="button" class="btn btn-danger ppp-touch-btn">Bomb</button>
+														<button id="ppp-touch-pause" type="button" class="btn btn-outline-light ppp-touch-btn">Pause / Resume</button>
+													</div>
+												</div>
+												<div id="ppp-ticker" class="ppp-ticker">Arcade announcer online.</div>
 											</div>
 										</div>
 									</div>
@@ -1787,6 +1872,9 @@
 				if (window.MallMayhemGameModule && typeof window.MallMayhemGameModule.resetSession === 'function') {
 					window.MallMayhemGameModule.resetSession()
 				}
+				if (window.PolygonPlazaPanicGameModule && typeof window.PolygonPlazaPanicGameModule.resetSession === 'function') {
+					window.PolygonPlazaPanicGameModule.resetSession()
+				}
 			}
 
 			function showGamesPanel(contentName) {
@@ -1802,6 +1890,9 @@
 				}
 				if (window.MallMayhemGameModule && typeof window.MallMayhemGameModule.onPanelVisibilityChange === 'function') {
 					window.MallMayhemGameModule.onPanelVisibilityChange(contentName)
+				}
+				if (window.PolygonPlazaPanicGameModule && typeof window.PolygonPlazaPanicGameModule.onPanelVisibilityChange === 'function') {
+					window.PolygonPlazaPanicGameModule.onPanelVisibilityChange(contentName)
 				}
 			}
 
@@ -2444,6 +2535,14 @@
 							window.MallMayhemGameModule.onPanelVisibilityChange('hidden')
 						}
 					}
+					if (window.PolygonPlazaPanicGameModule && typeof window.PolygonPlazaPanicGameModule.onPanelVisibilityChange === 'function') {
+						if (tabName == 'wallet-games') {
+							var activePolygonContent = $('#games-dashboard .content-link.disabled').data('content-name') || 'games-blackjack'
+							window.PolygonPlazaPanicGameModule.onPanelVisibilityChange(activePolygonContent)
+						} else {
+							window.PolygonPlazaPanicGameModule.onPanelVisibilityChange('hidden')
+						}
+					}
 					
 					e.preventDefault()
 				})
@@ -2466,6 +2565,9 @@
 					if (contentFamily == 'games-dashboard' && window.MallMayhemGameModule && typeof window.MallMayhemGameModule.onPanelVisibilityChange === 'function') {
 						window.MallMayhemGameModule.onPanelVisibilityChange(contentName)
 					}
+					if (contentFamily == 'games-dashboard' && window.PolygonPlazaPanicGameModule && typeof window.PolygonPlazaPanicGameModule.onPanelVisibilityChange === 'function') {
+						window.PolygonPlazaPanicGameModule.onPanelVisibilityChange(contentName)
+					}
 					
 					e.preventDefault()
 				})
@@ -2473,6 +2575,9 @@
 				initBombermanLaunchPanel()
 				if (window.MallMayhemGameModule && typeof window.MallMayhemGameModule.init === 'function') {
 					window.MallMayhemGameModule.init('mall99-root')
+				}
+				if (window.PolygonPlazaPanicGameModule && typeof window.PolygonPlazaPanicGameModule.init === 'function') {
+					window.PolygonPlazaPanicGameModule.init('ppp-root')
 				}
 
 
