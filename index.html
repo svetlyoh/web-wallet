@@ -862,11 +862,19 @@
 												<div class="ppp-launch-copy">
 													Isometric arcade shooter set in a miniature plaza world. Dash through short waves, keep combo alive, drop bombs at clutch moments, and decode hidden object secrets for massive score bonuses.
 												</div>
-												<div class="ppp-hint">Controls: WASD/Arrows move, Space or Z shoot, X bomb, P or Esc pause.</div>
+												<div class="ppp-hint">Move: WASD / Arrows | Shoot: Space | Bomb: E | Pause: P / Esc / Right-click</div>
+												<div class="ppp-hud mb-2">
+													<div class="ppp-hud-item"><div class="ppp-hud-label">Entry Cost</div><div class="ppp-hud-value">1 SUGAR</div></div>
+													<div class="ppp-hud-item"><div class="ppp-hud-label">Wallet Balance</div><div id="ppp-wallet-balance" class="ppp-hud-value">Loading balance...</div></div>
+													<div class="ppp-hud-item"><div class="ppp-hud-label">Game Balance</div><div id="ppp-game-balance" class="ppp-hud-value">Loading balance...</div></div>
+													<div class="ppp-hud-item"><div class="ppp-hud-label">Session Spent</div><div id="ppp-session-spent" class="ppp-hud-value">Loading balance...</div></div>
+													<div class="ppp-hud-item"><div class="ppp-hud-label">Run State</div><div id="ppp-run-state" class="ppp-hud-value">Idle</div></div>
+													<div class="ppp-hud-item"><div class="ppp-hud-label">Continues Used</div><div id="ppp-continues-used" class="ppp-hud-value">0</div></div>
+												</div>
 												<div class="ppp-launch-actions">
 													<button id="ppp-open-cabinet-btn" type="button" class="btn btn-outline-info ppp-btn">Launch Cabinet</button>
-													<button id="ppp-start-run-btn" type="button" class="btn btn-success ppp-btn">Start Run</button>
-													<button id="ppp-quick-restart-btn" type="button" class="btn btn-warning ppp-btn">Quick Restart</button>
+													<button id="ppp-start-run-btn" type="button" class="btn btn-success ppp-btn">Play for 1 Sugar</button>
+													<button id="ppp-cancel-entry-btn" type="button" class="btn btn-outline-danger ppp-btn">Cancel</button>
 													<button id="ppp-close-cabinet-btn" type="button" class="btn btn-outline-light ppp-btn">Close Cabinet</button>
 												</div>
 												<div id="ppp-status" class="ppp-status">Initializing game systems.</div>
@@ -922,6 +930,29 @@
 													</div>
 												</div>
 												<div id="ppp-ticker" class="ppp-ticker">Arcade announcer online.</div>
+											</div>
+
+											<div id="ppp-spend-modal" class="ppp-modal d-none" role="dialog" aria-modal="true" aria-hidden="true">
+												<div class="ppp-modal-card">
+													<div class="ppp-modal-title">Confirm Spend</div>
+													<div id="ppp-spend-copy" class="ppp-modal-copy"></div>
+													<div id="ppp-spend-error" class="ppp-modal-error d-none"></div>
+													<div class="ppp-modal-actions">
+														<button id="ppp-spend-cancel" type="button" class="btn btn-outline-dark ppp-btn">Cancel</button>
+														<button id="ppp-spend-confirm" type="button" class="btn btn-primary ppp-btn">Confirm Spend</button>
+													</div>
+												</div>
+											</div>
+
+											<div id="ppp-gameover-modal" class="ppp-modal d-none" role="dialog" aria-modal="true" aria-hidden="true">
+												<div class="ppp-modal-card">
+													<div class="ppp-modal-title">Game Over</div>
+													<div id="ppp-gameover-copy" class="ppp-modal-copy">You lost all lives.</div>
+													<div class="ppp-modal-actions">
+														<button id="ppp-continue-btn" type="button" class="btn btn-warning ppp-btn">Continue for 1 Sugar</button>
+														<button id="ppp-quit-btn" type="button" class="btn btn-outline-danger ppp-btn">Quit To Games</button>
+													</div>
+												</div>
 											</div>
 										</div>
 									</div>
