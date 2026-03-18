@@ -11,6 +11,7 @@
 		<link rel="stylesheet" href="games/bomberman/bomberman.css">
 		<link rel="stylesheet" href="games/mall-mayhem/mall-mayhem.css">
 		<link rel="stylesheet" href="games/polygon-plaza-panic/polygon-plaza-panic.css">
+		<link rel="stylesheet" href="games/kniferevive/kniferevive.css">
 
 		<link rel="icon" type="image/png" href="https://sugarchain.org/logo.png">
 		<link href="https://fonts.googleapis.com/css?family=Source+Sans+Pro&display=swap" rel="stylesheet">
@@ -24,6 +25,7 @@
 		<script src="games/bomberman/bomberman.js"></script>
 		<script src="games/mall-mayhem/mall-mayhem.js"></script>
 		<script src="games/polygon-plaza-panic/polygon-plaza-panic.js"></script>
+		<script src="games/kniferevive/kniferevive.js"></script>
 
 		<script src="https://cdn.jsdelivr.net/npm/jdenticon@3.2.0/dist/jdenticon.min.js"></script>
 
@@ -595,6 +597,7 @@
 										<a href="#" data-content-family="games-dashboard" data-content-name="games-bomberman" class="content-link games-pill">Bomberman</a>
 										<a href="#" data-content-family="games-dashboard" data-content-name="games-mall-mayhem" class="content-link games-pill">MALL MAYHEM '99</a>
 										<a href="#" data-content-family="games-dashboard" data-content-name="games-polygon-plaza-panic" class="content-link games-pill">POLYGON PLAZA PANIC</a>
+										<a href="#" data-content-family="games-dashboard" data-content-name="games-kniferevive" class="content-link games-pill">KnifeRevive</a>
 										<a href="#/physics-forge" class="games-pill">Physics Forge</a>
 									</div>
 
@@ -955,6 +958,10 @@
 												</div>
 											</div>
 										</div>
+									</div>
+
+									<div class="content-item games-panel d-none" data-content="games-kniferevive">
+										<div id="knr-root" class="knr-root"></div>
 									</div>
 								</div>
 							</div>
@@ -1906,6 +1913,9 @@
 				if (window.PolygonPlazaPanicGameModule && typeof window.PolygonPlazaPanicGameModule.resetSession === 'function') {
 					window.PolygonPlazaPanicGameModule.resetSession()
 				}
+				if (window.KnifeReviveGameModule && typeof window.KnifeReviveGameModule.resetSession === 'function') {
+					window.KnifeReviveGameModule.resetSession()
+				}
 			}
 
 			function showGamesPanel(contentName) {
@@ -1924,6 +1934,9 @@
 				}
 				if (window.PolygonPlazaPanicGameModule && typeof window.PolygonPlazaPanicGameModule.onPanelVisibilityChange === 'function') {
 					window.PolygonPlazaPanicGameModule.onPanelVisibilityChange(contentName)
+				}
+				if (window.KnifeReviveGameModule && typeof window.KnifeReviveGameModule.onPanelVisibilityChange === 'function') {
+					window.KnifeReviveGameModule.onPanelVisibilityChange(contentName)
 				}
 			}
 
@@ -2574,6 +2587,14 @@
 							window.PolygonPlazaPanicGameModule.onPanelVisibilityChange('hidden')
 						}
 					}
+					if (window.KnifeReviveGameModule && typeof window.KnifeReviveGameModule.onPanelVisibilityChange === 'function') {
+						if (tabName == 'wallet-games') {
+							var activeKnifeReviveContent = $('#games-dashboard .content-link.disabled').data('content-name') || 'games-blackjack'
+							window.KnifeReviveGameModule.onPanelVisibilityChange(activeKnifeReviveContent)
+						} else {
+							window.KnifeReviveGameModule.onPanelVisibilityChange('hidden')
+						}
+					}
 					
 					e.preventDefault()
 				})
@@ -2599,6 +2620,9 @@
 					if (contentFamily == 'games-dashboard' && window.PolygonPlazaPanicGameModule && typeof window.PolygonPlazaPanicGameModule.onPanelVisibilityChange === 'function') {
 						window.PolygonPlazaPanicGameModule.onPanelVisibilityChange(contentName)
 					}
+					if (contentFamily == 'games-dashboard' && window.KnifeReviveGameModule && typeof window.KnifeReviveGameModule.onPanelVisibilityChange === 'function') {
+						window.KnifeReviveGameModule.onPanelVisibilityChange(contentName)
+					}
 					
 					e.preventDefault()
 				})
@@ -2609,6 +2633,9 @@
 				}
 				if (window.PolygonPlazaPanicGameModule && typeof window.PolygonPlazaPanicGameModule.init === 'function') {
 					window.PolygonPlazaPanicGameModule.init('ppp-root')
+				}
+				if (window.KnifeReviveGameModule && typeof window.KnifeReviveGameModule.init === 'function') {
+					window.KnifeReviveGameModule.init('knr-root')
 				}
 
 
