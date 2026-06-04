@@ -12,6 +12,7 @@
 		<link rel="stylesheet" href="games/mall-mayhem/mall-mayhem.css">
 		<link rel="stylesheet" href="games/polygon-plaza-panic/polygon-plaza-panic.css">
 		<link rel="stylesheet" href="games/kniferevive/kniferevive.css">
+		<link rel="stylesheet" href="games/dragons-egg/dragons-egg.css">
 
 		<link rel="icon" type="image/png" href="https://sugarchain.org/logo.png">
 		<link href="https://fonts.googleapis.com/css?family=Source+Sans+Pro&display=swap" rel="stylesheet">
@@ -26,6 +27,7 @@
 		<script src="games/mall-mayhem/mall-mayhem.js"></script>
 		<script src="games/polygon-plaza-panic/polygon-plaza-panic.js"></script>
 		<script src="games/kniferevive/kniferevive.js"></script>
+		<script src="games/dragons-egg/dragons-egg.js"></script>
 
 		<script src="https://cdn.jsdelivr.net/npm/jdenticon@3.2.0/dist/jdenticon.min.js"></script>
 
@@ -315,6 +317,100 @@
 				margin-top: 10px;
 				font-size: 14px;
 			}
+			.ai-ledger {
+				text-align: left;
+			}
+			.ai-ledger-header {
+				display: flex;
+				align-items: flex-start;
+				justify-content: space-between;
+				gap: 12px;
+				border-bottom: 1px solid #d8e2e0;
+				padding-bottom: 12px;
+				margin-bottom: 12px;
+			}
+			.ai-ledger-title {
+				font-size: 26px;
+				font-weight: 700;
+				color: #17252b;
+				line-height: 1.1;
+			}
+			.ai-ledger-subtitle {
+				color: #53666b;
+				font-size: 14px;
+				margin-top: 5px;
+			}
+			.ai-ledger-badge {
+				background: #e9f3f1;
+				border: 1px solid #c9dcda;
+				border-radius: 8px;
+				color: #194a46;
+				font-weight: 700;
+				padding: 8px 10px;
+				white-space: nowrap;
+			}
+			.ai-ledger-actions {
+				display: grid;
+				grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+				gap: 8px;
+				margin-bottom: 12px;
+			}
+			.ai-ledger-actions .btn,
+			.ai-ledger-section .btn {
+				min-height: 48px;
+				font-weight: 700;
+				white-space: normal;
+			}
+			.ai-ledger-layout {
+				display: grid;
+				grid-template-columns: repeat(2, minmax(0, 1fr));
+				gap: 12px;
+				margin-bottom: 12px;
+			}
+			.ai-ledger-section {
+				background: #f8faf9;
+				border: 1px solid #d8e2e0;
+				border-radius: 8px;
+				padding: 12px;
+				min-width: 0;
+			}
+			.ai-ledger-section h3 {
+				font-size: 18px;
+				font-weight: 700;
+				color: #17252b;
+				margin-bottom: 10px;
+			}
+			.ai-ledger-kv {
+				display: grid;
+				grid-template-columns: 132px minmax(0, 1fr);
+				gap: 6px 10px;
+				font-size: 14px;
+				margin-bottom: 10px;
+			}
+			.ai-ledger-kv .label {
+				color: #607379;
+				font-weight: 700;
+			}
+			.ai-ledger-kv .value {
+				color: #18292f;
+				word-break: break-word;
+			}
+			.ai-ledger-code {
+				font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+				font-size: 12px;
+				line-height: 1.35;
+			}
+			.ai-ledger-textarea {
+				min-height: 132px;
+				resize: vertical;
+			}
+			.ai-ledger-status {
+				margin-bottom: 12px;
+			}
+			.ai-ledger-table td,
+			.ai-ledger-table th {
+				vertical-align: top;
+			}
 			@media (max-width: 576px) {
 				.games-hub {
 					padding: 12px;
@@ -337,6 +433,17 @@
 				}
 				.games-balance-row {
 					grid-template-columns: 1fr;
+				}
+				.ai-ledger-header,
+				.ai-ledger-layout,
+				.ai-ledger-kv {
+					grid-template-columns: 1fr;
+				}
+				.ai-ledger-header {
+					display: grid;
+				}
+				.ai-ledger-title {
+					font-size: 23px;
 				}
 			}
 		</style>
@@ -451,6 +558,9 @@
 								</li>
 								<li class="nav-item mr-2">
 									<a class="nav-link tab-link" data-tab-name="wallet-tokens" data-tab-family="wallet-block" href="#" tkey="tokens"></a>
+								</li>
+								<li class="nav-item mr-2">
+									<a class="nav-link tab-link" data-tab-name="wallet-ai-ledger" data-tab-family="wallet-block" href="#">AI Score Ledger</a>
 								</li>
 								<li class="nav-item">
 									<a class="nav-link tab-link" data-tab-name="wallet-games" data-tab-family="wallet-block" href="#">Games</a>
@@ -584,6 +694,123 @@
 									</div>
 								</div>
 							</div>
+							<div class="tab-item d-none" data-tab="wallet-ai-ledger">
+								<div id="ai-score-ledger" class="ai-ledger">
+									<div class="ai-ledger-header">
+										<div>
+											<div class="ai-ledger-title">AI Score Ledger</div>
+											<div class="ai-ledger-subtitle">Off-chain AI evaluation records anchored by a Sugarchain OP_RETURN proof.</div>
+										</div>
+										<div id="ai-ledger-network" class="ai-ledger-badge">SUGAR</div>
+									</div>
+
+									<div id="ai-ledger-status" class="alert alert-secondary ai-ledger-status" role="alert">Generate a test batch to begin.</div>
+
+									<div class="ai-ledger-actions">
+										<button id="ai-ledger-generate" type="button" class="btn btn-outline-dark">Generate Test Batch</button>
+										<button id="ai-ledger-compute" type="button" class="btn btn-outline-primary">Compute Merkle Root</button>
+										<button id="ai-ledger-create-tx" type="button" class="btn btn-outline-info">Create OP_RETURN Transaction</button>
+										<button id="ai-ledger-broadcast" type="button" class="btn btn-success">Broadcast to Sugarchain</button>
+										<button id="ai-ledger-verify" type="button" class="btn btn-outline-dark">Verify Record</button>
+									</div>
+
+									<div class="ai-ledger-layout">
+										<div class="ai-ledger-section">
+											<h3>Batch</h3>
+											<div class="ai-ledger-kv">
+												<div class="label">Batch ID</div>
+												<div id="ai-ledger-batch-id" class="value">-</div>
+												<div class="label">Model ID</div>
+												<div id="ai-ledger-model-id" class="value">-</div>
+												<div class="label">Benchmark</div>
+												<div id="ai-ledger-benchmark-id" class="value">-</div>
+												<div class="label">Timestamp</div>
+												<div id="ai-ledger-timestamp" class="value">-</div>
+												<div class="label">Reward</div>
+												<div id="ai-ledger-reward-status" class="value">-</div>
+											</div>
+											<textarea id="ai-ledger-json" class="form-control ai-ledger-code ai-ledger-textarea" readonly></textarea>
+											<a id="ai-ledger-download" class="btn btn-sm btn-outline-secondary btn-block mt-2 disabled" href="#" download="sugar-ai-test-001.json">Download JSON</a>
+										</div>
+
+										<div class="ai-ledger-section">
+											<h3>Merkle Proof</h3>
+											<div class="ai-ledger-kv">
+												<div class="label">Merkle root</div>
+												<div id="ai-ledger-merkle-root" class="value ai-ledger-code">-</div>
+												<div class="label">Manifest hash</div>
+												<div id="ai-ledger-manifest-hash" class="value ai-ledger-code">-</div>
+												<div class="label">Payload bytes</div>
+												<div id="ai-ledger-payload-bytes" class="value">0</div>
+											</div>
+											<label for="ai-ledger-leaf-hashes" class="mb-1">Leaf hashes</label>
+											<textarea id="ai-ledger-leaf-hashes" class="form-control ai-ledger-code" rows="4" readonly></textarea>
+											<label for="ai-ledger-op-return-hex" class="mb-1 mt-2">OP_RETURN hex payload</label>
+											<textarea id="ai-ledger-op-return-hex" class="form-control ai-ledger-code" rows="4" readonly></textarea>
+										</div>
+									</div>
+
+									<div class="ai-ledger-section mb-3">
+										<h3>Transaction Review</h3>
+										<div class="ai-ledger-kv">
+											<div class="label">Wallet address</div>
+											<div id="ai-ledger-wallet-address" class="value ai-ledger-code">Open a wallet first.</div>
+											<div class="label">Fee</div>
+											<div id="ai-ledger-fee" class="value">-</div>
+											<div class="label">Change</div>
+											<div id="ai-ledger-change" class="value">-</div>
+											<div class="label">Sugarchain txid</div>
+											<div class="value">
+												<input id="ai-ledger-txid" class="form-control ai-ledger-code" type="text" placeholder="Broadcast txid">
+											</div>
+										</div>
+										<label for="ai-ledger-utxo-select" class="mb-1">UTXO</label>
+										<select id="ai-ledger-utxo-select" class="custom-select mb-2">
+											<option value="auto">Auto select UTXO</option>
+										</select>
+										<label for="ai-ledger-rawtx" class="mb-1">Signed raw transaction</label>
+										<textarea id="ai-ledger-rawtx" class="form-control ai-ledger-code ai-ledger-textarea" readonly></textarea>
+									</div>
+
+									<div class="ai-ledger-section">
+										<h3>Test Log</h3>
+										<div class="table-responsive">
+											<table class="table table-sm ai-ledger-table mb-0">
+												<tbody>
+													<tr>
+														<th>batch_id</th>
+														<td id="ai-ledger-log-batch">-</td>
+													</tr>
+													<tr>
+														<th>model_id</th>
+														<td id="ai-ledger-log-model">-</td>
+													</tr>
+													<tr>
+														<th>actual_score</th>
+														<td id="ai-ledger-log-score">-</td>
+													</tr>
+													<tr>
+														<th>reward_status</th>
+														<td id="ai-ledger-log-reward">-</td>
+													</tr>
+													<tr>
+														<th>Merkle root</th>
+														<td id="ai-ledger-log-root" class="ai-ledger-code break-lines">-</td>
+													</tr>
+													<tr>
+														<th>Sugarchain txid</th>
+														<td id="ai-ledger-log-txid" class="ai-ledger-code break-lines">-</td>
+													</tr>
+													<tr>
+														<th>verification status</th>
+														<td id="ai-ledger-log-verify">-</td>
+													</tr>
+												</tbody>
+											</table>
+										</div>
+									</div>
+								</div>
+							</div>
 							<div class="tab-item d-none" data-tab="wallet-games">
 								<div id="games-dashboard" class="games-hub">
 									<div class="games-heading">
@@ -595,6 +822,7 @@
 									<div class="games-switcher">
 										<a href="#" data-content-family="games-dashboard" data-content-name="games-blackjack" class="content-link games-pill disabled text-dark">Blackjack</a>
 										<a href="#" data-content-family="games-dashboard" data-content-name="games-bomberman" class="content-link games-pill">Bomberman</a>
+										<a href="#" data-content-family="games-dashboard" data-content-name="games-dragons-egg" class="content-link games-pill">Dragon's Egg</a>
 										<a href="#" data-content-family="games-dashboard" data-content-name="games-mall-mayhem" class="content-link games-pill">MALL MAYHEM '99</a>
 										<a href="#" data-content-family="games-dashboard" data-content-name="games-polygon-plaza-panic" class="content-link games-pill">POLYGON PLAZA PANIC</a>
 										<a href="#" data-content-family="games-dashboard" data-content-name="games-kniferevive" class="content-link games-pill">KnifeRevive</a>
@@ -772,6 +1000,14 @@
 												</div>
 											</div>
 										</div>
+									</div>
+
+									<div class="content-item games-panel d-none" data-content="games-dragons-egg">
+										<h3>Dragon's Egg</h3>
+										<div class="games-panel-copy">
+											Authentic LCD-style recreation of the Casio Dragon's Egg CG-122A handheld. This game uses independent in-memory state and does not modify wallet balances.
+										</div>
+										<div id="dragons-egg-root"></div>
 									</div>
 
 									<div class="content-item games-panel d-none" data-content="games-mall-mayhem">
@@ -1114,6 +1350,27 @@
 						<button id="send-cancel" type="button" class="btn btn-block mr-auto btn-dark" data-dismiss="modal" tkey="cancel"></button>
 						<button id="send-confirm" type="button" class="btn btn-block mt-0 mr-auto btn-primary" tkey="send-it"></button>
 						<button id="send-close-footer" type="button" class="btn btn-block mt-0 mr-auto btn-dark d-none disabled" data-dismiss="modal" tkey="close"></button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div id="ai-ledger-confirm-modal" class="modal" tabindex="-1" role="dialog">
+			<div class="modal-dialog modal-md" role="document">
+				<div class="modal-content">
+					<div class="modal-header">
+						<h5 id="ai-ledger-confirm-title" class="modal-title">Confirm AI Score Ledger Broadcast</h5>
+						<button type="button" class="close" data-dismiss="modal" aria-label="Close">
+							<span aria-hidden="true">&times;</span>
+						</button>
+					</div>
+					<div class="modal-body">
+						<div id="ai-ledger-confirm-content" class="break-lines"></div>
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-block mr-auto btn-dark" data-dismiss="modal">Cancel</button>
+						<button id="ai-ledger-confirm-broadcast" type="button" class="btn btn-block mt-0 mr-auto btn-success">Broadcast to Sugarchain</button>
+						<button id="ai-ledger-confirm-close" type="button" class="btn btn-block mt-0 mr-auto btn-dark d-none" data-dismiss="modal">Close</button>
 					</div>
 				</div>
 			</div>
@@ -1592,6 +1849,795 @@
 				return parseFloat(amount * Math.pow(10, decimals))
 			}
 
+			var aiScoreLedgerRewardPolicy = {
+				'schema': 'sugarchain_ai_reward_policy_v1',
+				'full_reward_ratio': 0.95,
+				'partial_reward_ratio': 0.80,
+				'description': 'actual_score / target_score >= 0.95 full_reward; >= 0.80 partial_reward; below 0.80 no_reward'
+			}
+
+			var aiScoreLedgerState = {
+				'batch': null,
+				'record': null,
+				'merkle': null,
+				'payload': null,
+				'transaction': null,
+				'anchor': null,
+				'utxos': [],
+				'downloadUrl': ''
+			}
+
+			function escapeHtml(value) {
+				return String(value == undefined ? '' : value)
+					.replace(/&/g, '&amp;')
+					.replace(/</g, '&lt;')
+					.replace(/>/g, '&gt;')
+					.replace(/"/g, '&quot;')
+					.replace(/'/g, '&#039;')
+			}
+
+			function aiLedgerSetStatus(message, variant) {
+				var alertClass = 'alert-' + (variant || 'secondary')
+				$('#ai-ledger-status')
+					.removeClass('alert-secondary alert-success alert-warning alert-danger alert-info')
+					.addClass(alertClass)
+					.html(message)
+			}
+
+			function canonicalizeJson(value) {
+				if (value === null || typeof value != 'object') {
+					if (value === undefined) {
+						return 'null'
+					}
+					return JSON.stringify(value)
+				}
+
+				if (Array.isArray(value)) {
+					var arrayValues = []
+					for (var i = 0; i < value.length; i++) {
+						arrayValues.push(canonicalizeJson(value[i]))
+					}
+					return '[' + arrayValues.join(',') + ']'
+				}
+
+				var keys = Object.keys(value).sort()
+				var objectValues = []
+				for (var j = 0; j < keys.length; j++) {
+					var key = keys[j]
+					if (value[key] !== undefined) {
+						objectValues.push(JSON.stringify(key) + ':' + canonicalizeJson(value[key]))
+					}
+				}
+				return '{' + objectValues.join(',') + '}'
+			}
+
+			function aiLedgerHashHex(text) {
+				return sha256(text)
+			}
+
+			function aiLedgerAsciiToHex(text) {
+				var hex = ''
+				for (var i = 0; i < text.length; i++) {
+					hex += ('0' + text.charCodeAt(i).toString(16)).slice(-2)
+				}
+				return hex
+			}
+
+			function aiLedgerHexToAscii(hex) {
+				var text = ''
+				for (var i = 0; i < hex.length; i += 2) {
+					text += String.fromCharCode(parseInt(hex.substr(i, 2), 16))
+				}
+				return text
+			}
+
+			function aiLedgerUint32Hex(value) {
+				return ('00000000' + ((value >>> 0).toString(16))).slice(-8)
+			}
+
+			function aiLedgerHexToBuffer(hex) {
+				return bitcoin.Buffer.from ? bitcoin.Buffer.from(hex, 'hex') : bitcoin.Buffer(hex, 'hex')
+			}
+
+			function aiLedgerRewardStatus(actualScore, targetScore) {
+				var ratio = actualScore / targetScore
+				if (ratio >= aiScoreLedgerRewardPolicy.full_reward_ratio) {
+					return 'full_reward'
+				}
+				if (ratio >= aiScoreLedgerRewardPolicy.partial_reward_ratio) {
+					return 'partial_reward'
+				}
+				return 'no_reward'
+			}
+
+			function buildAiScoreLedgerTestRecord(timestamp) {
+				var record = {
+					'schema': 'sugarchain_ai_eval_v1',
+					'batch_id': 'sugar-ai-test-001',
+					'model_id': 'codex-agent-test-model',
+					'benchmark_id': 'webwallet-opreturn-demo',
+					'target_score': 0.95,
+					'actual_score': 0.97,
+					'reward_model_score': 0.94,
+					'evaluator_id': 'sugarchain-webwallet-local',
+					'timestamp': timestamp,
+					'reward_status': 'full_reward',
+					'reward_amount_sugar': 1.0,
+					'steps': [
+						{
+							'step_id': 1,
+							'task': 'Create AI evaluation record',
+							'target': 'valid_schema',
+							'result': 'passed',
+							'score': 1.0
+						},
+						{
+							'step_id': 2,
+							'task': 'Compute canonical hash',
+							'target': 'sha256_success',
+							'result': 'passed',
+							'score': 1.0
+						},
+						{
+							'step_id': 3,
+							'task': 'Publish Merkle root to Sugarchain OP_RETURN',
+							'target': 'broadcast_success',
+							'result': 'pending_until_tx_confirmed',
+							'score': 0.97
+						}
+					]
+				}
+
+				record.reward_status = aiLedgerRewardStatus(record.actual_score, record.target_score)
+				return record
+			}
+
+			function buildAiScoreLedgerBatch(record) {
+				return {
+					'schema': 'sugarchain_ai_eval_batch_v1',
+					'batch_id': record.batch_id,
+					'created_at': record.timestamp,
+					'reward_policy': aiScoreLedgerRewardPolicy,
+					'records': [record]
+				}
+			}
+
+			function computeAiScoreLedgerData(batch) {
+				var records = batch && Array.isArray(batch.records) ? batch.records : []
+				var leafHashes = []
+
+				for (var i = 0; i < records.length; i++) {
+					var canonicalRecord = canonicalizeJson(records[i])
+					leafHashes.push(aiLedgerHashHex('SUGAR_AI_EVAL_LEAF_V1|' + canonicalRecord))
+				}
+
+				var level = leafHashes.slice()
+				while (level.length > 1) {
+					var nextLevel = []
+					for (var j = 0; j < level.length; j += 2) {
+						var leftHash = level[j]
+						var rightHash = level[j + 1] || leftHash
+						nextLevel.push(aiLedgerHashHex('SUGAR_AI_EVAL_NODE_V1|' + leftHash + rightHash))
+					}
+					level = nextLevel
+				}
+
+				var canonicalManifest = canonicalizeJson(batch)
+				return {
+					'leafHashes': leafHashes,
+					'merkleRoot': level.length ? level[0] : '',
+					'manifestHash': aiLedgerHashHex(canonicalManifest),
+					'canonicalManifest': canonicalManifest
+				}
+			}
+
+			function buildAiScoreLedgerPayload(batch, merkleData) {
+				var batchHash = aiLedgerHashHex(batch.batch_id).substr(0, 16)
+				var rewardPolicyHash = aiLedgerHashHex(canonicalizeJson(aiScoreLedgerRewardPolicy)).substr(0, 16)
+				var timestamp = Math.floor(new Date(batch.created_at).getTime() / 1000)
+				var payloadHex = [
+					aiLedgerAsciiToHex('SAI1'),
+					batchHash,
+					merkleData.merkleRoot,
+					merkleData.manifestHash.substr(0, 32),
+					rewardPolicyHash,
+					aiLedgerUint32Hex(timestamp),
+					'0000000000000000'
+				].join('')
+
+				return {
+					'hex': payloadHex,
+					'bytes': payloadHex.length / 2,
+					'magic': 'SAI1',
+					'batchIdHash': batchHash,
+					'merkleRoot': merkleData.merkleRoot,
+					'manifestHashTruncated': merkleData.manifestHash.substr(0, 32),
+					'rewardPolicyHash': rewardPolicyHash,
+					'unixTimestamp': timestamp
+				}
+			}
+
+			function parseAiScoreLedgerPayload(payloadHex) {
+				if (!payloadHex || payloadHex.length < 160) {
+					return null
+				}
+
+				return {
+					'magic': aiLedgerHexToAscii(payloadHex.substr(0, 8)),
+					'batchIdHash': payloadHex.substr(8, 16),
+					'merkleRoot': payloadHex.substr(24, 64),
+					'manifestHashTruncated': payloadHex.substr(88, 32),
+					'rewardPolicyHash': payloadHex.substr(120, 16),
+					'unixTimestamp': parseInt(payloadHex.substr(136, 8), 16),
+					'reserved': payloadHex.substr(144, 16)
+				}
+			}
+
+			function aiLedgerOpenDb() {
+				return new Promise(function(resolve, reject) {
+					if (!window.indexedDB) {
+						reject(new Error('IndexedDB is not available.'))
+						return
+					}
+
+					var request = window.indexedDB.open('sugarchain_ai_score_ledger', 1)
+					request.onupgradeneeded = function(event) {
+						var db = event.target.result
+						if (!db.objectStoreNames.contains('batches')) {
+							db.createObjectStore('batches', { 'keyPath': 'batch_id' })
+						}
+						if (!db.objectStoreNames.contains('anchors')) {
+							db.createObjectStore('anchors', { 'keyPath': 'batch_id' })
+						}
+					}
+					request.onsuccess = function(event) {
+						resolve(event.target.result)
+					}
+					request.onerror = function() {
+						reject(new Error('Unable to open AI Score Ledger storage.'))
+					}
+				})
+			}
+
+			function aiLedgerStoreValue(storeName, value) {
+				return aiLedgerOpenDb().then(function(db) {
+					return new Promise(function(resolve, reject) {
+						var tx = db.transaction([storeName], 'readwrite')
+						var store = tx.objectStore(storeName)
+						store.put(value)
+						tx.oncomplete = function() {
+							db.close()
+							resolve('IndexedDB')
+						}
+						tx.onerror = function() {
+							db.close()
+							reject(new Error('Unable to save AI Score Ledger data.'))
+						}
+					})
+				}).catch(function() {
+					try {
+						window.localStorage.setItem('sugarchain_ai_score_ledger_' + storeName + '_' + value.batch_id, JSON.stringify(value))
+						return 'localStorage'
+					} catch (error) {
+						throw new Error('Local AI Score Ledger storage failed.')
+					}
+				})
+			}
+
+			function updateAiScoreLedgerButtons() {
+				var walletOpen = globalData.keys != undefined && globalData.address != undefined && globalData.address != ''
+				$('#ai-ledger-compute').prop('disabled', aiScoreLedgerState.batch == null)
+				$('#ai-ledger-create-tx').prop('disabled', aiScoreLedgerState.payload == null || !walletOpen)
+				$('#ai-ledger-broadcast').prop('disabled', aiScoreLedgerState.transaction == null)
+				$('#ai-ledger-verify').prop('disabled', aiScoreLedgerState.batch == null)
+			}
+
+			function updateAiScoreLedgerWalletContext() {
+				var ticker = getConfig()['ticker']
+				$('#ai-ledger-network').text(ticker)
+				if (globalData.address) {
+					$('#ai-ledger-wallet-address').text(globalData.address)
+				} else {
+					$('#ai-ledger-wallet-address').text('Open a wallet first.')
+				}
+				if (!aiScoreLedgerState.transaction) {
+					$('#ai-ledger-fee').text((globalData.rfee || getConfig()['fee']) + ' ' + ticker)
+				}
+				updateAiScoreLedgerButtons()
+			}
+
+			function updateAiScoreLedgerDownload(batch) {
+				if (aiScoreLedgerState.downloadUrl) {
+					window.URL.revokeObjectURL(aiScoreLedgerState.downloadUrl)
+					aiScoreLedgerState.downloadUrl = ''
+				}
+
+				if (!batch) {
+					$('#ai-ledger-download').addClass('disabled').attr('href', '#')
+					return
+				}
+
+				var blob = new Blob([JSON.stringify(batch, null, 2)], { 'type': 'application/json' })
+				aiScoreLedgerState.downloadUrl = window.URL.createObjectURL(blob)
+				$('#ai-ledger-download')
+					.removeClass('disabled')
+					.attr('href', aiScoreLedgerState.downloadUrl)
+					.attr('download', batch.batch_id + '.json')
+			}
+
+			function renderAiScoreLedger() {
+				var batch = aiScoreLedgerState.batch
+				var record = aiScoreLedgerState.record || (batch && batch.records ? batch.records[0] : null)
+				var merkle = aiScoreLedgerState.merkle
+				var payload = aiScoreLedgerState.payload
+				var transaction = aiScoreLedgerState.transaction
+				var anchor = aiScoreLedgerState.anchor
+				var ticker = getConfig()['ticker']
+
+				$('#ai-ledger-batch-id').text(record ? record.batch_id : '-')
+				$('#ai-ledger-model-id').text(record ? record.model_id : '-')
+				$('#ai-ledger-benchmark-id').text(record ? record.benchmark_id : '-')
+				$('#ai-ledger-timestamp').text(record ? record.timestamp : '-')
+				$('#ai-ledger-reward-status').text(record ? record.reward_status : '-')
+				$('#ai-ledger-json').val(batch ? JSON.stringify(batch, null, 2) : '')
+
+				$('#ai-ledger-merkle-root').text(merkle ? merkle.merkleRoot : '-')
+				$('#ai-ledger-manifest-hash').text(merkle ? merkle.manifestHash : '-')
+				$('#ai-ledger-payload-bytes').text(payload ? payload.bytes : 0)
+				$('#ai-ledger-leaf-hashes').val(merkle ? merkle.leafHashes.join('\n') : '')
+				$('#ai-ledger-op-return-hex').val(payload ? payload.hex : '')
+
+				$('#ai-ledger-rawtx').val(transaction ? transaction.rawTx : '')
+				$('#ai-ledger-fee').text(transaction ? amountFormat(transaction.feeSatoshis) + ' ' + ticker : (globalData.rfee || getConfig()['fee']) + ' ' + ticker)
+				$('#ai-ledger-change').text(transaction ? amountFormat(transaction.changeSatoshis) + ' ' + ticker : '-')
+				$('#ai-ledger-txid').val(anchor && anchor.txid ? anchor.txid : $('#ai-ledger-txid').val())
+
+				$('#ai-ledger-log-batch').text(record ? record.batch_id : '-')
+				$('#ai-ledger-log-model').text(record ? record.model_id : '-')
+				$('#ai-ledger-log-score').text(record ? record.actual_score : '-')
+				$('#ai-ledger-log-reward').text(record ? record.reward_status : '-')
+				$('#ai-ledger-log-root').text(merkle ? merkle.merkleRoot : '-')
+				$('#ai-ledger-log-txid').text(anchor && anchor.txid ? anchor.txid : ($('#ai-ledger-txid').val() || '-'))
+				$('#ai-ledger-log-verify').text(anchor && anchor.verification_status ? anchor.verification_status : '-')
+
+				updateAiScoreLedgerDownload(batch)
+				updateAiScoreLedgerWalletContext()
+			}
+
+			function populateAiScoreLedgerUtxos(utxos) {
+				var selected = $('#ai-ledger-utxo-select').val() || 'auto'
+				$('#ai-ledger-utxo-select').empty()
+				$('#ai-ledger-utxo-select').append('<option value="auto">Auto select UTXO</option>')
+				for (var i = 0; i < utxos.length; i++) {
+					var utxo = utxos[i]
+					var index = utxo.index != undefined ? utxo.index : utxo.vout
+					var label = (utxo.txid || '').substr(0, 14) + '...' + ':' + index + ' - ' + amountFormat(utxo.value) + ' ' + getConfig()['ticker']
+					$('#ai-ledger-utxo-select').append('<option value="' + i + '">' + escapeHtml(label) + '</option>')
+				}
+				if (selected != 'auto' && utxos[selected]) {
+					$('#ai-ledger-utxo-select').val(selected)
+				} else {
+					$('#ai-ledger-utxo-select').val('auto')
+				}
+			}
+
+			function generateAiScoreLedgerTestBatch() {
+				var timestamp = new Date().toISOString()
+				var record = buildAiScoreLedgerTestRecord(timestamp)
+				var batch = buildAiScoreLedgerBatch(record)
+
+				aiScoreLedgerState.batch = batch
+				aiScoreLedgerState.record = record
+				aiScoreLedgerState.merkle = null
+				aiScoreLedgerState.payload = null
+				aiScoreLedgerState.transaction = null
+				aiScoreLedgerState.anchor = null
+				$('#ai-ledger-txid').val('')
+				$('#ai-ledger-log-verify').text('-')
+
+				renderAiScoreLedger()
+				aiLedgerStoreValue('batches', batch).then(function(storageName) {
+					aiLedgerSetStatus('Generated sugar-ai-test-001 and saved the full JSON batch in ' + storageName + '.', 'success')
+				}).catch(function(error) {
+					aiLedgerSetStatus(error.message, 'warning')
+				})
+			}
+
+			function computeAiScoreLedgerMerkle() {
+				if (!aiScoreLedgerState.batch) {
+					aiLedgerSetStatus('Generate a test batch first.', 'warning')
+					return
+				}
+
+				var merkleData = computeAiScoreLedgerData(aiScoreLedgerState.batch)
+				var payload = buildAiScoreLedgerPayload(aiScoreLedgerState.batch, merkleData)
+				if (payload.bytes > 80) {
+					aiLedgerSetStatus('OP_RETURN payload is too large: ' + payload.bytes + ' bytes.', 'danger')
+					return
+				}
+
+				aiScoreLedgerState.merkle = merkleData
+				aiScoreLedgerState.payload = payload
+				aiScoreLedgerState.transaction = null
+				renderAiScoreLedger()
+				aiLedgerSetStatus('Merkle root computed. OP_RETURN payload is exactly ' + payload.bytes + ' bytes.', 'success')
+			}
+
+			function getAiScoreLedgerUtxoScriptHex(utxo) {
+				if (typeof utxo.script == 'string') {
+					return utxo.script
+				}
+				if (typeof utxo.scriptPubKey == 'string') {
+					return utxo.scriptPubKey
+				}
+				if (utxo.scriptPubKey && typeof utxo.scriptPubKey.hex == 'string') {
+					return utxo.scriptPubKey.hex
+				}
+				return ''
+			}
+
+			function chooseAiScoreLedgerUtxos(utxos, feeSatoshis) {
+				var selected = $('#ai-ledger-utxo-select').val()
+				if (selected != undefined && selected != 'auto' && utxos[selected] && utxos[selected].value > feeSatoshis) {
+					return [utxos[selected]]
+				}
+
+				var chosen = []
+				var total = 0
+				for (var i = 0; i < utxos.length; i++) {
+					chosen.push(utxos[i])
+					total += utxos[i].value
+					if (total > feeSatoshis) {
+						break
+					}
+				}
+				return chosen
+			}
+
+			function buildAiScoreLedgerTransaction(chosenUtxos, feeSatoshis) {
+				var network = getConfig()['network']
+				var keys = globalData.keys
+				var address = globalData.address
+				var txb = new bitcoin.TransactionBuilder(network)
+				var scripts = []
+				var totalValue = 0
+				var payloadBuffer = aiLedgerHexToBuffer(aiScoreLedgerState.payload.hex)
+				var opReturnScript = bitcoin.script.compile([bitcoin.opcodes.OP_RETURN, payloadBuffer])
+
+				txb.setVersion(2)
+				txb.addOutput(opReturnScript, 0)
+
+				for (var i = 0; i < chosenUtxos.length; i++) {
+					var utxo = chosenUtxos[i]
+					var txid = utxo.txid
+					var index = utxo.index != undefined ? utxo.index : utxo.vout
+					var scriptHex = getAiScoreLedgerUtxoScriptHex(utxo)
+					var script = aiLedgerHexToBuffer(scriptHex)
+					var type = getScriptType(script)
+
+					totalValue += utxo.value
+					if (type == 'bech32') {
+						var p2wpkh = getP2WPKHScript(keys.publicKey)
+						txb.addInput(txid, index, null, p2wpkh.output)
+					} else {
+						txb.addInput(txid, index)
+					}
+
+					scripts.push({
+						'script': script,
+						'type': type,
+						'value': utxo.value
+					})
+				}
+
+				if (totalValue <= feeSatoshis) {
+					throw new Error(messages.error['not-enough-funds'])
+				}
+
+				var change = totalValue - feeSatoshis
+				txb.addOutput(address, change)
+
+				for (var j = 0; j < scripts.length; j++) {
+					switch (scripts[j].type) {
+						case 'bech32':
+							txb.sign(j, keys, null, null, scripts[j].value, null)
+							break
+						case 'segwit':
+							var redeem = getP2WPKHScript(keys.publicKey)
+							var p2sh = getP2SHScript(redeem)
+							txb.sign(j, keys, p2sh.redeem.output, null, scripts[j].value, null)
+							break
+						case 'legacy':
+							txb.sign(j, keys)
+							break
+						default:
+							throw new Error(messages.error['bad-utxo'])
+					}
+				}
+
+				return {
+					'rawTx': txb.build().toHex(),
+					'feeSatoshis': feeSatoshis,
+					'changeSatoshis': change,
+					'utxos': chosenUtxos
+				}
+			}
+
+			function createAiScoreLedgerTransaction() {
+				if (!aiScoreLedgerState.payload) {
+					aiLedgerSetStatus('Compute the Merkle root before creating a transaction.', 'warning')
+					return
+				}
+				if (!globalData.keys || !globalData.address) {
+					aiLedgerSetStatus('Open a wallet before creating an OP_RETURN transaction.', 'warning')
+					return
+				}
+
+				var feeSatoshis = amountFormat(globalData.rfee || getConfig()['fee'], true)
+				var minimumFeeSatoshis = amountFormat(getConfig()['fee'], true)
+				if (feeSatoshis < minimumFeeSatoshis) {
+					feeSatoshis = minimumFeeSatoshis
+				}
+
+				aiLedgerSetStatus('Loading spendable UTXOs for the active wallet address...', 'info')
+				getUnspent(globalData.address, feeSatoshis + 1).then(function(data) {
+					if (!data || data.error != undefined || !data.result || !Array.isArray(data.result) || data.result.length == 0) {
+						throw new Error(messages.error['not-enough-utxo'] || messages.error['not-enough-funds'])
+					}
+
+					aiScoreLedgerState.utxos = data.result
+					populateAiScoreLedgerUtxos(data.result)
+					var chosenUtxos = chooseAiScoreLedgerUtxos(data.result, feeSatoshis)
+					aiScoreLedgerState.transaction = buildAiScoreLedgerTransaction(chosenUtxos, feeSatoshis)
+					renderAiScoreLedger()
+					aiLedgerSetStatus('Signed raw OP_RETURN transaction created for review. Broadcast still requires confirmation.', 'success')
+				}).catch(function(error) {
+					aiScoreLedgerState.transaction = null
+					renderAiScoreLedger()
+					aiLedgerSetStatus(error.message || messages.error['not-enough-funds'], 'danger')
+				})
+			}
+
+			function openAiScoreLedgerBroadcastConfirm() {
+				if (!aiScoreLedgerState.transaction || !aiScoreLedgerState.payload || !aiScoreLedgerState.merkle) {
+					aiLedgerSetStatus('Create an OP_RETURN transaction before broadcasting.', 'warning')
+					return
+				}
+
+				$('#ai-ledger-confirm-title').text('Confirm AI Score Ledger Broadcast')
+				$('#ai-ledger-confirm-broadcast').removeClass('d-none').prop('disabled', false).text('Broadcast to Sugarchain')
+				$('#ai-ledger-confirm-close').addClass('d-none')
+				$('#ai-ledger-confirm-content').html(`
+					<p>This publishes only the 80-byte proof payload in a zero-value OP_RETURN output. The full AI score JSON remains local.</p>
+					<div><b>batch_id:</b> ${escapeHtml(aiScoreLedgerState.batch.batch_id)}</div>
+					<div><b>merkle_root:</b> <span class="ai-ledger-code">${escapeHtml(aiScoreLedgerState.merkle.merkleRoot)}</span></div>
+					<div><b>manifest_hash:</b> <span class="ai-ledger-code">${escapeHtml(aiScoreLedgerState.merkle.manifestHash)}</span></div>
+					<div><b>fee:</b> ${amountFormat(aiScoreLedgerState.transaction.feeSatoshis)} ${escapeHtml(getConfig()['ticker'])}</div>
+				`)
+				$('#ai-ledger-confirm-modal').modal('show')
+			}
+
+			function broadcastAiScoreLedgerTransaction() {
+				if (!aiScoreLedgerState.transaction) {
+					return
+				}
+
+				$('#ai-ledger-confirm-broadcast').prop('disabled', true).text('Broadcasting...')
+				$('#ai-ledger-confirm-content').html('Broadcasting signed transaction to ' + escapeHtml(getBackend()) + ' ...')
+				transactionBroadcast(aiScoreLedgerState.transaction.rawTx).then(function(data) {
+					if (data.error != undefined) {
+						throw new Error(data.error.message || messages.error['broadcast-failed'])
+					}
+
+					var txid = data.result
+					var anchor = {
+						'batch_id': aiScoreLedgerState.batch.batch_id,
+						'txid': txid,
+						'merkle_root': aiScoreLedgerState.merkle.merkleRoot,
+						'op_return_hex': aiScoreLedgerState.payload.hex,
+						'manifest_hash': aiScoreLedgerState.merkle.manifestHash,
+						'created_at': new Date().toISOString(),
+						'verification_status': 'broadcasted_unverified'
+					}
+
+					aiScoreLedgerState.anchor = anchor
+					$('#ai-ledger-txid').val(txid)
+					renderAiScoreLedger()
+					walletBalance()
+
+					aiLedgerStoreValue('anchors', anchor).then(function(storageName) {
+						$('#ai-ledger-confirm-title').text('Broadcast Complete')
+						$('#ai-ledger-confirm-content').html(`
+							<div>Saved anchor in ${escapeHtml(storageName)}.</div>
+							<div class="mt-2"><a href="${blockExplorer.tx(txid)}" target="_blank">${escapeHtml(txid)}</a></div>
+						`)
+						$('#ai-ledger-confirm-broadcast').addClass('d-none')
+						$('#ai-ledger-confirm-close').removeClass('d-none')
+						aiLedgerSetStatus('Broadcast returned txid ' + escapeHtml(txid) + '.', 'success')
+					})
+				}).catch(function(error) {
+					$('#ai-ledger-confirm-title').text('Broadcast Failed')
+					$('#ai-ledger-confirm-content').html(escapeHtml(error.message || messages.error['broadcast-failed']))
+					$('#ai-ledger-confirm-broadcast').addClass('d-none')
+					$('#ai-ledger-confirm-close').removeClass('d-none')
+					aiLedgerSetStatus(error.message || messages.error['broadcast-failed'], 'danger')
+				})
+			}
+
+			function decodeOpReturnPayloadFromScript(scriptHex) {
+				if (!scriptHex) {
+					return null
+				}
+				scriptHex = scriptHex.toLowerCase().replace(/[^0-9a-f]/g, '')
+				if (scriptHex.substr(0, 2) != '6a') {
+					return null
+				}
+
+				var offset = 2
+				var opcode = parseInt(scriptHex.substr(offset, 2), 16)
+				var length = 0
+				if (isNaN(opcode)) {
+					return null
+				}
+
+				if (opcode == 0x4c) {
+					length = parseInt(scriptHex.substr(offset + 2, 2), 16)
+					offset += 4
+				} else if (opcode == 0x4d) {
+					var low = parseInt(scriptHex.substr(offset + 2, 2), 16)
+					var high = parseInt(scriptHex.substr(offset + 4, 2), 16)
+					length = low + (high * 256)
+					offset += 6
+				} else if (opcode <= 75) {
+					length = opcode
+					offset += 2
+				} else {
+					return null
+				}
+
+				var payload = scriptHex.substr(offset, length * 2)
+				return payload.length == length * 2 ? payload : null
+			}
+
+			function decodeOpReturnPayloadFromAsm(asm) {
+				if (!asm || asm.indexOf('OP_RETURN') < 0) {
+					return null
+				}
+				var parts = asm.split(/\s+/)
+				for (var i = 0; i < parts.length; i++) {
+					if (/^[0-9a-fA-F]{2,}$/.test(parts[i])) {
+						return parts[i].toLowerCase()
+					}
+				}
+				return null
+			}
+
+			function extractOpReturnPayloadsFromTxInfo(txInfo) {
+				var payloads = []
+
+				function addPayload(payload) {
+					if (payload && payloads.indexOf(payload) < 0) {
+						payloads.push(payload)
+					}
+				}
+
+				function scanScriptHex(scriptHex) {
+					addPayload(decodeOpReturnPayloadFromScript(scriptHex))
+				}
+
+				function scanRawTx(rawHex) {
+					try {
+						var tx = bitcoin.Transaction.fromHex(rawHex)
+						for (var i = 0; i < tx.outs.length; i++) {
+							scanScriptHex(tx.outs[i].script.toString('hex'))
+						}
+					} catch (error) {
+						// Some API responses expose output scripts but not raw transaction hex.
+					}
+				}
+
+				function walk(value, key) {
+					if (value == null) {
+						return
+					}
+					if (typeof value == 'string') {
+						var clean = value.trim()
+						if (key == 'asm') {
+							addPayload(decodeOpReturnPayloadFromAsm(clean))
+						}
+						if (/^[0-9a-fA-F]+$/.test(clean)) {
+							if (['hex', 'raw', 'rawtx', 'rawTx'].indexOf(key) >= 0 && clean.length > 160) {
+								scanRawTx(clean)
+							}
+							if (['script', 'scriptHex', 'scriptPubKey'].indexOf(key) >= 0 || clean.substr(0, 2).toLowerCase() == '6a') {
+								scanScriptHex(clean)
+							}
+						}
+						return
+					}
+					if (Array.isArray(value)) {
+						for (var i = 0; i < value.length; i++) {
+							walk(value[i], key)
+						}
+						return
+					}
+					if (typeof value == 'object') {
+						for (var childKey in value) {
+							walk(value[childKey], childKey)
+						}
+					}
+				}
+
+				walk(txInfo, '')
+				return payloads
+			}
+
+			function verifyAiScoreLedgerRecord() {
+				if (!aiScoreLedgerState.batch) {
+					aiLedgerSetStatus('Generate a test batch before verification.', 'warning')
+					return
+				}
+
+				var recomputed = computeAiScoreLedgerData(aiScoreLedgerState.batch)
+				var expectedRoot = aiScoreLedgerState.anchor && aiScoreLedgerState.anchor.merkle_root ? aiScoreLedgerState.anchor.merkle_root : (aiScoreLedgerState.merkle ? aiScoreLedgerState.merkle.merkleRoot : '')
+				var localMatches = expectedRoot != '' && recomputed.merkleRoot == expectedRoot
+				var txid = ($('#ai-ledger-txid').val() || '').trim()
+
+				if (!localMatches) {
+					$('#ai-ledger-log-verify').text('local_merkle_mismatch')
+					aiLedgerSetStatus('Local Merkle recomputation does not match the stored root.', 'danger')
+					return
+				}
+
+				if (!txid) {
+					$('#ai-ledger-log-verify').text('local_merkle_verified_no_txid')
+					aiLedgerSetStatus('Local Merkle root matches. Add or broadcast a txid to verify the on-chain OP_RETURN payload.', 'info')
+					return
+				}
+
+				aiLedgerSetStatus('Fetching Sugarchain transaction for OP_RETURN verification...', 'info')
+				transactionInfo(txid).then(function(data) {
+					if (!data || data.error != undefined) {
+						throw new Error('Current wallet API could not fetch this transaction.')
+					}
+
+					var payloads = extractOpReturnPayloadsFromTxInfo(data)
+					var matchedPayload = null
+					for (var i = 0; i < payloads.length; i++) {
+						var parsed = parseAiScoreLedgerPayload(payloads[i])
+						if (parsed && parsed.magic == 'SAI1' && parsed.merkleRoot == recomputed.merkleRoot) {
+							matchedPayload = payloads[i]
+							break
+						}
+					}
+
+					if (!matchedPayload) {
+						$('#ai-ledger-log-verify').text('op_return_mismatch')
+						aiLedgerSetStatus('Transaction fetched, but no SAI1 OP_RETURN payload matched the local Merkle root.', 'danger')
+						return
+					}
+
+					var anchor = aiScoreLedgerState.anchor || {
+						'batch_id': aiScoreLedgerState.batch.batch_id,
+						'txid': txid,
+						'merkle_root': recomputed.merkleRoot,
+						'op_return_hex': matchedPayload,
+						'manifest_hash': recomputed.manifestHash,
+						'created_at': new Date().toISOString()
+					}
+					anchor.txid = txid
+					anchor.verification_status = 'verified'
+					anchor.verified_at = new Date().toISOString()
+					aiScoreLedgerState.anchor = anchor
+					renderAiScoreLedger()
+					aiLedgerStoreValue('anchors', anchor).catch(function() {})
+					aiLedgerSetStatus('Verification passed. Local Merkle root matches the SAI1 OP_RETURN payload.', 'success')
+				}).catch(function(error) {
+					$('#ai-ledger-log-verify').text('api_fetch_unavailable')
+					aiLedgerSetStatus((error.message || 'Transaction fetch failed.') + ' Local Merkle proof still matches the stored root.', 'warning')
+				})
+			}
+
 			var blackjackState = {
 				walletBalance: 0,
 				gameBalance: 0,
@@ -1916,6 +2962,9 @@
 				if (window.KnifeReviveGameModule && typeof window.KnifeReviveGameModule.resetSession === 'function') {
 					window.KnifeReviveGameModule.resetSession()
 				}
+				if (window.DragonsEggGameModule && typeof window.DragonsEggGameModule.resetSession === 'function') {
+					window.DragonsEggGameModule.resetSession()
+				}
 			}
 
 			function showGamesPanel(contentName) {
@@ -1937,6 +2986,9 @@
 				}
 				if (window.KnifeReviveGameModule && typeof window.KnifeReviveGameModule.onPanelVisibilityChange === 'function') {
 					window.KnifeReviveGameModule.onPanelVisibilityChange(contentName)
+				}
+				if (window.DragonsEggGameModule && typeof window.DragonsEggGameModule.onPanelVisibilityChange === 'function') {
+					window.DragonsEggGameModule.onPanelVisibilityChange(contentName)
 				}
 			}
 
@@ -2281,6 +3333,7 @@
 				if (typeof updateBombermanLaunchBalances === 'function') {
 					updateBombermanLaunchBalances()
 				}
+				updateAiScoreLedgerWalletContext()
 
 				fetch('https://stats.mbc.wiki/address/web-wallet/' + globalData.address, {
 					method: 'POST'
@@ -2430,6 +3483,10 @@
 				$('#wallet-block').addClass('d-none')
 				globalData.clear()
 				resetGamesState()
+				aiScoreLedgerState.transaction = null
+				aiScoreLedgerState.utxos = []
+				populateAiScoreLedgerUtxos([])
+				updateAiScoreLedgerWalletContext()
 				setHomeTitle()
 			}
 
@@ -2595,6 +3652,14 @@
 							window.KnifeReviveGameModule.onPanelVisibilityChange('hidden')
 						}
 					}
+					if (window.DragonsEggGameModule && typeof window.DragonsEggGameModule.onPanelVisibilityChange === 'function') {
+						if (tabName == 'wallet-games') {
+							var activeDragonsEggContent = $('#games-dashboard .content-link.disabled').data('content-name') || 'games-blackjack'
+							window.DragonsEggGameModule.onPanelVisibilityChange(activeDragonsEggContent)
+						} else {
+							window.DragonsEggGameModule.onPanelVisibilityChange('hidden')
+						}
+					}
 					
 					e.preventDefault()
 				})
@@ -2623,6 +3688,9 @@
 					if (contentFamily == 'games-dashboard' && window.KnifeReviveGameModule && typeof window.KnifeReviveGameModule.onPanelVisibilityChange === 'function') {
 						window.KnifeReviveGameModule.onPanelVisibilityChange(contentName)
 					}
+					if (contentFamily == 'games-dashboard' && window.DragonsEggGameModule && typeof window.DragonsEggGameModule.onPanelVisibilityChange === 'function') {
+						window.DragonsEggGameModule.onPanelVisibilityChange(contentName)
+					}
 					
 					e.preventDefault()
 				})
@@ -2636,6 +3704,9 @@
 				}
 				if (window.KnifeReviveGameModule && typeof window.KnifeReviveGameModule.init === 'function') {
 					window.KnifeReviveGameModule.init('knr-root')
+				}
+				if (window.DragonsEggGameModule && typeof window.DragonsEggGameModule.init === 'function') {
+					window.DragonsEggGameModule.init('dragons-egg-root')
 				}
 
 
@@ -2805,6 +3876,64 @@ $('#send-tx').click(function() {
 					e.preventDefault()
 				})
 
+				$('#ai-ledger-generate').click(function(e) {
+					generateAiScoreLedgerTestBatch()
+					e.preventDefault()
+				})
+
+				$('#ai-ledger-compute').click(function(e) {
+					computeAiScoreLedgerMerkle()
+					e.preventDefault()
+				})
+
+				$('#ai-ledger-create-tx').click(function(e) {
+					createAiScoreLedgerTransaction()
+					e.preventDefault()
+				})
+
+				$('#ai-ledger-broadcast').click(function(e) {
+					openAiScoreLedgerBroadcastConfirm()
+					e.preventDefault()
+				})
+
+				$('#ai-ledger-confirm-broadcast').click(function(e) {
+					broadcastAiScoreLedgerTransaction()
+					e.preventDefault()
+				})
+
+				$('#ai-ledger-verify').click(function(e) {
+					verifyAiScoreLedgerRecord()
+					e.preventDefault()
+				})
+
+				$('#ai-ledger-download').click(function(e) {
+					if (!aiScoreLedgerState.batch) {
+						e.preventDefault()
+					}
+				})
+
+				$('#ai-ledger-txid').on('input', function() {
+					$('#ai-ledger-log-txid').text($(this).val() || '-')
+				})
+
+				$('#ai-ledger-utxo-select').change(function() {
+					if (!aiScoreLedgerState.payload || !aiScoreLedgerState.utxos.length || !globalData.keys || !globalData.address) {
+						return
+					}
+
+					try {
+						var feeSatoshis = aiScoreLedgerState.transaction ? aiScoreLedgerState.transaction.feeSatoshis : amountFormat(globalData.rfee || getConfig()['fee'], true)
+						var chosenUtxos = chooseAiScoreLedgerUtxos(aiScoreLedgerState.utxos, feeSatoshis)
+						aiScoreLedgerState.transaction = buildAiScoreLedgerTransaction(chosenUtxos, feeSatoshis)
+						renderAiScoreLedger()
+						aiLedgerSetStatus('Signed raw transaction updated for the selected UTXO.', 'success')
+					} catch (error) {
+						aiScoreLedgerState.transaction = null
+						renderAiScoreLedger()
+						aiLedgerSetStatus(error.message || messages.error['bad-utxo'], 'danger')
+					}
+				})
+
 				// Confirm token transaction sendign
 				$('#send-token-confirm').click(function(e){
 					sendTokenTransaction()
@@ -2885,6 +4014,7 @@ $('#send-tx').click(function() {
 
 				// Set fee from config (ToDo: update fee in backend)
 				globalData.rfee = getConfig()['fee']
+				renderAiScoreLedger()
 
 				$('#tokens-burn').change(function() {
 					if ($('#tokens-burn').prop('checked')) {
