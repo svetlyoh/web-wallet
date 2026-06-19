@@ -3034,35 +3034,39 @@
 					'contentType': 'application/json',
 					'timeout': 50000,
 					'data': JSON.stringify({ 'used_words': Array.from(sugarWordsState.usedWords) })
-				}).then(function(data) {
-					var word = sugarWordsNormalizeWord(data && data.word)
-					var record = {
-						'word': word,
-						'meaning': sugarWordsSanitizeField(data && data.meaning, 80),
-						'etymology_meaning': sugarWordsSanitizeField(data && data.etymology_meaning, 120),
-						'roots_compact': sugarWordsSanitizeField(data && data.roots_compact, 60),
-						'confidence_not_existing': Number(data && data.confidence_not_existing),
-						'op_return_payload': '',
-						'op_return_hex': '',
-						'byte_length': 0,
-						'txid': null,
-						'status': 'ready_to_post',
-						'timestamp': new Date().toISOString()
-					}
-					var validationError = validateSugarWordsObject(record, false)
-					if (validationError) {
-						record.status = 'duplicate_blocked'
-						throw new Error(validationError)
-					}
+				}).done(function(data) {
+					try {
+						var word = sugarWordsNormalizeWord(data && data.word)
+						var record = {
+							'word': word,
+							'meaning': sugarWordsSanitizeField(data && data.meaning, 80),
+							'etymology_meaning': sugarWordsSanitizeField(data && data.etymology_meaning, 120),
+							'roots_compact': sugarWordsSanitizeField(data && data.roots_compact, 60),
+							'confidence_not_existing': Number(data && data.confidence_not_existing),
+							'op_return_payload': '',
+							'op_return_hex': '',
+							'byte_length': 0,
+							'txid': null,
+							'status': 'ready_to_post',
+							'timestamp': new Date().toISOString()
+						}
+						var validationError = validateSugarWordsObject(record, false)
+						if (validationError) {
+							record.status = 'duplicate_blocked'
+							throw new Error(validationError)
+						}
 
-					sugarWordsState.records.push(record)
-					sugarWordsState.currentRecord = record
-					sugarWordsState.usedWords.add(word)
-					sugarWordsState.transaction = null
-					renderSugarWords()
-					sugarWordsSetStatus('Generated "' + escapeHtml(word) + '". Review or edit meaning and compact roots before posting.', 'success')
-				}).catch(function(error) {
-					var message = error && error.responseJSON && error.responseJSON.error ? error.responseJSON.error : (error.statusText == 'timeout' ? 'Word generation timed out. Try again.' : (error.message || 'Word generation failed.'))
+						sugarWordsState.records.push(record)
+						sugarWordsState.currentRecord = record
+						sugarWordsState.usedWords.add(word)
+						sugarWordsState.transaction = null
+						renderSugarWords()
+						sugarWordsSetStatus('Generated "' + escapeHtml(word) + '". Review or edit meaning and compact roots before posting.', 'success')
+					} catch (error) {
+						sugarWordsSetStatus(escapeHtml(error.message || 'Generated word failed validation.'), 'danger')
+					}
+				}).fail(function(jqXHR, textStatus, errorThrown) {
+					var message = jqXHR && jqXHR.responseJSON && jqXHR.responseJSON.error ? jqXHR.responseJSON.error : (textStatus == 'timeout' ? 'Word generation timed out. Try again.' : (errorThrown || 'Word generation failed.'))
 					sugarWordsSetStatus(escapeHtml(message), 'danger')
 				}).always(function() {
 					$('#sugarwords-generate').prop('disabled', false).text('Invent New Word')
