@@ -145,7 +145,72 @@ function chooseSugarWordLanguagePlan() {
 	};
 }
 
-async function requestMiniMaxWord(usedWords) {
+function chooseOne(items) {
+	return items[Math.floor(Math.random() * items.length)];
+}
+
+function chooseSugarWordDesignBrief() {
+	const semanticDomains = [
+		'the feeling of finding a useful pattern in clutter',
+		'a social grace for ending a tense conversation kindly',
+		'the first practical idea after a long foggy problem',
+		'a small object kept because it anchors a memory',
+		'the relief of hearing familiar sounds after being away',
+		'a sudden appetite for difficult but meaningful work',
+		'the calm focus that arrives when tools are arranged well',
+		'a private joke that makes a hard day lighter',
+		'the courage to ask a simple question in a complicated room',
+		'a bright mistake that leads to a better design',
+		'the tiny ritual that turns a place into home',
+		'the mental click when a name finally fits a thing'
+	];
+	const tones = [
+		'practical and clever',
+		'warm but unsentimental',
+		'crisp and tool-like',
+		'mythic but usable in everyday speech',
+		'playful without sounding childish',
+		'elegant and slightly old-world',
+		'modern, memorable, and concrete',
+		'earthy, tactile, and emotionally precise'
+	];
+	const wordShapes = [
+		'a compact compound',
+		'a two-root blend',
+		'a soft consonant-vowel coinage',
+		'a sturdy Germanic-style compound',
+		'a lyrical French-Nordic blend',
+		'a clipped English-Latin hybrid',
+		'a word with one strong stressed syllable and one softer syllable',
+		'a natural English noun that could also become a verb'
+	];
+	const avoid = [
+		'do not define the word as a quiet lingering sense of hope during twilight',
+		'avoid generic twilight, dusk, hope, nostalgia, melancholy, serenity, and gentle glow concepts unless the semantic target explicitly asks for them',
+		'avoid vague meanings such as a feeling, sense, aura, vibe, or mood unless tied to a concrete use',
+		'avoid repeating the same emotional weather imagery across generations'
+	];
+	return {
+		domain: chooseOne(semanticDomains),
+		tone: chooseOne(tones),
+		shape: chooseOne(wordShapes),
+		avoid: avoid.join('; ')
+	};
+}
+
+function normalizeMeaningForComparison(value) {
+	return sanitizeText(value, 120).toLowerCase();
+}
+
+function isRepetitiveMeaning(meaning) {
+	const normalized = normalizeMeaningForComparison(meaning);
+	return normalized.includes('quiet') &&
+		normalized.includes('lingering') &&
+		normalized.includes('hope') &&
+		(normalized.includes('twilight') || normalized.includes('dusk'));
+}
+
+async function requestMiniMaxWord(usedWords, usedMeanings) {
 	const apiKey = process.env.MINIMAX_API_KEY;
 	if (!apiKey) {
 		throw new Error('MINIMAX_API_KEY is not configured on the server.');
@@ -153,7 +218,28 @@ async function requestMiniMaxWord(usedWords) {
 
 	const usedList = Array.from(usedWords).join(', ') || 'none';
 	const languagePlan = chooseSugarWordLanguagePlan();
-	const prompt = 'Create exactly one new coined English word that does not currently exist as a common English dictionary word. It should sound natural, be memorable, and have a meaningful coined etymology. Do not use or resemble any of these already-used session words: [' + usedList + ']. Return JSON only with: word, meaning, etymology_meaning, roots_compact, confidence_not_existing. The word should be lowercase. The meaning should be short. For this word, use this randomized etymology blend: primary family ' + languagePlan.primary.name + ', supporting families ' + (languagePlan.supportNames || 'none') + '. Selected family details: ' + languagePlan.description + '. Use at least two selected families in roots_compact when possible. Do not default to Latin; use Latin only when it appears in the selected blend. Use compact root notation such as de:traum+fr:brise, on:rune+en:gleam, oe:wyrd+la:lumen, or fr:reve+de:glanz. Do not repeat previous words.';
+	const designBrief = chooseSugarWordDesignBrief();
+	const recentMeanings = usedMeanings.length ? usedMeanings.join(' | ') : 'none';
+	const prompt = [
+		'You are a lexicographer, historical linguist, poet, brand namer, and game-world item designer working on the SugarWords registry.',
+		'Create exactly one new coined English word that does not currently exist as a common English dictionary word.',
+		'The word must sound natural enough that a person could use it in a sentence, but it must not be a normal dictionary word.',
+		'Session words already used: [' + usedList + ']. Do not use, rhyme too closely with, or visually resemble them.',
+		'Recent session meanings to avoid: [' + recentMeanings + ']. Do not restate these concepts with a synonym swap.',
+		'Randomized semantic target: ' + designBrief.domain + '.',
+		'Desired tone: ' + designBrief.tone + '.',
+		'Desired word shape: ' + designBrief.shape + '.',
+		'Randomized etymology blend: primary family ' + languagePlan.primary.name + ', supporting families ' + (languagePlan.supportNames || 'none') + '.',
+		'Selected family details: ' + languagePlan.description + '.',
+		'Use at least two selected language families in roots_compact when possible. Do not default to Latin; use Latin only when it appears in the selected blend.',
+		'Make the meaning concrete and fresh. Prefer an action, social situation, object, craft, memory, discovery, or practical emotional state over a vague mood.',
+		'Banned repetition: ' + designBrief.avoid + '.',
+		'Word constraints: lowercase, 2-32 characters, letters only unless one hyphen is truly necessary.',
+		'Meaning constraints: plain English, 1-80 characters, specific and not generic.',
+		'Etymology constraints: 1-120 characters, explain the roots and why the coined word means what it means.',
+		'roots_compact constraints: 1-60 characters, compact notation like de:traum+fr:brise, on:rune+en:gleam, oe:wyrd+la:lumen, fr:reve+de:glanz, en:craft+on:heim.',
+		'Return JSON only with exactly these keys: word, meaning, etymology_meaning, roots_compact, confidence_not_existing.'
+	].join('\n');
 	const controller = new AbortController();
 	const timeout = setTimeout(() => controller.abort(), 45000);
 
@@ -216,16 +302,20 @@ async function handleGenerateWord(req, res) {
 	try {
 		const body = JSON.parse(await readBody(req) || '{}');
 		const usedWords = new Set(Array.isArray(body.used_words) ? body.used_words.map(normalizeWord).filter(Boolean) : []);
+		const usedMeanings = Array.isArray(body.used_meanings) ? body.used_meanings.map(normalizeMeaningForComparison).filter(Boolean).slice(-12) : [];
 		let lastError = null;
 		for (let attempt = 0; attempt < 3; attempt++) {
 			try {
-				const candidate = await requestMiniMaxWord(usedWords);
+				const candidate = await requestMiniMaxWord(usedWords, usedMeanings);
 				const validated = validateGeneratedWord(candidate, usedWords);
+				if (isRepetitiveMeaning(validated.meaning)) {
+					throw new Error('Generated repetitive meaning; retrying.');
+				}
 				sendJson(res, 200, validated);
 				return;
 			} catch (error) {
 				lastError = error;
-				if (!/duplicated/i.test(error.message)) {
+				if (!/duplicated|repetitive/i.test(error.message)) {
 					throw error;
 				}
 			}

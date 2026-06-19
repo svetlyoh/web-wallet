@@ -866,7 +866,7 @@
 											<div class="sugarwords-editable-label">Meaning</div>
 											<textarea id="sugarwords-meaning" class="form-control ai-ledger-code mb-2" rows="2" maxlength="80" placeholder="Generated meaning"></textarea>
 											<div class="sugarwords-editable-label">Etymology meaning</div>
-											<textarea id="sugarwords-etymology" class="form-control ai-ledger-code mb-2" rows="3" maxlength="120" readonly></textarea>
+											<textarea id="sugarwords-etymology" class="form-control ai-ledger-code mb-2" rows="3" maxlength="120"></textarea>
 											<div class="sugarwords-editable-label">Compact roots</div>
 											<input id="sugarwords-roots" class="form-control ai-ledger-code" maxlength="60" placeholder="de:traum+fr:brise or on:rune+en:gleam">
 										</div>
@@ -3019,6 +3019,7 @@
 					return
 				}
 				sugarWordsState.currentRecord.meaning = sugarWordsSanitizeField($('#sugarwords-meaning').val(), 80)
+				sugarWordsState.currentRecord.etymology_meaning = sugarWordsSanitizeField($('#sugarwords-etymology').val(), 120)
 				sugarWordsState.currentRecord.roots_compact = sugarWordsSanitizeField($('#sugarwords-roots').val(), 60)
 				sugarWordsState.transaction = null
 				renderSugarWords()
@@ -3027,13 +3028,20 @@
 			function generateSugarWord() {
 				$('#sugarwords-generate').prop('disabled', true).text('Inventing...')
 				sugarWordsSetStatus('Requesting one strict JSON word object from the local /api/generate-word route...', 'info')
+				var recentMeanings = sugarWordsState.records
+					.map(function(record) { return record.meaning || '' })
+					.filter(function(meaning) { return meaning.length > 0 })
+					.slice(-12)
 
 				$.ajax({
 					'method': 'POST',
 					'url': '/api/generate-word',
 					'contentType': 'application/json',
 					'timeout': 50000,
-					'data': JSON.stringify({ 'used_words': Array.from(sugarWordsState.usedWords) })
+					'data': JSON.stringify({
+						'used_words': Array.from(sugarWordsState.usedWords),
+						'used_meanings': recentMeanings
+					})
 				}).done(function(data) {
 					try {
 						var word = sugarWordsNormalizeWord(data && data.word)
@@ -4653,7 +4661,7 @@ $('#send-tx').click(function() {
 					e.preventDefault()
 				})
 
-				$('#sugarwords-meaning, #sugarwords-roots').on('input', function() {
+				$('#sugarwords-meaning, #sugarwords-etymology, #sugarwords-roots').on('input', function() {
 					updateSugarWordsRecordFromInputs()
 				})
 
