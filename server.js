@@ -103,6 +103,48 @@ function parseJsonFromModelText(text) {
 	}
 }
 
+function chooseSugarWordLanguagePlan() {
+	const families = [
+		{
+			name: 'German',
+			codes: 'de',
+			style: 'German compounds, crisp consonants, and roots such as licht, traum, feld, glanz, wald'
+		},
+		{
+			name: 'Latin',
+			codes: 'la',
+			style: 'Latin roots such as lumen, vita, ventus, nova, cura, silva'
+		},
+		{
+			name: 'French',
+			codes: 'fr',
+			style: 'French sound patterns and roots such as doux, reve, lumiere, coeur, brise'
+		},
+		{
+			name: 'English or Old English',
+			codes: 'en or oe',
+			style: 'English and Old English roots such as word, craft, gleam, mind, wyrd, hearth'
+		},
+		{
+			name: 'Nordic or Old Norse',
+			codes: 'no or on',
+			style: 'Nordic and Old Norse-style roots such as fjord, skald, rune, sol, vind, heim'
+		}
+	];
+	const shuffled = families.slice().sort(() => Math.random() - 0.5);
+	const count = 2 + Math.floor(Math.random() * 2);
+	const selected = shuffled.slice(0, count);
+	const primary = selected[0];
+	const support = selected.slice(1);
+	return {
+		primary,
+		selected,
+		description: selected.map(item => item.name + ' (' + item.codes + ': ' + item.style + ')').join('; '),
+		names: selected.map(item => item.name).join(', '),
+		supportNames: support.map(item => item.name).join(', ')
+	};
+}
+
 async function requestMiniMaxWord(usedWords) {
 	const apiKey = process.env.MINIMAX_API_KEY;
 	if (!apiKey) {
@@ -110,7 +152,8 @@ async function requestMiniMaxWord(usedWords) {
 	}
 
 	const usedList = Array.from(usedWords).join(', ') || 'none';
-	const prompt = 'Create exactly one new coined English word that does not currently exist as a common English dictionary word. It should sound natural, be memorable, and have a meaningful coined etymology. Do not use or resemble any of these already-used session words: [' + usedList + ']. Return JSON only with: word, meaning, etymology_meaning, roots_compact, confidence_not_existing. The word should be lowercase. The meaning should be short. The etymology should explain roots from languages such as Latin, Greek, Spanish, Old English, French, or Germanic patterns. Do not repeat previous words.';
+	const languagePlan = chooseSugarWordLanguagePlan();
+	const prompt = 'Create exactly one new coined English word that does not currently exist as a common English dictionary word. It should sound natural, be memorable, and have a meaningful coined etymology. Do not use or resemble any of these already-used session words: [' + usedList + ']. Return JSON only with: word, meaning, etymology_meaning, roots_compact, confidence_not_existing. The word should be lowercase. The meaning should be short. For this word, use this randomized etymology blend: primary family ' + languagePlan.primary.name + ', supporting families ' + (languagePlan.supportNames || 'none') + '. Selected family details: ' + languagePlan.description + '. Use at least two selected families in roots_compact when possible. Do not default to Latin; use Latin only when it appears in the selected blend. Use compact root notation such as de:traum+fr:brise, on:rune+en:gleam, oe:wyrd+la:lumen, or fr:reve+de:glanz. Do not repeat previous words.';
 	const controller = new AbortController();
 	const timeout = setTimeout(() => controller.abort(), 45000);
 

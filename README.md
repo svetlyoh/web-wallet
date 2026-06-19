@@ -28,6 +28,8 @@ SugarWords adds an **AI Word OP_RETURN** wallet tab. It asks a small local backe
 
 `SGW1|word|meaning|roots_compact|c`
 
+Each generation randomizes an etymology blend across German, Latin, French, English or Old English, and Nordic or Old Norse-style root families, so coined words do not default to Latin-only roots.
+
 The longer etymology explanation stays off-chain in the browser session JSON. The Sugarchain transaction stores only the compact word, meaning, and root notation in a zero-value OP_RETURN output, using Sugarchain as a public timestamp ledger. The user pays only the normal network fee.
 
 Run the local server with a MiniMax API key:
