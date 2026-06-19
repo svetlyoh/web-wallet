@@ -4,7 +4,7 @@ const path = require('path');
 
 const rootDir = __dirname;
 const port = Number(process.env.PORT || 8080);
-const openAiModel = process.env.OPENAI_MODEL || 'gpt-4.1-mini';
+const miniMaxModel = process.env.MINIMAX_MODEL || 'MiniMax-M3';
 
 const mimeTypes = {
 	'.html': 'text/html; charset=utf-8',
@@ -83,76 +83,72 @@ function validateGeneratedWord(candidate, usedWords) {
 	};
 }
 
-function extractOutputText(responseJson) {
-	if (typeof responseJson.output_text === 'string') {
-		return responseJson.output_text;
-	}
-	if (!Array.isArray(responseJson.output)) {
-		return '';
-	}
-	for (const item of responseJson.output) {
-		if (!Array.isArray(item.content)) {
-			continue;
-		}
-		for (const content of item.content) {
-			if (content && content.type === 'output_text' && typeof content.text === 'string') {
-				return content.text;
-			}
-		}
-	}
-	return '';
+function extractMiniMaxContent(responseJson) {
+	const choice = responseJson && Array.isArray(responseJson.choices) ? responseJson.choices[0] : null;
+	const message = choice && choice.message ? choice.message : null;
+	return typeof (message && message.content) === 'string' ? message.content : '';
 }
 
-async function requestOpenAiWord(usedWords) {
-	const apiKey = process.env.OPENAI_API_KEY;
+function parseJsonFromModelText(text) {
+	const withoutThinking = String(text || '').replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+	try {
+		return JSON.parse(withoutThinking);
+	} catch (error) {
+		const start = withoutThinking.indexOf('{');
+		const end = withoutThinking.lastIndexOf('}');
+		if (start >= 0 && end > start) {
+			return JSON.parse(withoutThinking.slice(start, end + 1));
+		}
+		throw error;
+	}
+}
+
+async function requestMiniMaxWord(usedWords) {
+	const apiKey = process.env.MINIMAX_API_KEY;
 	if (!apiKey) {
-		throw new Error('OPENAI_API_KEY is not configured on the server.');
+		throw new Error('MINIMAX_API_KEY is not configured on the server.');
 	}
 
 	const usedList = Array.from(usedWords).join(', ') || 'none';
 	const prompt = 'Create exactly one new coined English word that does not currently exist as a common English dictionary word. It should sound natural, be memorable, and have a meaningful coined etymology. Do not use or resemble any of these already-used session words: [' + usedList + ']. Return JSON only with: word, meaning, etymology_meaning, roots_compact, confidence_not_existing. The word should be lowercase. The meaning should be short. The etymology should explain roots from languages such as Latin, Greek, Spanish, Old English, French, or Germanic patterns. Do not repeat previous words.';
 
-	const response = await fetch('https://api.openai.com/v1/responses', {
+	const response = await fetch('https://api.minimax.io/v1/chat/completions', {
 		method: 'POST',
 		headers: {
 			'authorization': 'Bearer ' + apiKey,
 			'content-type': 'application/json'
 		},
 		body: JSON.stringify({
-			model: openAiModel,
-			input: prompt,
-			store: false,
-			text: {
-				format: {
-					type: 'json_schema',
-					name: 'sugarword_v1',
-					strict: true,
-					schema: {
-						type: 'object',
-						additionalProperties: false,
-						required: ['word', 'meaning', 'etymology_meaning', 'roots_compact', 'confidence_not_existing'],
-						properties: {
-							word: { type: 'string' },
-							meaning: { type: 'string' },
-							etymology_meaning: { type: 'string' },
-							roots_compact: { type: 'string' },
-							confidence_not_existing: { type: 'number', minimum: 0, maximum: 1 }
-						}
-					}
+			model: miniMaxModel,
+			messages: [
+				{
+					role: 'system',
+					content: 'You return one strict JSON object only. Do not include markdown, prose, code fences, or explanatory text.'
+				},
+				{
+					role: 'user',
+					content: prompt
 				}
-			}
+			],
+			thinking: {
+				type: 'adaptive',
+				reasoning_split: true
+			},
+			max_completion_tokens: 600,
+			temperature: 0.9,
+			top_p: 0.95
 		})
 	});
 
 	const responseJson = await response.json().catch(() => null);
 	if (!response.ok) {
-		throw new Error('OpenAI word generation failed.');
+		throw new Error('MiniMax word generation failed.');
 	}
-	const outputText = extractOutputText(responseJson || {});
+	const outputText = extractMiniMaxContent(responseJson || {});
 	if (!outputText) {
-		throw new Error('OpenAI returned an empty response.');
+		throw new Error('MiniMax returned an empty response.');
 	}
-	return JSON.parse(outputText);
+	return parseJsonFromModelText(outputText);
 }
 
 async function handleGenerateWord(req, res) {
@@ -167,7 +163,7 @@ async function handleGenerateWord(req, res) {
 		let lastError = null;
 		for (let attempt = 0; attempt < 3; attempt++) {
 			try {
-				const candidate = await requestOpenAiWord(usedWords);
+				const candidate = await requestMiniMaxWord(usedWords);
 				const validated = validateGeneratedWord(candidate, usedWords);
 				sendJson(res, 200, validated);
 				return;
