@@ -3032,6 +3032,7 @@
 					'method': 'POST',
 					'url': '/api/generate-word',
 					'contentType': 'application/json',
+					'timeout': 50000,
 					'data': JSON.stringify({ 'used_words': Array.from(sugarWordsState.usedWords) })
 				}).then(function(data) {
 					var word = sugarWordsNormalizeWord(data && data.word)
@@ -3061,7 +3062,7 @@
 					renderSugarWords()
 					sugarWordsSetStatus('Generated "' + escapeHtml(word) + '". Review or edit meaning and compact roots before posting.', 'success')
 				}).catch(function(error) {
-					var message = error && error.responseJSON && error.responseJSON.error ? error.responseJSON.error : (error.message || 'Word generation failed.')
+					var message = error && error.responseJSON && error.responseJSON.error ? error.responseJSON.error : (error.statusText == 'timeout' ? 'Word generation timed out. Try again.' : (error.message || 'Word generation failed.'))
 					sugarWordsSetStatus(escapeHtml(message), 'danger')
 				}).always(function() {
 					$('#sugarwords-generate').prop('disabled', false).text('Invent New Word')

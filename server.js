@@ -111,38 +111,51 @@ async function requestMiniMaxWord(usedWords) {
 
 	const usedList = Array.from(usedWords).join(', ') || 'none';
 	const prompt = 'Create exactly one new coined English word that does not currently exist as a common English dictionary word. It should sound natural, be memorable, and have a meaningful coined etymology. Do not use or resemble any of these already-used session words: [' + usedList + ']. Return JSON only with: word, meaning, etymology_meaning, roots_compact, confidence_not_existing. The word should be lowercase. The meaning should be short. The etymology should explain roots from languages such as Latin, Greek, Spanish, Old English, French, or Germanic patterns. Do not repeat previous words.';
+	const controller = new AbortController();
+	const timeout = setTimeout(() => controller.abort(), 45000);
 
-	const response = await fetch('https://api.minimax.io/v1/chat/completions', {
-		method: 'POST',
-		headers: {
-			'authorization': 'Bearer ' + apiKey,
-			'content-type': 'application/json'
-		},
-		body: JSON.stringify({
-			model: miniMaxModel,
-			messages: [
-				{
-					role: 'system',
-					content: 'You return one strict JSON object only. Do not include markdown, prose, code fences, or explanatory text.'
-				},
-				{
-					role: 'user',
-					content: prompt
-				}
-			],
-			thinking: {
-				type: 'adaptive',
-				reasoning_split: true
+	let response;
+	try {
+		response = await fetch('https://api.minimax.io/v1/chat/completions', {
+			method: 'POST',
+			headers: {
+				'authorization': 'Bearer ' + apiKey,
+				'content-type': 'application/json'
 			},
-			max_completion_tokens: 600,
-			temperature: 0.9,
-			top_p: 0.95
-		})
-	});
+			signal: controller.signal,
+			body: JSON.stringify({
+				model: miniMaxModel,
+				messages: [
+					{
+						role: 'system',
+						content: 'You return one strict JSON object only. Do not include markdown, prose, code fences, or explanatory text.'
+					},
+					{
+						role: 'user',
+						content: prompt
+					}
+				],
+				thinking: {
+					type: 'disabled'
+				},
+				max_completion_tokens: 600,
+				temperature: 0.9,
+				top_p: 0.95
+			})
+		});
+	} catch (error) {
+		if (error && error.name === 'AbortError') {
+			throw new Error('MiniMax word generation timed out.');
+		}
+		throw error;
+	} finally {
+		clearTimeout(timeout);
+	}
 
 	const responseJson = await response.json().catch(() => null);
 	if (!response.ok) {
-		throw new Error('MiniMax word generation failed.');
+		const status = response.status ? ' HTTP ' + response.status : '';
+		throw new Error('MiniMax word generation failed.' + status);
 	}
 	const outputText = extractMiniMaxContent(responseJson || {});
 	if (!outputText) {
