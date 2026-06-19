@@ -21,3 +21,29 @@ The demo flow is:
 7. Verify by recomputing the local Merkle root and checking it against the OP_RETURN payload fetched from the wallet transaction API.
 
 If the current Sugarchain API response does not expose raw transactions or output scripts, local Merkle verification still works, but on-chain OP_RETURN extraction will report the API limitation.
+
+## AI Word OP_RETURN / SugarWords
+
+SugarWords adds an **AI Word OP_RETURN** wallet tab. It asks a small local backend route to generate one coined English word, then lets the wallet create a compact `SGW1` OP_RETURN record:
+
+`SGW1|word|meaning|roots_compact|c`
+
+The longer etymology explanation stays off-chain in the browser session JSON. The Sugarchain transaction stores only the compact word, meaning, and root notation in a zero-value OP_RETURN output, using Sugarchain as a public timestamp ledger. The user pays only the normal network fee.
+
+Run the local server with:
+
+```bash
+set OPENAI_API_KEY=your_key_here
+npm start
+```
+
+PowerShell:
+
+```powershell
+$env:OPENAI_API_KEY="your_key_here"
+npm start
+```
+
+The frontend calls `POST /api/generate-word`. The server reads `process.env.OPENAI_API_KEY`, calls the OpenAI Responses API, validates strict JSON, rejects malformed or duplicate session words, and returns only the generated word object. Never put the OpenAI key in frontend code or browser storage.
+
+SugarWords keeps an in-memory `usedWords` set and persists the session log to localStorage so refreshes do not erase generated records. It blocks duplicate generation and duplicate posting during the session. Posting always requires a confirmation modal showing the word, compact meaning, roots, OP_RETURN payload, byte length, estimated fee, and funding/change address before broadcast.
