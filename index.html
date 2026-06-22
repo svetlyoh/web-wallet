@@ -416,6 +416,19 @@
 				font-weight: 700;
 				color: #123b36;
 				word-break: break-word;
+				background: #eef7f2;
+				border: 1px solid #b9d8cc;
+				border-radius: 8px;
+				box-shadow: inset 0 1px 2px rgba(18, 59, 54, 0.08);
+				height: auto;
+				line-height: 1.2;
+				padding: 10px 12px;
+			}
+			.sugarwords-word:focus {
+				background: #e3f1ea;
+				border-color: #75ad98;
+				box-shadow: 0 0 0 0.2rem rgba(117, 173, 152, 0.18);
+				color: #123b36;
 			}
 			.sugarwords-table {
 				min-width: 980px;
@@ -430,6 +443,121 @@
 				font-weight: 700;
 				color: #607379;
 				margin-bottom: 4px;
+			}
+			.word-explorer-controls {
+				display: grid;
+				grid-template-columns: minmax(180px, 1fr) minmax(150px, 220px);
+				gap: 8px;
+				margin-bottom: 8px;
+			}
+			.word-explorer-actions {
+				display: grid;
+				grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+				gap: 8px;
+				margin-bottom: 12px;
+			}
+			.word-explorer-direct-row {
+				align-items: center;
+				display: flex;
+				flex-wrap: wrap;
+				gap: 8px 12px;
+				margin: -4px 0 12px;
+			}
+			.word-explorer-toggle {
+				align-items: center;
+				background: #e9f7f2;
+				border: 1px solid #b9d8cc;
+				border-radius: 8px;
+				color: #123b36;
+				display: inline-flex;
+				font-weight: 700;
+				gap: 8px;
+				min-height: 44px;
+				padding: 8px 12px;
+			}
+			.word-explorer-toggle input {
+				height: 18px;
+				width: 18px;
+			}
+			.word-explorer-actions .btn,
+			.word-explorer-copy-actions .btn {
+				min-height: 48px;
+				font-weight: 700;
+				white-space: normal;
+			}
+			.word-explorer-filter-row {
+				display: grid;
+				grid-template-columns: minmax(150px, 220px) minmax(150px, 1fr) 140px;
+				gap: 8px;
+				margin-bottom: 12px;
+			}
+			.word-explorer-results {
+				display: grid;
+				grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+				gap: 12px;
+			}
+			.word-explorer-card {
+				background: #ffffff;
+				border: 1px solid #d8e2e0;
+				border-radius: 8px;
+				padding: 12px;
+				min-width: 0;
+			}
+			.word-explorer-word {
+				font-size: 28px;
+				font-weight: 700;
+				color: #123b36;
+				line-height: 1.05;
+				word-break: break-word;
+			}
+			.word-explorer-meaning {
+				font-size: 16px;
+				color: #26363b;
+				margin-top: 6px;
+			}
+			.word-explorer-meta {
+				display: grid;
+				grid-template-columns: 110px minmax(0, 1fr);
+				gap: 5px 8px;
+				font-size: 13px;
+				margin: 10px 0;
+			}
+			.word-explorer-meta .label {
+				color: #607379;
+				font-weight: 700;
+			}
+			.word-explorer-meta .value {
+				color: #18292f;
+				word-break: break-word;
+			}
+			.word-explorer-status {
+				display: inline-block;
+				border-radius: 999px;
+				background: #e9f3f1;
+				color: #194a46;
+				font-size: 12px;
+				font-weight: 700;
+				padding: 4px 8px;
+				margin-top: 8px;
+			}
+			.word-explorer-copy-actions {
+				display: grid;
+				grid-template-columns: repeat(2, minmax(0, 1fr));
+				gap: 6px;
+				margin-top: 10px;
+			}
+			.word-explorer-note {
+				background: #fff3cd;
+				border: 1px solid #ffeeba;
+				border-radius: 8px;
+				color: #4a3f0d;
+				font-size: 14px;
+				line-height: 1.35;
+				padding: 10px;
+				margin-bottom: 12px;
+			}
+			.word-explorer-detail {
+				margin-top: 12px;
 			}
 			@media (max-width: 576px) {
 				.games-hub {
@@ -464,6 +592,14 @@
 				}
 				.ai-ledger-title {
 					font-size: 23px;
+				}
+				.word-explorer-controls,
+				.word-explorer-filter-row,
+				.word-explorer-meta {
+					grid-template-columns: 1fr;
+				}
+				.word-explorer-copy-actions {
+					grid-template-columns: 1fr;
 				}
 			}
 		</style>
@@ -584,6 +720,12 @@
 								</li>
 								<li class="nav-item mr-2">
 									<a class="nav-link tab-link" data-tab-name="wallet-sugarwords" data-tab-family="wallet-block" href="#">AI Word OP_RETURN</a>
+								</li>
+								<li class="nav-item mr-2">
+									<a class="nav-link tab-link" data-tab-name="wallet-sugarwords-prompt" data-tab-family="wallet-block" href="#">AI Word Prompt OP_RETURN</a>
+								</li>
+								<li class="nav-item mr-2">
+									<a class="nav-link tab-link" data-tab-name="wallet-word-explorer" data-tab-family="wallet-block" href="#">Word Explorer</a>
 								</li>
 								<li class="nav-item">
 									<a class="nav-link tab-link" data-tab-name="wallet-games" data-tab-family="wallet-block" href="#">Games</a>
@@ -839,12 +981,17 @@
 									<div class="ai-ledger-header">
 										<div>
 											<div class="ai-ledger-title">SugarWords</div>
-											<div class="ai-ledger-subtitle">Invent a coined word with AI and timestamp a compact SGW1 record in a zero-value Sugarchain OP_RETURN output.</div>
+											<div class="ai-ledger-subtitle">Invent a coined word with AI and timestamp a compact SW record in a zero-value Sugarchain OP_RETURN output.</div>
 										</div>
 										<div id="sugarwords-network" class="ai-ledger-badge">SUGAR</div>
 									</div>
 
 									<div id="sugarwords-status" class="alert alert-secondary ai-ledger-status" role="alert">Invent a new word to begin.</div>
+
+									<div class="ai-ledger-section">
+										<div class="sugarwords-editable-label">MiniMax API Key</div>
+										<input id="sugarwords-api-key" class="form-control ai-ledger-code" type="password" autocomplete="off" placeholder="Paste API key for this generation request">
+									</div>
 
 									<div class="ai-ledger-actions">
 										<button id="sugarwords-generate" type="button" class="btn btn-outline-dark">Invent New Word</button>
@@ -856,23 +1003,33 @@
 									<div class="ai-ledger-layout">
 										<div class="ai-ledger-section">
 											<h3>Generated Word</h3>
-											<div id="sugarwords-word" class="sugarwords-word">-</div>
+											<input id="sugarwords-word" class="form-control sugarwords-word" maxlength="32" placeholder="generated-word">
 											<div class="ai-ledger-kv mt-2">
 												<div class="label">confidence</div>
 												<div id="sugarwords-confidence" class="value">-</div>
 												<div class="label">status</div>
 												<div id="sugarwords-record-status" class="value">-</div>
 											</div>
+											<div class="sugarwords-editable-label">Part of Speech</div>
+											<select id="sugarwords-pos" class="custom-select ai-ledger-code mb-2">
+												<option value="n">Noun</option>
+												<option value="v">Verb</option>
+												<option value="adj">Adjective</option>
+												<option value="adv">Adverb</option>
+												<option value="pron">Pronoun</option>
+												<option value="prep">Preposition</option>
+												<option value="conj">Conjunction</option>
+												<option value="interj">Interjection</option>
+											</select>
 											<div class="sugarwords-editable-label">Meaning</div>
-											<textarea id="sugarwords-meaning" class="form-control ai-ledger-code mb-2" rows="2" maxlength="80" placeholder="Generated meaning"></textarea>
+											<textarea id="sugarwords-meaning" class="form-control ai-ledger-code mb-2" rows="2" maxlength="65" placeholder="Generated meaning"></textarea>
+											<div id="sugarwords-meaning-limit" class="sugarwords-editable-label text-muted">On-chain meaning limit: -</div>
 											<div class="sugarwords-editable-label">Etymology meaning</div>
-											<textarea id="sugarwords-etymology" class="form-control ai-ledger-code mb-2" rows="3" maxlength="120"></textarea>
-											<div class="sugarwords-editable-label">Compact roots</div>
-											<input id="sugarwords-roots" class="form-control ai-ledger-code" maxlength="60" placeholder="de:traum+fr:brise or on:rune+en:gleam">
+											<textarea id="sugarwords-etymology" class="form-control ai-ledger-code" rows="3" maxlength="40"></textarea>
 										</div>
 
 										<div class="ai-ledger-section">
-											<h3>SGW1 OP_RETURN</h3>
+											<h3>SW OP_RETURN</h3>
 											<div class="ai-ledger-kv">
 												<div class="label">Payload bytes</div>
 												<div id="sugarwords-byte-length" class="value">0</div>
@@ -899,9 +1056,9 @@
 												<thead>
 													<tr>
 														<th>word</th>
+														<th>part_of_speech</th>
 														<th>meaning</th>
 														<th>etymology_meaning</th>
-														<th>roots_compact</th>
 														<th>op_return_payload</th>
 														<th>op_return_hex</th>
 														<th>txid</th>
@@ -915,6 +1072,170 @@
 											</table>
 										</div>
 									</div>
+								</div>
+							</div>
+							<div class="tab-item d-none" data-tab="wallet-sugarwords-prompt">
+								<div id="sugarwords-prompt" class="ai-ledger">
+									<div class="ai-ledger-header">
+										<div>
+											<div class="ai-ledger-title">SugarWords Prompt</div>
+											<div class="ai-ledger-subtitle">Invent a coined word from your concept and timestamp a compact SW record in a zero-value Sugarchain OP_RETURN output.</div>
+										</div>
+										<div id="sugarwords-prompt-network" class="ai-ledger-badge">SUGAR</div>
+									</div>
+
+									<div id="sugarwords-prompt-status" class="alert alert-secondary ai-ledger-status" role="alert">Type a concept and invent a new word from your prompt.</div>
+
+									<div class="ai-ledger-section">
+										<div class="sugarwords-editable-label">MiniMax API Key</div>
+										<input id="sugarwords-prompt-api-key" class="form-control ai-ledger-code" type="password" autocomplete="off" placeholder="Paste API key for this generation request">
+									</div>
+
+									<div class="ai-ledger-actions">
+										<button id="sugarwords-prompt-generate" type="button" class="btn btn-outline-dark">Invent From Prompt</button>
+										<button id="sugarwords-prompt-write" type="button" class="btn btn-success">Write to Sugarchain OP_RETURN</button>
+										<button id="sugarwords-prompt-verify" type="button" class="btn btn-outline-dark">Verify on-chain</button>
+										<button id="sugarwords-prompt-download" type="button" class="btn btn-outline-secondary">Download Session JSON</button>
+									</div>
+
+									<div class="ai-ledger-layout">
+										<div class="ai-ledger-section">
+											<div class="sugarwords-editable-label">Prompt for New Word</div>
+											<textarea id="sugarwords-prompt-concept-prompt" class="form-control ai-ledger-code mb-2" rows="3" maxlength="500" placeholder="Describe the concept you want a new word for." onkeydown="event.stopPropagation()" onkeypress="event.stopPropagation()" onkeyup="event.stopPropagation()"></textarea>
+											<h3>Generated Word</h3>
+											<input id="sugarwords-prompt-word" class="form-control sugarwords-word" maxlength="32" placeholder="generated-word">
+											<div class="ai-ledger-kv mt-2">
+												<div class="label">confidence</div>
+												<div id="sugarwords-prompt-confidence" class="value">-</div>
+												<div class="label">status</div>
+												<div id="sugarwords-prompt-record-status" class="value">-</div>
+											</div>
+											<div class="sugarwords-editable-label">Part of Speech</div>
+											<select id="sugarwords-prompt-pos" class="custom-select ai-ledger-code mb-2">
+												<option value="n">Noun</option>
+												<option value="v">Verb</option>
+												<option value="adj">Adjective</option>
+												<option value="adv">Adverb</option>
+												<option value="pron">Pronoun</option>
+												<option value="prep">Preposition</option>
+												<option value="conj">Conjunction</option>
+												<option value="interj">Interjection</option>
+											</select>
+											<div class="sugarwords-editable-label">Meaning</div>
+											<textarea id="sugarwords-prompt-meaning" class="form-control ai-ledger-code mb-2" rows="2" maxlength="65" placeholder="Generated meaning"></textarea>
+											<div id="sugarwords-prompt-meaning-limit" class="sugarwords-editable-label text-muted">On-chain meaning limit: -</div>
+											<div class="sugarwords-editable-label">Etymology meaning</div>
+											<textarea id="sugarwords-prompt-etymology" class="form-control ai-ledger-code" rows="3" maxlength="40"></textarea>
+										</div>
+
+										<div class="ai-ledger-section">
+											<h3>SW OP_RETURN</h3>
+											<div class="ai-ledger-kv">
+												<div class="label">Payload bytes</div>
+												<div id="sugarwords-prompt-byte-length" class="value">0</div>
+												<div class="label">Fee</div>
+												<div id="sugarwords-prompt-fee" class="value">-</div>
+												<div class="label">Change</div>
+												<div id="sugarwords-prompt-change" class="value">-</div>
+												<div class="label">Wallet address</div>
+												<div id="sugarwords-prompt-wallet-address" class="value ai-ledger-code">Open a wallet first.</div>
+												<div class="label">txid</div>
+												<div id="sugarwords-prompt-txid" class="value ai-ledger-code">-</div>
+											</div>
+											<label for="sugarwords-prompt-payload" class="mb-1">OP_RETURN payload</label>
+											<textarea id="sugarwords-prompt-payload" class="form-control ai-ledger-code mb-2" rows="3" readonly></textarea>
+											<label for="sugarwords-prompt-hex" class="mb-1">OP_RETURN hex</label>
+											<textarea id="sugarwords-prompt-hex" class="form-control ai-ledger-code" rows="3" readonly></textarea>
+										</div>
+									</div>
+
+									<div class="ai-ledger-section">
+										<h3>Session Log</h3>
+										<div class="table-responsive">
+											<table class="table table-sm ai-ledger-table sugarwords-table mb-0">
+												<thead>
+													<tr>
+														<th>word</th>
+														<th>part_of_speech</th>
+														<th>meaning</th>
+														<th>etymology_meaning</th>
+														<th>op_return_payload</th>
+														<th>op_return_hex</th>
+														<th>txid</th>
+														<th>status</th>
+														<th>timestamp</th>
+													</tr>
+												</thead>
+												<tbody id="sugarwords-prompt-log-body">
+													<tr><td colspan="9">No SugarWords in this session yet.</td></tr>
+												</tbody>
+											</table>
+										</div>
+									</div>
+								</div>
+							</div>
+							<div class="tab-item d-none" data-tab="wallet-word-explorer">
+								<div id="word-explorer" class="ai-ledger">
+									<div class="ai-ledger-header">
+										<div>
+											<div class="ai-ledger-title">Sugarchain Word Explorer</div>
+											<div class="ai-ledger-subtitle">A dictionary-style browser for AI-created SugarWords stored in Sugarchain OP_RETURN records.</div>
+										</div>
+										<div class="ai-ledger-badge">SW</div>
+									</div>
+
+									<div id="word-explorer-status" class="alert alert-secondary ai-ledger-status" role="alert">Browse latest words, search the local index, import a SugarWords session JSON, or verify one txid.</div>
+
+									<div class="word-explorer-note">
+										Note: Sugarchain verifies that a timestamped SugarWords claim exists on-chain. Imported JSON records are searchable locally, and become trusted when the matching OP_RETURN is verified.
+									</div>
+
+									<div class="word-explorer-controls">
+										<input id="word-explorer-query" class="form-control ai-ledger-code" type="text" placeholder="Search word, meaning, txid, or OP_RETURN hex">
+										<select id="word-explorer-mode" class="custom-select">
+											<option value="all">All fields</option>
+											<option value="word">Word</option>
+											<option value="syllable">Syllable / contains</option>
+											<option value="meaning">Meaning</option>
+											<option value="txid">Transaction ID</option>
+											<option value="op_return_hex">OP_RETURN hex</option>
+										</select>
+									</div>
+
+									<div class="word-explorer-filter-row">
+										<select id="word-explorer-filter" class="custom-select">
+											<option value="">Latest</option>
+											<option value="verified">Verified only</option>
+											<option value="imported">Imported/local only</option>
+											<option value="duplicates">Duplicate words</option>
+											<option value="es">Spanish-rooted</option>
+											<option value="la">Latin-rooted</option>
+											<option value="grc">Greek-rooted</option>
+											<option value="oe">Old English-rooted</option>
+										</select>
+										<input id="word-explorer-txid" class="form-control ai-ledger-code" type="text" placeholder="Verify by txid">
+										<input id="word-explorer-scan-blocks" class="form-control" type="number" min="1" max="5000" value="500" title="Latest blocks">
+									</div>
+
+									<div class="word-explorer-direct-row">
+										<label class="word-explorer-toggle mb-0" for="word-explorer-direct">
+											<input id="word-explorer-direct" type="checkbox" checked>
+											<span>Search blockchain directly</span>
+										</label>
+										<div class="text-muted small">Default: direct searches stay after block 42900000. Browse Latest and Scan use the latest-blocks value.</div>
+									</div>
+
+									<div class="word-explorer-actions">
+										<button id="word-explorer-search" type="button" class="btn btn-outline-dark">Search</button>
+										<button id="word-explorer-latest" type="button" class="btn btn-outline-primary">Browse Latest</button>
+										<button id="word-explorer-scan" type="button" class="btn btn-outline-info">Scan After 42900000</button>
+										<button id="word-explorer-verify-txid" type="button" class="btn btn-success">Verify by TXID</button>
+										<label for="word-explorer-import-file" class="btn btn-outline-secondary mb-0">Upload Session JSON</label>
+										<input id="word-explorer-import-file" class="d-none" type="file" accept="application/json,.json">
+									</div>
+
+									<div id="word-explorer-results" class="word-explorer-results"></div>
+									<div id="word-explorer-detail" class="word-explorer-detail"></div>
 								</div>
 							</div>
 							<div class="tab-item d-none" data-tab="wallet-games">
@@ -2773,12 +3094,13 @@
 				'payload': null,
 				'transaction': null,
 				'utxos': [],
-				'storageKey': 'sugarchain_sugarwords_session_v1'
+				'storageKey': 'sugarchain_sugarwords_session_v1',
+				'promptStorageKey': 'sugarchain_sugarwords_concept_prompt'
 			}
 
 			function sugarWordsSetStatus(message, variant) {
 				var alertClass = 'alert-' + (variant || 'secondary')
-				$('#sugarwords-status')
+				$('#sugarwords-status, #sugarwords-prompt-status')
 					.removeClass('alert-secondary alert-success alert-warning alert-danger alert-info')
 					.addClass(alertClass)
 					.html(message)
@@ -2796,11 +3118,57 @@
 					.substr(0, limit)
 			}
 
+			function sugarWordsNormalizePartOfSpeech(value) {
+				var pos = String(value || '').trim().toLowerCase().replace(/\.$/, '')
+				var allowed = ['n', 'v', 'adj', 'adv', 'pron', 'prep', 'conj', 'interj']
+				return allowed.indexOf(pos) >= 0 ? pos : 'n'
+			}
+
+			function sugarWordsPartOfSpeechLabel(value) {
+				var labels = {
+					'n': 'Noun',
+					'v': 'Verb',
+					'adj': 'Adjective',
+					'adv': 'Adverb',
+					'pron': 'Pronoun',
+					'prep': 'Preposition',
+					'conj': 'Conjunction',
+					'interj': 'Interjection'
+				}
+				var pos = sugarWordsNormalizePartOfSpeech(value)
+				return labels[pos] || 'Noun'
+			}
+
 			function sugarWordsByteLength(text) {
 				if (window.TextEncoder) {
 					return new TextEncoder().encode(text).length
 				}
 				return unescape(encodeURIComponent(text)).length
+			}
+
+			function sugarWordsTrimToByteLength(text, maxBytes) {
+				var value = String(text || '')
+				while (value.length && sugarWordsByteLength(value) > maxBytes) {
+					value = value.slice(0, -1).trim()
+				}
+				return value
+			}
+
+			function sugarWordsMeaningByteBudget(record) {
+				var word = sugarWordsNormalizeWord(record && record.word)
+				var partOfSpeech = sugarWordsNormalizePartOfSpeech(record && record.part_of_speech)
+				var maxBytes = 80
+				var fixedBytes = sugarWordsByteLength('SW|' + word + '|' + partOfSpeech + '|')
+				return Math.max(0, maxBytes - fixedBytes)
+			}
+
+			function sugarWordsMaxMeaningChars(record) {
+				return Math.min(65, sugarWordsMeaningByteBudget(record))
+			}
+
+			function sugarWordsSanitizeMeaningForChain(record, value) {
+				var maxChars = sugarWordsMaxMeaningChars(record)
+				return sugarWordsTrimToByteLength(sugarWordsSanitizeField(value, maxChars), sugarWordsMeaningByteBudget(record))
 			}
 
 			function sugarWordsTextToHex(text) {
@@ -2824,23 +3192,24 @@
 				if (!/^[a-z]{2,32}(-[a-z]{2,32})?$/.test(word) || word.length > 32) {
 					return 'Word must be 2-32 lowercase letters, with at most one hyphen.'
 				}
-				if (!allowExistingCurrent && sugarWordsState.usedWords.has(word)) {
-					return 'Duplicate word blocked for this session.'
+				if (!allowExistingCurrent && sugarWordsState.postedWords.has(word)) {
+					return 'Duplicate post blocked for "' + word + '".'
 				}
 
-				var meaning = sugarWordsSanitizeField(record.meaning, 80)
-				if (meaning.length < 1 || meaning.length > 80) {
-					return 'Meaning must be 1-80 characters.'
+				var partOfSpeech = sugarWordsNormalizePartOfSpeech(record.part_of_speech)
+				if (['n', 'v', 'adj', 'adv', 'pron', 'prep', 'conj', 'interj'].indexOf(partOfSpeech) < 0) {
+					return 'Part of Speech must be n, v, adj, adv, pron, prep, conj, or interj.'
 				}
 
-				var etymology = sugarWordsSanitizeField(record.etymology_meaning, 120)
-				if (etymology.length < 1 || etymology.length > 120) {
-					return 'Etymology meaning must be 1-120 characters.'
+				var meaning = sugarWordsSanitizeMeaningForChain(record, record.meaning)
+				var maxMeaningChars = sugarWordsMaxMeaningChars(record)
+				if (meaning.length < 1 || meaning.length > maxMeaningChars) {
+					return 'Meaning must be 1-' + maxMeaningChars + ' characters for this SW OP_RETURN payload.'
 				}
 
-				var roots = sugarWordsSanitizeField(record.roots_compact, 60)
-				if (roots.length < 1 || roots.length > 60) {
-					return 'Compact roots must be 1-60 characters.'
+				var etymology = sugarWordsSanitizeField(record.etymology_meaning, 40)
+				if (etymology.length < 1 || etymology.length > 40) {
+					return 'Etymology meaning must be 1-40 characters.'
 				}
 
 				return ''
@@ -2848,31 +3217,24 @@
 
 			function buildSugarWordsPayload(record) {
 				var word = sugarWordsNormalizeWord(record.word)
-				var meaning = sugarWordsSanitizeField(record.meaning, 40)
-				var roots = sugarWordsSanitizeField(record.roots_compact, 60)
-				var payload = 'SGW1|' + word + '|' + meaning + '|' + roots + '|c'
+				var partOfSpeech = sugarWordsNormalizePartOfSpeech(record.part_of_speech)
+				var meaning = sugarWordsSanitizeMeaningForChain(record, record.meaning)
+				var payload = 'SW|' + word + '|' + partOfSpeech + '|' + meaning
 				var maxBytes = 80
 
 				if (sugarWordsByteLength(payload) > maxBytes) {
-					var fixedBytes = sugarWordsByteLength('SGW1|' + word + '||' + roots + '|c')
+					var fixedBytes = sugarWordsByteLength('SW|' + word + '|' + partOfSpeech + '|')
 					var meaningBudget = Math.max(8, maxBytes - fixedBytes)
-					meaning = meaning.substr(0, meaningBudget).trim()
-					payload = 'SGW1|' + word + '|' + meaning + '|' + roots + '|c'
-				}
-
-				if (sugarWordsByteLength(payload) > maxBytes) {
-					var baseBytes = sugarWordsByteLength('SGW1|' + word + '|' + meaning + '||c')
-					var rootsBudget = Math.max(8, maxBytes - baseBytes)
-					roots = roots.substr(0, rootsBudget).trim()
-					payload = 'SGW1|' + word + '|' + meaning + '|' + roots + '|c'
+					meaning = sugarWordsTrimToByteLength(meaning, meaningBudget)
+					payload = 'SW|' + word + '|' + partOfSpeech + '|' + meaning
 				}
 
 				return {
 					'payload': payload,
 					'hex': sugarWordsTextToHex(payload),
 					'bytes': sugarWordsByteLength(payload),
-					'meaning_compact': meaning,
-					'roots_compact': roots
+					'part_of_speech': partOfSpeech,
+					'meaning_compact': meaning
 				}
 			}
 
@@ -2881,13 +3243,13 @@
 					'schema': 'sugarchain_sugarwords_session_v1',
 					'created_at': new Date().toISOString(),
 					'chain': 'sugarchain',
-					'protocol': 'SGW1',
+					'protocol': 'SW',
 					'records': sugarWordsState.records.map(function(record) {
 						return {
 							'word': record.word,
+							'part_of_speech': sugarWordsNormalizePartOfSpeech(record.part_of_speech),
 							'meaning': record.meaning,
 							'etymology_meaning': record.etymology_meaning,
-							'roots_compact': record.roots_compact,
 							'op_return_payload': record.op_return_payload,
 							'op_return_hex': record.op_return_hex,
 							'byte_length': record.byte_length || 0,
@@ -2921,6 +3283,22 @@
 				}
 			}
 
+			function sugarWordsHasDuplicateRecordWord(record) {
+				if (!record) {
+					return false
+				}
+				var word = sugarWordsNormalizeWord(record.word)
+				if (!word) {
+					return false
+				}
+				for (var i = 0; i < sugarWordsState.records.length; i++) {
+					if (sugarWordsState.records[i] !== record && sugarWordsNormalizeWord(sugarWordsState.records[i].word) == word) {
+						return true
+					}
+				}
+				return false
+			}
+
 			function loadSugarWordsSession() {
 				try {
 					var raw = window.localStorage.getItem(sugarWordsState.storageKey)
@@ -2929,8 +3307,12 @@
 					}
 					var parsed = JSON.parse(raw)
 					if (parsed && Array.isArray(parsed.records)) {
-						sugarWordsState.records = parsed.records
-						sugarWordsState.currentRecord = parsed.records.length ? parsed.records[parsed.records.length - 1] : null
+						sugarWordsState.records = parsed.records.map(function(record) {
+							record = record || {}
+							record.part_of_speech = sugarWordsNormalizePartOfSpeech(record.part_of_speech)
+							return record
+						})
+						sugarWordsState.currentRecord = sugarWordsState.records.length ? sugarWordsState.records[sugarWordsState.records.length - 1] : null
 						rebuildSugarWordsSets()
 					}
 				} catch (error) {
@@ -2940,21 +3322,40 @@
 				}
 			}
 
+			function loadSugarWordsPrompt() {
+				try {
+					var prompt = window.localStorage.getItem(sugarWordsState.promptStorageKey)
+					if (prompt) {
+						$('#sugarwords-prompt-concept-prompt').val(prompt.slice(0, 500))
+					}
+				} catch (error) {
+					// Prompt persistence is optional.
+				}
+			}
+
+			function saveSugarWordsPrompt() {
+				try {
+					window.localStorage.setItem(sugarWordsState.promptStorageKey, sugarWordsSanitizeField($('#sugarwords-prompt-concept-prompt').val(), 500))
+				} catch (error) {
+					// Prompt persistence is optional.
+				}
+			}
+
 			function updateSugarWordsButtons() {
 				var walletOpen = globalData.keys != undefined && globalData.address != undefined && globalData.address != ''
 				var record = sugarWordsState.currentRecord
 				var canWrite = walletOpen && record != null && record.status != 'posted'
-				$('#sugarwords-write').prop('disabled', !canWrite)
-				$('#sugarwords-verify').prop('disabled', !record || !record.txid)
+				$('#sugarwords-write, #sugarwords-prompt-write').prop('disabled', !canWrite)
+				$('#sugarwords-verify, #sugarwords-prompt-verify').prop('disabled', !record || !record.txid)
 			}
 
 			function updateSugarWordsWalletContext() {
 				var ticker = getConfig()['ticker']
-				$('#sugarwords-network').text(ticker)
-				$('#sugarwords-wallet-address').text(globalData.address || 'Open a wallet first.')
+				$('#sugarwords-network, #sugarwords-prompt-network').text(ticker)
+				$('#sugarwords-wallet-address, #sugarwords-prompt-wallet-address').text(globalData.address || 'Open a wallet first.')
 				if (!sugarWordsState.transaction) {
-					$('#sugarwords-fee').text((globalData.rfee || getConfig()['fee']) + ' ' + ticker)
-					$('#sugarwords-change').text('-')
+					$('#sugarwords-fee, #sugarwords-prompt-fee').text((globalData.rfee || getConfig()['fee']) + ' ' + ticker)
+					$('#sugarwords-change, #sugarwords-prompt-change').text('-')
 				}
 				updateSugarWordsButtons()
 			}
@@ -2966,9 +3367,9 @@
 					rows.push(
 						'<tr>' +
 						'<td>' + escapeHtml(record.word) + '</td>' +
+						'<td class="ai-ledger-code">' + escapeHtml(sugarWordsNormalizePartOfSpeech(record.part_of_speech)) + ' <span class="text-muted">(' + escapeHtml(sugarWordsPartOfSpeechLabel(record.part_of_speech)) + ')</span></td>' +
 						'<td>' + escapeHtml(record.meaning) + '</td>' +
 						'<td>' + escapeHtml(record.etymology_meaning) + '</td>' +
-						'<td class="ai-ledger-code">' + escapeHtml(record.roots_compact) + '</td>' +
 						'<td class="ai-ledger-code">' + escapeHtml(record.op_return_payload || '') + '</td>' +
 						'<td class="ai-ledger-code break-lines">' + escapeHtml(record.op_return_hex || '') + '</td>' +
 						'<td class="ai-ledger-code break-lines">' + (record.txid ? '<a href="' + blockExplorer.tx(record.txid) + '" target="_blank">' + escapeHtml(record.txid) + '</a>' : '-') + '</td>' +
@@ -2977,13 +3378,57 @@
 						'</tr>'
 					)
 				}
-				$('#sugarwords-log-body').html(rows.length ? rows.join('') : '<tr><td colspan="9">No SugarWords in this session yet.</td></tr>')
+				$('#sugarwords-log-body, #sugarwords-prompt-log-body').html(rows.length ? rows.join('') : '<tr><td colspan="9">No SugarWords in this session yet.</td></tr>')
+			}
+
+			function renderSugarWordsFields(prefix, record, payload) {
+				$('#' + prefix + '-word').val(record ? record.word : '')
+				$('#' + prefix + '-confidence').text(record && record.confidence_not_existing != undefined ? record.confidence_not_existing : '-')
+				$('#' + prefix + '-record-status').text(record ? record.status : '-')
+				$('#' + prefix + '-pos').val(record ? sugarWordsNormalizePartOfSpeech(record.part_of_speech) : '')
+				var maxMeaningChars = record ? sugarWordsMaxMeaningChars(record) : 65
+				var meaningBudget = record ? sugarWordsMeaningByteBudget(record) : 65
+				$('#' + prefix + '-meaning').attr('maxlength', maxMeaningChars).val(record ? record.meaning : '')
+				$('#' + prefix + '-meaning-limit').text(record ? 'On-chain meaning limit: ' + maxMeaningChars + ' ASCII characters / ' + meaningBudget + ' available bytes for this word and part of speech.' : 'On-chain meaning limit: -')
+				$('#' + prefix + '-etymology').val(record ? record.etymology_meaning : '')
+				$('#' + prefix + '-payload').val(payload ? payload.payload : '')
+				$('#' + prefix + '-hex').val(payload ? payload.hex : '')
+				$('#' + prefix + '-byte-length').text(payload ? payload.bytes : 0)
+				$('#' + prefix + '-txid').html(record && record.txid ? '<a href="' + blockExplorer.tx(record.txid) + '" target="_blank">' + escapeHtml(record.txid) + '</a>' : '-')
+			}
+
+			function sugarWordsInputPrefix(source) {
+				var id = source && source.id ? source.id : ''
+				return id.indexOf('sugarwords-prompt-') == 0 ? 'sugarwords-prompt' : 'sugarwords'
+			}
+
+			function createManualSugarWordsDraft(prefix) {
+				var record = {
+					'word': sugarWordsNormalizeWord($('#' + prefix + '-word').val()),
+					'part_of_speech': sugarWordsNormalizePartOfSpeech($('#' + prefix + '-pos').val()),
+					'meaning': '',
+					'etymology_meaning': '',
+					'confidence_not_existing': null,
+					'op_return_payload': '',
+					'op_return_hex': '',
+					'byte_length': 0,
+					'txid': null,
+					'status': 'manual_draft',
+					'timestamp': new Date().toISOString()
+				}
+				record.meaning = sugarWordsSanitizeMeaningForChain(record, $('#' + prefix + '-meaning').val())
+				record.etymology_meaning = sugarWordsSanitizeField($('#' + prefix + '-etymology').val(), 40)
+				sugarWordsState.records.push(record)
+				sugarWordsState.currentRecord = record
+				sugarWordsState.transaction = null
+				return record
 			}
 
 			function renderSugarWords() {
 				var record = sugarWordsState.currentRecord
 				var payload = null
 				if (record) {
+					record.meaning = sugarWordsSanitizeMeaningForChain(record, record.meaning)
 					payload = buildSugarWordsPayload(record)
 					record.op_return_payload = payload.payload
 					record.op_return_hex = payload.hex
@@ -2993,20 +3438,12 @@
 					sugarWordsState.payload = null
 				}
 
-				$('#sugarwords-word').text(record ? record.word : '-')
-				$('#sugarwords-confidence').text(record && record.confidence_not_existing != undefined ? record.confidence_not_existing : '-')
-				$('#sugarwords-record-status').text(record ? record.status : '-')
-				$('#sugarwords-meaning').val(record ? record.meaning : '')
-				$('#sugarwords-etymology').val(record ? record.etymology_meaning : '')
-				$('#sugarwords-roots').val(record ? record.roots_compact : '')
-				$('#sugarwords-payload').val(payload ? payload.payload : '')
-				$('#sugarwords-hex').val(payload ? payload.hex : '')
-				$('#sugarwords-byte-length').text(payload ? payload.bytes : 0)
-				$('#sugarwords-txid').html(record && record.txid ? '<a href="' + blockExplorer.tx(record.txid) + '" target="_blank">' + escapeHtml(record.txid) + '</a>' : '-')
+				renderSugarWordsFields('sugarwords', record, payload)
+				renderSugarWordsFields('sugarwords-prompt', record, payload)
 
 				if (sugarWordsState.transaction) {
-					$('#sugarwords-fee').text(amountFormat(sugarWordsState.transaction.feeSatoshis) + ' ' + getConfig()['ticker'])
-					$('#sugarwords-change').text(amountFormat(sugarWordsState.transaction.changeSatoshis) + ' ' + getConfig()['ticker'])
+					$('#sugarwords-fee, #sugarwords-prompt-fee').text(amountFormat(sugarWordsState.transaction.feeSatoshis) + ' ' + getConfig()['ticker'])
+					$('#sugarwords-change, #sugarwords-prompt-change').text(amountFormat(sugarWordsState.transaction.changeSatoshis) + ' ' + getConfig()['ticker'])
 				}
 
 				renderSugarWordsLog()
@@ -3014,42 +3451,76 @@
 				saveSugarWordsSession()
 			}
 
-			function updateSugarWordsRecordFromInputs() {
-				if (!sugarWordsState.currentRecord) {
-					return
+			function updateSugarWordsRecordFromInputs(source) {
+				var prefix = sugarWordsInputPrefix(source)
+				if (!sugarWordsState.currentRecord || sugarWordsState.currentRecord.status == 'posted') {
+					createManualSugarWordsDraft(prefix)
 				}
-				sugarWordsState.currentRecord.meaning = sugarWordsSanitizeField($('#sugarwords-meaning').val(), 80)
-				sugarWordsState.currentRecord.etymology_meaning = sugarWordsSanitizeField($('#sugarwords-etymology').val(), 120)
-				sugarWordsState.currentRecord.roots_compact = sugarWordsSanitizeField($('#sugarwords-roots').val(), 60)
+				sugarWordsState.currentRecord.word = sugarWordsNormalizeWord($('#' + prefix + '-word').val())
+				sugarWordsState.currentRecord.part_of_speech = sugarWordsNormalizePartOfSpeech($('#' + prefix + '-pos').val())
+				sugarWordsState.currentRecord.meaning = sugarWordsSanitizeMeaningForChain(sugarWordsState.currentRecord, $('#' + prefix + '-meaning').val())
+				sugarWordsState.currentRecord.etymology_meaning = sugarWordsSanitizeField($('#' + prefix + '-etymology').val(), 40)
+				if (['manual_draft', 'failed', 'duplicate_blocked', 'too_long'].indexOf(sugarWordsState.currentRecord.status) >= 0) {
+					sugarWordsState.currentRecord.status = 'ready_to_post'
+				}
+				sugarWordsState.transaction = null
+				rebuildSugarWordsSets()
+				renderSugarWords()
+			}
+
+			function clearSugarWordsGeneratedFields() {
+				sugarWordsState.currentRecord = null
+				sugarWordsState.payload = null
 				sugarWordsState.transaction = null
 				renderSugarWords()
 			}
 
-			function generateSugarWord() {
-				$('#sugarwords-generate').prop('disabled', true).text('Inventing...')
-				sugarWordsSetStatus('Requesting one strict JSON word object from the local /api/generate-word route...', 'info')
+			function generateRandomSugarWord() {
+				requestSugarWordGeneration('random', '', '#sugarwords-generate', 'Requesting one random strict JSON word object from the local /api/generate-word route...', sugarWordsSanitizeField($('#sugarwords-api-key').val(), 300))
+			}
+
+			function generateSugarWordFromPrompt() {
+				var conceptPrompt = sugarWordsSanitizeField($('#sugarwords-prompt-concept-prompt').val(), 500)
+				if (!conceptPrompt) {
+					sugarWordsSetStatus('Type a concept in Prompt for New Word first, then click Invent From Prompt.', 'warning')
+					return
+				}
+				saveSugarWordsPrompt()
+				clearSugarWordsGeneratedFields()
+				requestSugarWordGeneration('prompt', conceptPrompt, '#sugarwords-prompt-generate', 'Sending only the Prompt for New Word text to the local /api/generate-word route...', sugarWordsSanitizeField($('#sugarwords-prompt-api-key').val(), 300))
+			}
+
+			function requestSugarWordGeneration(generationMode, conceptPrompt, activeButtonSelector, statusMessage, apiKey) {
+				$('#sugarwords-generate, #sugarwords-prompt-generate').prop('disabled', true)
+				$(activeButtonSelector).text('Inventing...')
+				sugarWordsSetStatus(statusMessage, 'info')
 				var recentMeanings = sugarWordsState.records
 					.map(function(record) { return record.meaning || '' })
 					.filter(function(meaning) { return meaning.length > 0 })
 					.slice(-12)
+				var payload = {
+					'used_words': Array.from(sugarWordsState.usedWords),
+					'used_meanings': recentMeanings,
+					'concept_prompt': conceptPrompt,
+					'generation_mode': generationMode,
+					'api_key': apiKey || ''
+				}
+				var requestUrl = generationMode == 'prompt' ? '/api/invent-word-from-prompt' : '/api/generate-word'
 
-				$.ajax({
-					'method': 'POST',
-					'url': '/api/generate-word',
-					'contentType': 'application/json',
-					'timeout': 50000,
-					'data': JSON.stringify({
-						'used_words': Array.from(sugarWordsState.usedWords),
-						'used_meanings': recentMeanings
-					})
-				}).done(function(data) {
+				function finishSugarWordsRequest() {
+					$('#sugarwords-generate').prop('disabled', false).text('Invent New Word')
+					$('#sugarwords-prompt-generate').prop('disabled', false).text('Invent From Prompt')
+					updateSugarWordsButtons()
+				}
+
+				function handleSugarWordsSuccess(data) {
 					try {
 						var word = sugarWordsNormalizeWord(data && data.word)
 						var record = {
 							'word': word,
-							'meaning': sugarWordsSanitizeField(data && data.meaning, 80),
-							'etymology_meaning': sugarWordsSanitizeField(data && data.etymology_meaning, 120),
-							'roots_compact': sugarWordsSanitizeField(data && data.roots_compact, 60),
+							'part_of_speech': sugarWordsNormalizePartOfSpeech(data && data.part_of_speech),
+							'meaning': sugarWordsSanitizeField(data && data.meaning, 65),
+							'etymology_meaning': sugarWordsSanitizeField(data && data.etymology_meaning, 40),
 							'confidence_not_existing': Number(data && data.confidence_not_existing),
 							'op_return_payload': '',
 							'op_return_hex': '',
@@ -3069,17 +3540,36 @@
 						sugarWordsState.usedWords.add(word)
 						sugarWordsState.transaction = null
 						renderSugarWords()
-						sugarWordsSetStatus('Generated "' + escapeHtml(word) + '". Review or edit meaning and compact roots before posting.', 'success')
+						sugarWordsSetStatus('Generated "' + escapeHtml(word) + '". Review or edit the meaning before posting.', 'success')
 					} catch (error) {
 						sugarWordsSetStatus(escapeHtml(error.message || 'Generated word failed validation.'), 'danger')
 					}
-				}).fail(function(jqXHR, textStatus, errorThrown) {
+					finishSugarWordsRequest()
+				}
+
+				function handleSugarWordsFailure(jqXHR, textStatus, errorThrown) {
 					var message = jqXHR && jqXHR.responseJSON && jqXHR.responseJSON.error ? jqXHR.responseJSON.error : (textStatus == 'timeout' ? 'Word generation timed out. Try again.' : (errorThrown || 'Word generation failed.'))
 					sugarWordsSetStatus(escapeHtml(message), 'danger')
-				}).always(function() {
-					$('#sugarwords-generate').prop('disabled', false).text('Invent New Word')
-					updateSugarWordsButtons()
-				})
+					finishSugarWordsRequest()
+				}
+
+				function submitSugarWordsRequest(url, allowPromptFallback) {
+					$.ajax({
+						'method': 'POST',
+						'url': url,
+						'contentType': 'application/json',
+						'timeout': 50000,
+						'data': JSON.stringify(payload)
+					}).done(handleSugarWordsSuccess).fail(function(jqXHR, textStatus, errorThrown) {
+						if (allowPromptFallback && jqXHR && jqXHR.status == 404) {
+							submitSugarWordsRequest('/api/generate-word', false)
+							return
+						}
+						handleSugarWordsFailure(jqXHR, textStatus, errorThrown)
+					})
+				}
+
+				submitSugarWordsRequest(requestUrl, generationMode == 'prompt')
 			}
 
 			function chooseSugarWordsUtxos(utxos, feeSatoshis) {
@@ -3164,6 +3654,43 @@
 				}
 			}
 
+			function sugarWordsSetWriteButtonsChecking(checking) {
+				$('#sugarwords-write, #sugarwords-prompt-write')
+					.prop('disabled', checking)
+					.text(checking ? 'Checking chain...' : 'Write to Sugarchain OP_RETURN')
+			}
+
+			function sugarWordsFindOnChainWordClaim(record) {
+				var word = sugarWordsNormalizeWord(record && record.word)
+				if (!word) {
+					return Promise.reject(new Error('Generate a word first.'))
+				}
+				var startHeight = 42900000
+				var latestBlocks = 500
+				var url = '/api/words/search?q=' + encodeURIComponent(word) + '&mode=word&limit=50&filter=verified&direct=1&start_height=' + startHeight + '&scan_mode=latest_after&blocks=' + latestBlocks
+				return wordExplorerApiGet(url, { 'timeout': 60000 }).then(function(data) {
+					var records = data && Array.isArray(data.records) ? data.records : []
+					var match = records.find(function(item) {
+						return sugarWordsNormalizeWord(item.word) == word && String(item.verified_status || '') == 'verified_on_chain'
+					})
+					if (!data || !data.direct_summary || data.direct_summary.enabled !== true) {
+						throw new Error('Direct blockchain search did not return a verification summary.')
+					}
+					var summary = data.direct_summary
+					var warnings = Array.isArray(summary.errors) ? summary.errors : []
+					var scanMadeProgress = Number(summary.scanned_blocks || 0) > 0 || Number(summary.checked_txids || 0) > 0 || Number(summary.verified_txids || 0) > 0
+					if (warnings.length && !scanMadeProgress) {
+						throw new Error('Sugarchain API returned warnings before the direct blockchain search could scan any blocks.')
+					}
+					return {
+						'duplicate': !!match,
+						'match': match || null,
+						'summary': summary,
+						'warnings': warnings
+					}
+				})
+			}
+
 			function createSugarWordsTransaction() {
 				updateSugarWordsRecordFromInputs()
 				var record = sugarWordsState.currentRecord
@@ -3195,14 +3722,42 @@
 					return
 				}
 
-				var feeSatoshis = amountFormat(globalData.rfee || getConfig()['fee'], true)
-				var minimumFeeSatoshis = amountFormat(getConfig()['fee'], true)
-				if (feeSatoshis < minimumFeeSatoshis) {
-					feeSatoshis = minimumFeeSatoshis
-				}
+				record.status = 'checking_chain'
+				sugarWordsState.transaction = null
+				var chainCheckPassed = false
+				renderSugarWords()
+				sugarWordsSetWriteButtonsChecking(true)
+				sugarWordsSetStatus('Checking indexed Sugarchain claims and the latest 500 blocks after block 42900000 for "' + escapeHtml(record.word) + '" before posting...', 'info')
 
-				sugarWordsSetStatus('Loading spendable UTXOs for the active wallet address...', 'info')
-				getUnspent(globalData.address, feeSatoshis + 1).then(function(data) {
+				sugarWordsFindOnChainWordClaim(record).then(function(result) {
+					if (result.duplicate) {
+						record.status = 'duplicate_blocked'
+						sugarWordsState.transaction = null
+						renderSugarWords()
+						var txid = result.match && result.match.txid ? result.match.txid : ''
+						var txLink = txid ? ' Existing txid: <a href="' + blockExplorer.tx(txid) + '" target="_blank">' + escapeHtml(txid) + '</a>.' : ''
+						sugarWordsSetStatus('This word is already coined on Sugarchain and cannot be coined again.' + txLink, 'danger')
+						throw new Error('duplicate_already_coined')
+					}
+					chainCheckPassed = true
+
+					var feeSatoshis = amountFormat(globalData.rfee || getConfig()['fee'], true)
+					var minimumFeeSatoshis = amountFormat(getConfig()['fee'], true)
+					if (feeSatoshis < minimumFeeSatoshis) {
+						feeSatoshis = minimumFeeSatoshis
+					}
+
+					var warningNote = result.warnings && result.warnings.length ? ' Direct search returned ' + result.warnings.length + ' non-blocking API warning' + (result.warnings.length == 1 ? '' : 's') + '.' : ''
+					sugarWordsSetStatus('No verified on-chain SugarWords claim found for "' + escapeHtml(record.word) + '".' + warningNote + ' Loading spendable UTXOs for the active wallet address...', 'info')
+					return getUnspent(globalData.address, feeSatoshis + 1).then(function(data) {
+						return {
+							'data': data,
+							'feeSatoshis': feeSatoshis
+						}
+					})
+				}).then(function(result) {
+					var data = result.data
+					var feeSatoshis = result.feeSatoshis
 					if (!data || data.error != undefined || !data.result || !Array.isArray(data.result) || data.result.length == 0) {
 						throw new Error(messages.error['not-enough-utxo'] || messages.error['not-enough-funds'])
 					}
@@ -3214,10 +3769,24 @@
 					renderSugarWords()
 					openSugarWordsBroadcastConfirm()
 				}).catch(function(error) {
+					if (error && error.message == 'duplicate_already_coined') {
+						return
+					}
 					record.status = 'failed'
 					sugarWordsState.transaction = null
 					renderSugarWords()
-					sugarWordsSetStatus(error.message || messages.error['not-enough-funds'], 'danger')
+					var message = error && error.message ? error.message : ''
+					if (!message && error && error.statusText == 'timeout') {
+						message = 'Blockchain duplicate check timed out. Try again after the Word Explorer scan catches up.'
+					}
+					if (!message && error && error.responseJSON && error.responseJSON.error) {
+						message = error.responseJSON.error
+					}
+					message = message || messages.error['not-enough-funds']
+					sugarWordsSetStatus(chainCheckPassed ? escapeHtml(message) : 'Blockchain duplicate check failed, so posting is blocked. ' + escapeHtml(message), 'danger')
+				}).finally(function() {
+					sugarWordsSetWriteButtonsChecking(false)
+					updateSugarWordsButtons()
 				})
 			}
 
@@ -3234,8 +3803,8 @@
 				$('#sugarwords-confirm-content').html(`
 					<p>This writes a zero-value OP_RETURN output. No SUGAR is sent to the OP_RETURN output; your wallet pays only the network fee.</p>
 					<div><b>word:</b> ${escapeHtml(record.word)}</div>
+					<div><b>part_of_speech:</b> ${escapeHtml(sugarWordsNormalizePartOfSpeech(record.part_of_speech))} (${escapeHtml(sugarWordsPartOfSpeechLabel(record.part_of_speech))})</div>
 					<div><b>meaning:</b> ${escapeHtml(sugarWordsState.payload.meaning_compact)}</div>
-					<div><b>roots_compact:</b> ${escapeHtml(sugarWordsState.payload.roots_compact)}</div>
 					<div><b>OP_RETURN payload:</b> <span class="ai-ledger-code">${escapeHtml(sugarWordsState.payload.payload)}</span></div>
 					<div><b>byte length:</b> ${sugarWordsState.payload.bytes}</div>
 					<div><b>estimated fee:</b> ${amountFormat(sugarWordsState.transaction.feeSatoshis)} ${escapeHtml(getConfig()['ticker'])}</div>
@@ -3306,7 +3875,7 @@
 					var payloads = extractOpReturnPayloadsFromTxInfo(data)
 					var matched = payloads.indexOf(record.op_return_hex.toLowerCase()) >= 0
 					if (matched) {
-						sugarWordsSetStatus('Verified. The on-chain OP_RETURN payload matches this SGW1 record.', 'success')
+						sugarWordsSetStatus('Verified. The on-chain OP_RETURN payload matches this SW record.', 'success')
 					} else {
 						sugarWordsSetStatus('Transaction fetched, but the OP_RETURN payload did not match this record.', 'danger')
 					}
@@ -3333,6 +3902,559 @@
 				document.body.removeChild(link)
 				window.URL.revokeObjectURL(url)
 			}
+
+			var WORD_EXPLORER_LOCAL_STORAGE_KEY = 'sugarchain_word_explorer_imports_v1'
+			var wordExplorerState = {
+				'records': [],
+				'localRecords': [],
+				'lastDetail': null
+			}
+
+			function wordExplorerSetStatus(message, variant) {
+				var alertClass = 'alert-' + (variant || 'secondary')
+				$('#word-explorer-status')
+					.removeClass('alert-secondary alert-success alert-warning alert-danger alert-info')
+					.addClass(alertClass)
+					.html(message)
+			}
+
+			function wordExplorerApiGet(url, options) {
+				return Promise.resolve($.ajax(Object.assign({ 'url': url }, options || {})))
+			}
+
+			function wordExplorerApiPost(url, payload) {
+				return Promise.resolve($.ajax({
+					'method': 'POST',
+					'url': url,
+					'contentType': 'application/json',
+					'data': JSON.stringify(payload || {})
+				}))
+			}
+
+			function wordExplorerShort(value, size) {
+				value = String(value || '')
+				size = size || 14
+				return value.length > size * 2 ? value.substr(0, size) + '...' + value.substr(value.length - size) : value
+			}
+
+			function wordExplorerTxLink(txid) {
+				if (!txid) {
+					return '-'
+				}
+				return '<a href="' + blockExplorer.tx(txid) + '" target="_blank">' + escapeHtml(wordExplorerShort(txid, 12)) + '</a>'
+			}
+
+			function wordExplorerNormalizeHex(value) {
+				return String(value || '').trim().replace(/^0x/i, '').replace(/\s+/g, '').toLowerCase()
+			}
+
+			function wordExplorerDecodeOpReturnScriptHex(scriptHex) {
+				var clean = wordExplorerNormalizeHex(scriptHex)
+				if (!clean || clean.substr(0, 2) != '6a') {
+					return ''
+				}
+				var offset = 2
+				var opcode = parseInt(clean.substr(offset, 2), 16)
+				var length = 0
+				if (!isFinite(opcode)) {
+					return ''
+				}
+				if (opcode == 0x4c) {
+					length = parseInt(clean.substr(offset + 2, 2), 16)
+					offset += 4
+				} else if (opcode == 0x4d) {
+					var low = parseInt(clean.substr(offset + 2, 2), 16)
+					var high = parseInt(clean.substr(offset + 4, 2), 16)
+					length = low + (high * 256)
+					offset += 6
+				} else if (opcode <= 75) {
+					length = opcode
+					offset += 2
+				} else {
+					return ''
+				}
+				var payload = clean.substr(offset, length * 2)
+				return payload.length == length * 2 ? payload : ''
+			}
+
+			function wordExplorerRecordKey(record) {
+				record = record || {}
+				return [
+					String(record.txid || '').trim().toLowerCase(),
+					wordExplorerNormalizeHex(record.op_return_hex || ''),
+					String(record.word || '').trim().toLowerCase(),
+					String(record.part_of_speech || '').trim().toLowerCase(),
+					String(record.op_return_payload || '').trim()
+				].join('|')
+			}
+
+			function wordExplorerMergeRecords(primary, secondary) {
+				var output = []
+				var seen = {}
+				function add(record) {
+					if (!record || !record.word) {
+						return
+					}
+					var key = wordExplorerRecordKey(record)
+					if (seen[key]) {
+						return
+					}
+					seen[key] = true
+					output.push(record)
+				}
+				;(primary || []).forEach(add)
+				;(secondary || []).forEach(add)
+				return output
+			}
+
+			function wordExplorerSaveLocalRecords(records) {
+				wordExplorerState.localRecords = (records || []).slice(0, 250)
+				try {
+					localStorage.setItem(WORD_EXPLORER_LOCAL_STORAGE_KEY, JSON.stringify(wordExplorerState.localRecords))
+				} catch (error) {}
+			}
+
+			function wordExplorerLoadLocalRecords() {
+				try {
+					var stored = JSON.parse(localStorage.getItem(WORD_EXPLORER_LOCAL_STORAGE_KEY) || '[]')
+					wordExplorerState.localRecords = Array.isArray(stored) ? stored : []
+				} catch (error) {
+					wordExplorerState.localRecords = []
+				}
+			}
+
+			function wordExplorerAddLocalRecords(records) {
+				if (!records || !records.length) {
+					return
+				}
+				wordExplorerSaveLocalRecords(wordExplorerMergeRecords(records, wordExplorerState.localRecords))
+			}
+
+			function wordExplorerRecordPassesFilter(record, filter) {
+				filter = String(filter || '').toLowerCase()
+				if (!filter) {
+					return true
+				}
+				var source = String(record.source || '').toLowerCase()
+				var status = String(record.verified_status || '').toLowerCase()
+				var etymology = String(record.etymology_meaning || '').toLowerCase()
+				if (filter == 'verified') {
+					return status == 'verified_on_chain'
+				}
+				if (filter == 'imported') {
+					return source != 'blockchain' || status != 'verified_on_chain'
+				}
+				if (filter == 'duplicates') {
+					var word = String(record.word || '').toLowerCase()
+					return wordExplorerState.localRecords.filter(function(item) { return String(item.word || '').toLowerCase() == word }).length > 1
+				}
+				if (filter == 'la') {
+					return etymology.indexOf('la:') != -1 || etymology.indexOf('latin') != -1 || etymology.indexOf('l.') != -1
+				}
+				if (filter == 'es') {
+					return etymology.indexOf('es:') != -1 || etymology.indexOf('spanish') != -1
+				}
+				if (filter == 'grc') {
+					return etymology.indexOf('grc:') != -1 || etymology.indexOf('greek') != -1
+				}
+				if (filter == 'oe') {
+					return etymology.indexOf('oe:') != -1 || etymology.indexOf('old english') != -1
+				}
+				return true
+			}
+
+			function wordExplorerBuildQuery(query) {
+				var text = String(query || '').trim().toLowerCase()
+				var hex = wordExplorerNormalizeHex(text)
+				var hexes = []
+				if (hex && /^[0-9a-f]+$/.test(hex) && hex.length % 2 == 0) {
+					hexes.push(hex)
+					var payloadHex = wordExplorerDecodeOpReturnScriptHex(hex)
+					if (payloadHex && payloadHex != hex) {
+						hexes.push(payloadHex)
+					}
+				}
+				return { 'text': text, 'hexes': hexes }
+			}
+
+			function wordExplorerRecordMatches(record, query, mode, filter) {
+				if (!wordExplorerRecordPassesFilter(record, filter)) {
+					return false
+				}
+				mode = String(mode || 'all')
+				var text = query.text
+				var hexes = query.hexes || []
+				if (!text && !hexes.length) {
+					return true
+				}
+				var word = String(record.word || '').toLowerCase()
+				var partOfSpeech = sugarWordsNormalizePartOfSpeech(record.part_of_speech)
+				var partOfSpeechLabel = sugarWordsPartOfSpeechLabel(record.part_of_speech).toLowerCase()
+				var meaning = String(record.meaning || '').toLowerCase()
+				var etymology = [record.etymology_meaning, record.meaning, record.word, partOfSpeech, partOfSpeechLabel].join(' ').toLowerCase()
+				var txid = String(record.txid || '').toLowerCase()
+				var payload = String(record.op_return_payload || '').toLowerCase()
+				var opHex = wordExplorerNormalizeHex(record.op_return_hex || (record.op_return_payload ? sugarWordsTextToHex(record.op_return_payload) : ''))
+				var allText = [word, partOfSpeech, partOfSpeechLabel, meaning, etymology, txid, payload, opHex].join(' ')
+
+				function hexMatches() {
+					if (!opHex) {
+						return false
+					}
+					for (var i = 0; i < hexes.length; i++) {
+						var hex = hexes[i]
+						if (hex && (opHex == hex || opHex.indexOf(hex) != -1 || hex.indexOf(opHex) != -1)) {
+							return true
+						}
+					}
+					return false
+				}
+
+				if (mode == 'txid') {
+					return txid == text || txid.indexOf(text) == 0
+				}
+				if (mode == 'op_return_hex') {
+					return hexMatches() || payload.indexOf(text) != -1
+				}
+				if (mode == 'word') {
+					return word == text || word.indexOf(text) != -1
+				}
+				if (mode == 'syllable') {
+					return word.indexOf(text) != -1
+				}
+				if (mode == 'meaning') {
+					return meaning.indexOf(text) != -1
+				}
+				return allText.indexOf(text) != -1 || hexMatches()
+			}
+
+			function wordExplorerSearchLocal(query, mode, filter) {
+				var builtQuery = wordExplorerBuildQuery(query)
+				return (wordExplorerState.localRecords || []).filter(function(record) {
+					return wordExplorerRecordMatches(record, builtQuery, mode, filter)
+				})
+			}
+
+			function wordExplorerLocalRecordsFromJson(payload) {
+				var records = payload && Array.isArray(payload.records) ? payload.records : (Array.isArray(payload) ? payload : [])
+				var imported = []
+				for (var i = 0; i < records.length; i++) {
+					var record = records[i] || {}
+					var word = String(record.word || '').trim().toLowerCase()
+					if (!word) {
+						continue
+					}
+					var opReturnPayload = String(record.op_return_payload || '').trim()
+					imported.push({
+						'id': 'local-import-' + i + '-' + word,
+						'word': word,
+						'part_of_speech': sugarWordsNormalizePartOfSpeech(record.part_of_speech),
+						'meaning': String(record.meaning || '').trim(),
+						'etymology_type': String(record.etymology_type || 'coined'),
+						'etymology_meaning': String(record.etymology_meaning || '').trim(),
+						'op_return_payload': opReturnPayload,
+						'op_return_hex': String(record.op_return_hex || (opReturnPayload ? sugarWordsTextToHex(opReturnPayload) : '')).trim().toLowerCase(),
+						'txid': String(record.txid || '').trim().toLowerCase(),
+						'block_height': record.block_height == null ? null : record.block_height,
+						'block_hash': String(record.block_hash || ''),
+						'tx_time': String(record.tx_time || record.timestamp || ''),
+						'indexed_at': new Date().toISOString(),
+						'source': 'imported_json_local',
+						'verified_status': record.txid ? 'local_unverified_txid' : 'local_only',
+						'duplicate_status': 'first_seen'
+					})
+				}
+				return imported
+			}
+
+			function wordExplorerCard(record) {
+				var id = record.id || ('temp-' + sugarWordsTextToHex(record.word + record.op_return_hex).substr(0, 12))
+				var txid = record.txid || ''
+				var block = record.block_height == null || record.block_height === '' ? '-' : record.block_height
+				var postedTime = record.tx_time || record.indexed_at || '-'
+				var status = record.verified_status || 'unknown'
+				var duplicate = record.duplicate_status || 'first_seen'
+				var partOfSpeech = sugarWordsNormalizePartOfSpeech(record.part_of_speech)
+				return '' +
+					'<div class="word-explorer-card" data-word-id="' + escapeHtml(id) + '">' +
+						'<div class="word-explorer-word">' + escapeHtml(record.word || '-') + '</div>' +
+						'<div class="word-explorer-meaning">' + escapeHtml(record.meaning || '-') + '</div>' +
+						'<div class="word-explorer-status">' + escapeHtml(status.replace(/_/g, ' ')) + '</div>' +
+						'<div class="word-explorer-meta">' +
+							'<div class="label">Part of Speech</div><div class="value ai-ledger-code">' + escapeHtml(partOfSpeech) + ' <span class="text-muted">(' + escapeHtml(sugarWordsPartOfSpeechLabel(partOfSpeech)) + ')</span></div>' +
+							'<div class="label">Type</div><div class="value">' + escapeHtml(record.etymology_type || '-') + '</div>' +
+							'<div class="label">Claim</div><div class="value">' + escapeHtml(duplicate.replace(/_/g, ' ')) + '</div>' +
+							'<div class="label">txid</div><div class="value ai-ledger-code">' + wordExplorerTxLink(txid) + '</div>' +
+							'<div class="label">Block</div><div class="value">' + escapeHtml(block) + '</div>' +
+							'<div class="label">Timestamp</div><div class="value">' + escapeHtml(postedTime) + '</div>' +
+							'<div class="label">Payload</div><div class="value ai-ledger-code">' + escapeHtml(record.op_return_payload || '-') + '</div>' +
+						'</div>' +
+						(record.etymology_meaning ? '<div class="mb-2"><b>Etymology readout:</b> ' + escapeHtml(record.etymology_meaning) + '</div>' : '') +
+						'<div class="word-explorer-copy-actions">' +
+							'<button type="button" class="btn btn-sm btn-outline-dark word-explorer-copy" data-copy="' + escapeHtml(record.word || '') + '">Copy word</button>' +
+							'<button type="button" class="btn btn-sm btn-outline-dark word-explorer-copy" data-copy="' + escapeHtml(record.op_return_payload || '') + '">Copy payload</button>' +
+							'<button type="button" class="btn btn-sm btn-outline-dark word-explorer-copy" data-copy="' + escapeHtml(txid) + '">Copy txid</button>' +
+							'<button type="button" class="btn btn-sm btn-outline-primary word-explorer-detail-btn" data-word="' + escapeHtml(record.word || '') + '">Word page</button>' +
+						'</div>' +
+					'</div>'
+			}
+
+			function renderWordExplorerResults(records, title) {
+				wordExplorerState.records = records || []
+				var html = []
+				for (var i = 0; i < wordExplorerState.records.length; i++) {
+					html.push(wordExplorerCard(wordExplorerState.records[i]))
+				}
+				$('#word-explorer-results').html(html.length ? html.join('') : '<div class="word-explorer-card">No SugarWords records found yet. Try Scan Recent Blocks, Verify by TXID, or import a SugarWords session JSON.</div>')
+				$('#word-explorer-detail').empty()
+				if (title) {
+					wordExplorerSetStatus(title, html.length ? 'success' : 'info')
+				}
+			}
+
+			function renderWordExplorerDetail(data) {
+				var claims = data && Array.isArray(data.claims) ? data.claims : []
+				var first = data && data.first_seen ? data.first_seen : claims[0]
+				var related = data && Array.isArray(data.related) ? data.related : []
+				if (!first) {
+					$('#word-explorer-detail').html('<div class="word-explorer-card">No dictionary page found for this word.</div>')
+					return
+				}
+				var claimCards = claims.map(function(record) { return wordExplorerCard(record) }).join('')
+				var relatedLinks = related.map(function(record) {
+					return '<button type="button" class="btn btn-sm btn-outline-secondary word-explorer-detail-btn mr-1 mb-1" data-word="' + escapeHtml(record.word) + '">' + escapeHtml(record.word) + '</button>'
+				}).join('')
+				$('#word-explorer-results').empty()
+				var firstPartOfSpeech = sugarWordsNormalizePartOfSpeech(first.part_of_speech)
+				$('#word-explorer-detail').html(
+					'<div class="ai-ledger-section">' +
+						'<h3>Dictionary Page</h3>' +
+						'<div class="word-explorer-word">' + escapeHtml(first.word) + '</div>' +
+						'<div class="word-explorer-meaning">' + escapeHtml(first.meaning) + '</div>' +
+						'<div class="word-explorer-meta">' +
+							'<div class="label">Part of Speech</div><div class="value ai-ledger-code">' + escapeHtml(firstPartOfSpeech) + ' <span class="text-muted">(' + escapeHtml(sugarWordsPartOfSpeechLabel(firstPartOfSpeech)) + ')</span></div>' +
+							'<div class="label">OP_RETURN</div><div class="value ai-ledger-code">' + escapeHtml(first.op_return_payload) + '</div>' +
+							'<div class="label">OP hex</div><div class="value ai-ledger-code">' + escapeHtml(first.op_return_hex) + '</div>' +
+							'<div class="label">txid</div><div class="value ai-ledger-code">' + wordExplorerTxLink(first.txid) + '</div>' +
+							'<div class="label">block hash</div><div class="value ai-ledger-code">' + escapeHtml(first.block_hash || '-') + '</div>' +
+							'<div class="label">source</div><div class="value">' + escapeHtml(first.source || '-') + '</div>' +
+							'<div class="label">status</div><div class="value">' + escapeHtml(first.verified_status || '-') + '</div>' +
+						'</div>' +
+						(first.etymology_meaning ? '<p><b>Readout:</b> ' + escapeHtml(first.etymology_meaning) + '</p>' : '') +
+						'<div class="word-explorer-note mb-0">Sugarchain proves this SugarWords claim existed at or before the block timestamp. It does not prove the word was original in natural language.</div>' +
+					'</div>' +
+					'<div class="ai-ledger-section mt-3"><h3>Claims</h3><div class="word-explorer-results">' + claimCards + '</div></div>' +
+					'<div class="ai-ledger-section mt-3"><h3>Related Words</h3>' + (relatedLinks || '<div>No related local records yet.</div>') + '</div>'
+				)
+				wordExplorerSetStatus('Loaded dictionary page for "' + escapeHtml(first.word) + '".', 'success')
+			}
+
+			function wordExplorerLatestBlockCount() {
+				return Math.max(1, Math.min(parseInt($('#word-explorer-scan-blocks').val() || '500', 10), 5000))
+			}
+
+			function scanWordExplorerLatestBlocks() {
+				var blocks = wordExplorerLatestBlockCount()
+				return wordExplorerApiPost('/api/words/scan', {
+					'mode': 'latest_after',
+					'start_height': WORD_EXPLORER_START_HEIGHT,
+					'blocks': blocks
+				})
+			}
+
+			function loadWordExplorerLatest(skipDirectScan) {
+				var filterValue = $('#word-explorer-filter').val() || ''
+				var filter = encodeURIComponent(filterValue)
+				var localRecords = wordExplorerSearchLocal('', 'all', filterValue)
+				var directSearch = !skipDirectScan && $('#word-explorer-direct').is(':checked')
+				var scanPromise = directSearch ? scanWordExplorerLatestBlocks() : Promise.resolve(null)
+				wordExplorerSetStatus(directSearch ? 'Checking the latest ' + wordExplorerLatestBlockCount() + ' Sugarchain blocks after block ' + WORD_EXPLORER_START_HEIGHT + '...' : 'Loading latest indexed SugarWords...', 'info')
+				scanPromise.then(function(scan) {
+					return wordExplorerApiGet('/api/words/latest?limit=50&filter=' + filter).then(function(data) {
+						return {
+							'data': data,
+							'scan': scan
+						}
+					})
+				}).then(function(result) {
+					var data = result.data
+					var scan = result.scan
+					var records = wordExplorerMergeRecords(data.records || [], localRecords)
+					var message = scan ? 'Latest SugarWords loaded after checking ' + scan.scanned_blocks + ' latest block' + (scan.scanned_blocks == 1 ? '' : 's') + ' after block ' + WORD_EXPLORER_START_HEIGHT + '.' : 'Latest indexed SugarWords loaded.'
+					if (localRecords.length) {
+						message += ' Included imported JSON records stored in this browser.'
+					}
+					renderWordExplorerResults(records, message)
+				}).catch(function(error) {
+					if (localRecords.length) {
+						renderWordExplorerResults(localRecords, 'Showing imported JSON records stored in this browser. Backend latest lookup is unavailable.')
+						return
+					}
+					wordExplorerSetStatus(error.responseJSON && error.responseJSON.error ? error.responseJSON.error : 'Unable to load latest SugarWords.', 'danger')
+				})
+			}
+
+			function wordExplorerDirectSummaryMessage(summary) {
+				if (!summary || !summary.enabled) {
+					return ''
+				}
+				var parts = []
+				if (summary.start_height != null) {
+					parts.push('checked after block ' + summary.start_height)
+				}
+				if (Number(summary.checked_txids || 0)) {
+					parts.push('checked ' + summary.checked_txids + ' txid' + (summary.checked_txids == 1 ? '' : 's'))
+				}
+				if (Number(summary.verified_txids || 0)) {
+					parts.push('verified ' + summary.verified_txids + ' on-chain claim' + (summary.verified_txids == 1 ? '' : 's'))
+				}
+				if (Number(summary.scanned_blocks || 0)) {
+					parts.push('scanned ' + summary.scanned_blocks + ' recent block' + (summary.scanned_blocks == 1 ? '' : 's'))
+				}
+				if (Number(summary.indexed_records || 0)) {
+					parts.push('indexed ' + summary.indexed_records + ' SugarWords record' + (summary.indexed_records == 1 ? '' : 's'))
+				}
+				if (summary.errors && summary.errors.length) {
+					parts.push(summary.errors.length + ' API warning' + (summary.errors.length == 1 ? '' : 's'))
+				}
+				return parts.length ? ' Blockchain direct search: ' + parts.join(', ') + '.' : ' Blockchain direct search completed.'
+			}
+
+			var WORD_EXPLORER_START_HEIGHT = 42900000
+
+			function searchWordExplorer() {
+				var rawQuery = $('#word-explorer-query').val() || ''
+				var modeValue = $('#word-explorer-mode').val() || 'all'
+				var filterValue = $('#word-explorer-filter').val() || ''
+				var directSearch = $('#word-explorer-direct').is(':checked')
+				var q = encodeURIComponent(rawQuery)
+				var mode = encodeURIComponent(modeValue)
+				var filter = encodeURIComponent(filterValue)
+				var localMatches = wordExplorerSearchLocal(rawQuery, modeValue, filterValue)
+				wordExplorerSetStatus(directSearch ? 'Searching Sugarchain blockchain directly after block ' + WORD_EXPLORER_START_HEIGHT + '...' : 'Searching local SugarWords index...', 'info')
+				wordExplorerApiGet('/api/words/search?q=' + q + '&mode=' + mode + '&limit=50&filter=' + filter + '&direct=' + (directSearch ? '1' : '0') + '&start_height=' + WORD_EXPLORER_START_HEIGHT).then(function(data) {
+					var records = wordExplorerMergeRecords(data.records || [], localMatches)
+					var message = directSearch ? 'Search complete.' + wordExplorerDirectSummaryMessage(data.direct_summary) : 'Search complete.'
+					if (localMatches.length) {
+						message += ' Included imported JSON records stored in this browser.'
+					}
+					renderWordExplorerResults(records, message)
+				}).catch(function(error) {
+					if (localMatches.length) {
+						renderWordExplorerResults(localMatches, 'Search matched imported JSON records stored in this browser. Backend blockchain search is unavailable.')
+						return
+					}
+					wordExplorerSetStatus(error.responseJSON && error.responseJSON.error ? error.responseJSON.error : 'Search failed.', 'danger')
+				})
+			}
+
+			function scanWordExplorerRecent() {
+				var blocks = wordExplorerLatestBlockCount()
+				wordExplorerSetStatus('Scanning the latest ' + blocks + ' Sugarchain blocks after block ' + WORD_EXPLORER_START_HEIGHT + ' for SugarWords OP_RETURN records...', 'info')
+				scanWordExplorerLatestBlocks().then(function(data) {
+					wordExplorerSetStatus('Scan complete: ' + data.scanned_blocks + ' blocks, ' + data.scanned_transactions + ' transactions, ' + data.indexed_records + ' SugarWords records indexed.', data.errors && data.errors.length ? 'warning' : 'success')
+					loadWordExplorerLatest(true)
+				}).catch(function(error) {
+					wordExplorerSetStatus(error.responseJSON && error.responseJSON.error ? error.responseJSON.error : 'Block scan failed.', 'danger')
+				})
+			}
+
+			function verifyWordExplorerTxid() {
+				var txid = ($('#word-explorer-txid').val() || $('#word-explorer-query').val() || '').trim()
+				if (!txid) {
+					wordExplorerSetStatus('Enter a txid to verify.', 'warning')
+					return
+				}
+				wordExplorerSetStatus('Fetching transaction and extracting SugarWords OP_RETURN payloads...', 'info')
+				wordExplorerApiGet('/api/tx/' + encodeURIComponent(txid) + '/word').then(function(data) {
+					renderWordExplorerResults(data.records || [], 'Transaction verified and indexed.')
+				}).catch(function(error) {
+					var message = error.responseJSON && error.responseJSON.message ? error.responseJSON.message : (error.responseJSON && error.responseJSON.error ? error.responseJSON.error : 'No SugarWords record found in this transaction.')
+					wordExplorerSetStatus(escapeHtml(message), 'warning')
+				})
+			}
+
+			function loadWordExplorerDetail(word) {
+				if (!word) {
+					return
+				}
+				var normalized = String(word || '').trim().toLowerCase()
+				var localClaims = (wordExplorerState.localRecords || []).filter(function(record) {
+					return String(record.word || '').trim().toLowerCase() == normalized
+				})
+				wordExplorerApiGet('/api/words/' + encodeURIComponent(word)).then(function(data) {
+					data.claims = wordExplorerMergeRecords(data.claims || [], localClaims)
+					data.first_seen = data.first_seen || data.claims[0] || null
+					renderWordExplorerDetail(data)
+				}).catch(function(error) {
+					if (localClaims.length) {
+						renderWordExplorerDetail({
+							'word': normalized,
+							'first_seen': localClaims[0],
+							'claims': localClaims,
+							'related': []
+						})
+						wordExplorerSetStatus('Loaded local dictionary page for "' + escapeHtml(normalized) + '".', 'success')
+						return
+					}
+					wordExplorerSetStatus(error.responseJSON && error.responseJSON.error ? error.responseJSON.error : 'Unable to load dictionary page.', 'danger')
+				})
+			}
+
+			function importWordExplorerJson(file) {
+				if (!file) {
+					return
+				}
+				var reader = new FileReader()
+				reader.onload = function(event) {
+					try {
+						var payload = JSON.parse(event.target.result)
+						var localRecords = wordExplorerLocalRecordsFromJson(payload)
+						if (!localRecords.length) {
+							wordExplorerSetStatus('No SugarWords records found in the selected JSON file.', 'danger')
+							return
+						}
+						wordExplorerSetStatus('Importing SugarWords session JSON and verifying records with txids...', 'info')
+						wordExplorerApiPost('/api/words/import-json', payload).then(function(data) {
+							var skipped = Number(data.skipped_count || 0)
+							var message = 'Imported ' + data.imported_count + ' SugarWords records. Verified records are marked on-chain; the rest remain local/imported.'
+							if (skipped) {
+								message += ' Skipped ' + skipped + ' invalid record' + (skipped == 1 ? '.' : 's.')
+							}
+							var importedRecords = data.records && data.records.length ? data.records : localRecords
+							wordExplorerAddLocalRecords(importedRecords)
+							renderWordExplorerResults(wordExplorerMergeRecords(importedRecords, localRecords), message)
+						}).catch(function(error) {
+							wordExplorerAddLocalRecords(localRecords)
+							renderWordExplorerResults(localRecords, 'Imported ' + localRecords.length + ' SugarWords records locally from the session JSON. Backend verification is unavailable until the local server is restarted with the Word Explorer API.')
+						})
+					} catch (error) {
+						wordExplorerSetStatus('The selected file is not valid SugarWords JSON.', 'danger')
+					}
+				}
+				reader.readAsText(file)
+			}
+
+			function copyWordExplorerValue(value) {
+				value = String(value || '')
+				if (!value) {
+					return
+				}
+				if (navigator.clipboard && navigator.clipboard.writeText) {
+					navigator.clipboard.writeText(value).then(function() {
+						wordExplorerSetStatus('Copied to clipboard.', 'success')
+					}).catch(function() {
+						wordExplorerSetStatus('Clipboard copy failed.', 'warning')
+					})
+				} else {
+					var input = $('<textarea>').val(value).appendTo('body').select()
+					document.execCommand('copy')
+					input.remove()
+					wordExplorerSetStatus('Copied to clipboard.', 'success')
+				}
+			}
+
+			wordExplorerLoadLocalRecords()
 
 			var blackjackState = {
 				walletBalance: 0,
@@ -4311,6 +5433,7 @@
 				displayNetworks()
 				routePage()
 				loadSugarWordsSession()
+				loadSugarWordsPrompt()
 				renderSugarWords()
 
 				$('.tab-link').click(function(e) {
@@ -4637,11 +5760,21 @@ $('#send-tx').click(function() {
 				})
 
 				$('#sugarwords-generate').click(function(e) {
-					generateSugarWord()
+					generateRandomSugarWord()
+					e.preventDefault()
+				})
+
+				$('#sugarwords-prompt-generate').click(function(e) {
+					generateSugarWordFromPrompt()
 					e.preventDefault()
 				})
 
 				$('#sugarwords-write').click(function(e) {
+					createSugarWordsTransaction()
+					e.preventDefault()
+				})
+
+				$('#sugarwords-prompt-write').click(function(e) {
 					createSugarWordsTransaction()
 					e.preventDefault()
 				})
@@ -4656,13 +5789,85 @@ $('#send-tx').click(function() {
 					e.preventDefault()
 				})
 
+				$('#sugarwords-prompt-verify').click(function(e) {
+					verifySugarWordsRecord()
+					e.preventDefault()
+				})
+
 				$('#sugarwords-download').click(function(e) {
 					downloadSugarWordsSession()
 					e.preventDefault()
 				})
 
-				$('#sugarwords-meaning, #sugarwords-etymology, #sugarwords-roots').on('input', function() {
-					updateSugarWordsRecordFromInputs()
+				$('#sugarwords-prompt-download').click(function(e) {
+					downloadSugarWordsSession()
+					e.preventDefault()
+				})
+
+				$('#sugarwords-word, #sugarwords-meaning, #sugarwords-etymology, #sugarwords-prompt-word, #sugarwords-prompt-meaning, #sugarwords-prompt-etymology').on('input', function() {
+					updateSugarWordsRecordFromInputs(this)
+				})
+
+				$('#sugarwords-prompt-concept-prompt').on('keydown keypress keyup', function(e) {
+					e.stopPropagation()
+				})
+
+				$('#sugarwords-prompt-concept-prompt').on('input', function() {
+					saveSugarWordsPrompt()
+				})
+
+				$('#sugarwords-pos').on('change', function() {
+					updateSugarWordsRecordFromInputs(this)
+				})
+
+				$('#sugarwords-prompt-pos').on('change', function() {
+					updateSugarWordsRecordFromInputs(this)
+				})
+
+				$('#word-explorer-search').click(function(e) {
+					searchWordExplorer()
+					e.preventDefault()
+				})
+
+				$('#word-explorer-query').on('keydown', function(e) {
+					if (e.key == 'Enter') {
+						searchWordExplorer()
+						e.preventDefault()
+					}
+				})
+
+				$('#word-explorer-latest').click(function(e) {
+					loadWordExplorerLatest()
+					e.preventDefault()
+				})
+
+				$('#word-explorer-scan').click(function(e) {
+					scanWordExplorerRecent()
+					e.preventDefault()
+				})
+
+				$('#word-explorer-verify-txid').click(function(e) {
+					verifyWordExplorerTxid()
+					e.preventDefault()
+				})
+
+				$('#word-explorer-import-file').change(function() {
+					importWordExplorerJson(this.files && this.files[0])
+					$(this).val('')
+				})
+
+				$('#word-explorer-filter').change(function() {
+					loadWordExplorerLatest()
+				})
+
+				$('#word-explorer').on('click', '.word-explorer-copy', function(e) {
+					copyWordExplorerValue($(this).data('copy'))
+					e.preventDefault()
+				})
+
+				$('#word-explorer').on('click', '.word-explorer-detail-btn', function(e) {
+					loadWordExplorerDetail($(this).data('word'))
+					e.preventDefault()
 				})
 
 				// Confirm token transaction sendign
