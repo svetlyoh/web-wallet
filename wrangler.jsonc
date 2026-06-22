@@ -1,0 +1,11 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "web-wallet",
+	"compatibility_date": "2026-06-22",
+	"observability": {
+		"enabled": true
+	},
+	"assets": {
+		"directory": "."
+	}
+}
