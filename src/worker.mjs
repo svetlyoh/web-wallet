@@ -1,4 +1,5 @@
 const MINI_MAX_MODEL = 'MiniMax-M3';
+const SUGAR_API_BASE = 'https://api.sugar.wtf';
 
 function jsonResponse(payload, status = 200) {
 	return new Response(JSON.stringify(payload), {
@@ -18,10 +19,206 @@ function sanitizeText(value, maxLength) {
 	return String(value || '').replace(/\|/g, '/').replace(/\s+/g, ' ').trim().slice(0, maxLength);
 }
 
+function normalizeHex(value) {
+	return String(value || '').trim().replace(/^0x/i, '').replace(/\s+/g, '').toLowerCase();
+}
+
+function textToHex(text) {
+	const bytes = new TextEncoder().encode(String(text || ''));
+	return Array.from(bytes).map(byte => byte.toString(16).padStart(2, '0')).join('');
+}
+
+function hexToUtf8(hex) {
+	const normalized = normalizeHex(hex);
+	if (!normalized || normalized.length % 2 !== 0 || !/^[0-9a-f]+$/.test(normalized)) {
+		return '';
+	}
+	const bytes = new Uint8Array(normalized.match(/.{2}/g).map(byte => parseInt(byte, 16)));
+	return new TextDecoder('utf-8', { fatal: false }).decode(bytes).replace(/\u0000/g, '');
+}
+
 function normalizePartOfSpeech(value) {
 	const posText = String(value || '').toLowerCase();
 	const match = posText.match(/\b(interj|conj|prep|pron|adj|adv|n|v)\.?\b/);
 	return match ? match[1] : 'n';
+}
+
+function normalizeSugarWordPartOfSpeech(value) {
+	const pos = String(value || '').trim().toLowerCase().replace(/\.$/, '');
+	const allowed = ['n', 'v', 'adj', 'adv', 'pron', 'prep', 'conj', 'interj'];
+	return allowed.includes(pos) ? pos : '';
+}
+
+function mapEtymologyType(type) {
+	if (type === 'c') {
+		return 'coined';
+	}
+	if (type === 'h') {
+		return 'hypothesized';
+	}
+	if (type === 'k') {
+		return 'known';
+	}
+	return '';
+}
+
+function parseSugarWordPayload(payloadText) {
+	const payload = String(payloadText || '').trim();
+	if (!payload.startsWith('SW|') && !payload.startsWith('SGW1|')) {
+		return null;
+	}
+
+	const parts = payload.split('|');
+	if (![4, 5, 6].includes(parts.length)) {
+		return null;
+	}
+
+	const protocol = parts[0];
+	const wordRaw = parts[1];
+	const fivePartSpeech = parts.length === 5 ? normalizeSugarWordPartOfSpeech(parts[2]) : '';
+	const fivePartType = parts.length === 5 ? parts[4] : '';
+	const isNewFivePartPayload = Boolean(fivePartSpeech) && ['c', 'h', 'k'].includes(fivePartType);
+	const isFourPartPayload = parts.length === 4 && Boolean(normalizeSugarWordPartOfSpeech(parts[2]));
+	const hasPartOfSpeech = parts.length === 6 || isNewFivePartPayload || isFourPartPayload;
+	const partOfSpeech = hasPartOfSpeech ? normalizeSugarWordPartOfSpeech(parts[2]) : '';
+	const meaningRaw = hasPartOfSpeech ? parts[3] : parts[2];
+	const rootsRaw = parts.length === 6 ? parts[4] : (isNewFivePartPayload || isFourPartPayload ? '' : parts[3]);
+	const type = parts.length === 6 ? parts[5] : (isFourPartPayload ? 'c' : parts[4]);
+	const word = String(wordRaw || '').trim().toLowerCase();
+	const meaning = String(meaningRaw || '').trim();
+	const rootsCompact = String(rootsRaw || '').trim();
+
+	if (!['SW', 'SGW1'].includes(protocol)) {
+		return null;
+	}
+	if (!/^[a-z-]{2,32}$/.test(word)) {
+		return null;
+	}
+	if (hasPartOfSpeech && !partOfSpeech) {
+		return null;
+	}
+	if (!meaning || meaning.length > 140) {
+		return null;
+	}
+	if (!['c', 'h', 'k'].includes(type)) {
+		return null;
+	}
+
+	return {
+		protocol,
+		word,
+		part_of_speech: partOfSpeech,
+		meaning,
+		roots_compact: rootsCompact,
+		etymology_type: mapEtymologyType(type),
+		etymology_code: type,
+		op_return_payload: payload,
+		op_return_hex: textToHex(payload),
+		valid: true
+	};
+}
+
+function decodeOpReturnPayloadFromScript(scriptHex) {
+	const clean = normalizeHex(scriptHex);
+	if (!clean || clean.slice(0, 2) !== '6a') {
+		return null;
+	}
+
+	let offset = 2;
+	const opcode = parseInt(clean.slice(offset, offset + 2), 16);
+	let length = 0;
+	if (!Number.isFinite(opcode)) {
+		return null;
+	}
+
+	if (opcode === 0x4c) {
+		length = parseInt(clean.slice(offset + 2, offset + 4), 16);
+		offset += 4;
+	} else if (opcode === 0x4d) {
+		const low = parseInt(clean.slice(offset + 2, offset + 4), 16);
+		const high = parseInt(clean.slice(offset + 4, offset + 6), 16);
+		length = low + (high * 256);
+		offset += 6;
+	} else if (opcode <= 75) {
+		length = opcode;
+		offset += 2;
+	} else {
+		return null;
+	}
+
+	const payload = clean.slice(offset, offset + (length * 2));
+	return payload.length === length * 2 ? payload : null;
+}
+
+function decodeOpReturnPayloadFromAsm(asm) {
+	if (!asm || !String(asm).includes('OP_RETURN')) {
+		return null;
+	}
+	const parts = String(asm).split(/\s+/);
+	for (const part of parts) {
+		if (/^[0-9a-fA-F]{2,}$/.test(part)) {
+			return normalizeHex(part);
+		}
+	}
+	return null;
+}
+
+function extractOpReturnPayloadsFromTxInfo(txInfo) {
+	const payloads = [];
+	const seen = new Set();
+
+	function addPayload(payload) {
+		const normalized = normalizeHex(payload);
+		if (normalized && !seen.has(normalized)) {
+			seen.add(normalized);
+			payloads.push(normalized);
+		}
+	}
+
+	function walk(value, key) {
+		if (value == null) {
+			return;
+		}
+		if (typeof value === 'string') {
+			const clean = value.trim();
+			if (key === 'asm') {
+				addPayload(decodeOpReturnPayloadFromAsm(clean));
+			}
+			if (/^[0-9a-fA-F]+$/.test(clean)) {
+				if (['script', 'scriptHex', 'scriptPubKey', 'hex'].includes(key) || clean.slice(0, 2).toLowerCase() === '6a') {
+					addPayload(decodeOpReturnPayloadFromScript(clean));
+				}
+			}
+			return;
+		}
+		if (Array.isArray(value)) {
+			for (const item of value) {
+				walk(item, key);
+			}
+			return;
+		}
+		if (typeof value === 'object') {
+			for (const childKey of Object.keys(value)) {
+				walk(value[childKey], childKey);
+			}
+		}
+	}
+
+	walk(txInfo, '');
+	return payloads;
+}
+
+function recordFromPayloadHex(payloadHex) {
+	const normalized = normalizeHex(payloadHex);
+	const payloadText = hexToUtf8(normalized);
+	const parsed = parseSugarWordPayload(payloadText);
+	if (!parsed) {
+		return null;
+	}
+	return {
+		...parsed,
+		op_return_hex: normalized
+	};
 }
 
 function validateGeneratedWord(candidate, usedWords) {
@@ -320,6 +517,165 @@ async function handleGenerateWord(request, env, forcedGenerationMode) {
 	}
 }
 
+async function fetchSugarJson(path, timeoutMs = 5000) {
+	const controller = new AbortController();
+	const timeout = setTimeout(() => controller.abort(), timeoutMs);
+	try {
+		const response = await fetch(SUGAR_API_BASE + path, { signal: controller.signal });
+		const json = await response.json().catch(() => null);
+		if (!response.ok || !json || json.error) {
+			const message = json && json.error && json.error.message ? json.error.message : 'Sugarchain API request failed.';
+			throw new Error(message);
+		}
+		return json.result;
+	} catch (error) {
+		if (error && error.name === 'AbortError') {
+			throw new Error('Sugarchain API request timed out.');
+		}
+		throw error;
+	} finally {
+		clearTimeout(timeout);
+	}
+}
+
+async function indexSugarTxid(txid, knownBlock = null) {
+	const txInfo = await fetchSugarJson('/transaction/' + txid);
+	const tx = txInfo && txInfo.txid ? txInfo : (txInfo && txInfo.result ? txInfo.result : txInfo);
+	const payloads = extractOpReturnPayloadsFromTxInfo(tx);
+	const records = [];
+	for (const payloadHex of payloads) {
+		const parsed = recordFromPayloadHex(payloadHex);
+		if (!parsed) {
+			continue;
+		}
+		records.push({
+			...parsed,
+			txid: tx.txid || txid,
+			block_height: tx.height != null ? tx.height : (knownBlock && knownBlock.height),
+			block_hash: tx.blockhash || (knownBlock && knownBlock.hash) || '',
+			tx_time: '',
+			indexed_at: new Date().toISOString(),
+			source: 'blockchain',
+			verified_status: 'verified_on_chain',
+			duplicate_status: 'first_seen'
+		});
+	}
+	return records;
+}
+
+async function scanLatestSugarBlocksForWord(word, startHeight, blockCount) {
+	const normalizedWord = normalizeWord(word);
+	const height = Number(await fetchSugarJson('/info').then(info => info.blocks || info.headers || 0));
+	const floor = Math.max(0, Number(startHeight) || 0);
+	const safeCount = Math.max(1, Math.min(Number(blockCount) || 500, 5000));
+	const start = Math.max(floor + 1, height - safeCount + 1);
+	const summary = {
+		enabled: true,
+		requested_blocks: safeCount,
+		start_height: floor,
+		end_height: height,
+		scan_mode: 'latest_after',
+		checked_txids: 0,
+		verified_txids: 0,
+		scanned_blocks: 0,
+		scanned_transactions: 0,
+		indexed_records: 0,
+		errors: []
+	};
+	const matches = [];
+
+	if (!normalizedWord || start > height) {
+		return { records: matches, summary };
+	}
+
+	const batchSize = 128;
+	for (let batchStart = start; batchStart <= height; batchStart += batchSize) {
+		const batchEnd = Math.min(height, batchStart + batchSize - 1);
+		const heights = [];
+		for (let current = batchStart; current <= batchEnd; current++) {
+			heights.push(current);
+		}
+		const blocks = await Promise.all(heights.map(async currentHeight => {
+			try {
+				const block = await fetchSugarJson('/height/' + currentHeight);
+				return { height: currentHeight, block };
+			} catch (error) {
+				return { height: currentHeight, error };
+			}
+		}));
+
+		for (const item of blocks) {
+			if (item.error) {
+				summary.errors.push({ height: item.height, error: item.error.message || 'Block lookup failed.' });
+				continue;
+			}
+			const block = item.block || {};
+			const txids = Array.isArray(block.tx) ? block.tx.slice(1) : [];
+			summary.scanned_blocks += 1;
+			for (const txid of txids) {
+				try {
+					const records = await indexSugarTxid(txid, block);
+					summary.scanned_transactions += 1;
+					summary.checked_txids += 1;
+					summary.indexed_records += records.length;
+					if (records.length) {
+						summary.verified_txids += 1;
+					}
+					for (const record of records) {
+						if (record.word === normalizedWord) {
+							matches.push(record);
+							summary.matched_word = record.word;
+						}
+					}
+				} catch (error) {
+					summary.errors.push({ height: item.height, txid, error: error.message || 'Transaction lookup failed.' });
+				}
+			}
+		}
+		if (matches.length) {
+			break;
+		}
+	}
+
+	summary.errors = summary.errors.slice(0, 10);
+	return { records: matches, summary };
+}
+
+async function handleWordSearch(request) {
+	const url = new URL(request.url);
+	const direct = ['1', 'true', 'yes', 'on'].includes(String(url.searchParams.get('direct') || '').toLowerCase());
+	const mode = url.searchParams.get('mode') || 'all';
+	const word = normalizeWord(url.searchParams.get('q') || '');
+	const startHeight = Number(url.searchParams.get('start_height')) || 42900000;
+	const blocks = Number(url.searchParams.get('blocks')) || 500;
+
+	if (!direct || mode !== 'word' || !/^[a-z-]{2,32}$/.test(word)) {
+		return jsonResponse({
+			records: [],
+			decoded_record: null,
+			direct_summary: {
+				enabled: Boolean(direct),
+				requested_blocks: 0,
+				start_height: startHeight,
+				scan_mode: direct ? 'unsupported_worker_search' : 'off',
+				checked_txids: 0,
+				verified_txids: 0,
+				scanned_blocks: 0,
+				scanned_transactions: 0,
+				indexed_records: 0,
+				errors: []
+			}
+		});
+	}
+
+	const result = await scanLatestSugarBlocksForWord(word, startHeight, blocks);
+	return jsonResponse({
+		records: result.records,
+		decoded_record: null,
+		direct_summary: result.summary
+	});
+}
+
 export default {
 	async fetch(request, env) {
 		const url = new URL(request.url);
@@ -330,22 +686,7 @@ export default {
 			return handleGenerateWord(request, env, null);
 		}
 		if (url.pathname === '/api/words/search') {
-			return jsonResponse({
-				records: [],
-				decoded_record: null,
-				direct_summary: {
-					enabled: true,
-					requested_blocks: 0,
-					start_height: Number(url.searchParams.get('start_height')) || null,
-					scan_mode: 'worker_static_no_index',
-					checked_txids: 0,
-					verified_txids: 0,
-					scanned_blocks: 0,
-					scanned_transactions: 0,
-					indexed_records: 0,
-					errors: []
-				}
-			});
+			return handleWordSearch(request);
 		}
 		return env.ASSETS.fetch(request);
 	}
