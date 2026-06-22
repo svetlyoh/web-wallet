@@ -517,7 +517,7 @@ async function handleGenerateWord(request, env, forcedGenerationMode) {
 	}
 }
 
-async function fetchSugarJson(path, timeoutMs = 5000) {
+async function fetchSugarJson(path, timeoutMs = 8000) {
 	const controller = new AbortController();
 	const timeout = setTimeout(() => controller.abort(), timeoutMs);
 	try {
@@ -588,7 +588,7 @@ async function scanLatestSugarBlocksForWord(word, startHeight, blockCount) {
 		return { records: matches, summary };
 	}
 
-	const batchSize = 128;
+	const batchSize = 32;
 	for (let batchStart = start; batchStart <= height; batchStart += batchSize) {
 		const batchEnd = Math.min(height, batchStart + batchSize - 1);
 		const heights = [];
