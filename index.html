@@ -3660,13 +3660,18 @@
 					.text(checking ? 'Checking chain...' : 'Write to Sugarchain OP_RETURN')
 			}
 
+			function sugarWordsDuplicateCheckBlockCount() {
+				var hostname = window.location && window.location.hostname ? window.location.hostname : ''
+				return hostname.indexOf('workers.dev') >= 0 ? 40 : 500
+			}
+
 			function sugarWordsFindOnChainWordClaim(record) {
 				var word = sugarWordsNormalizeWord(record && record.word)
 				if (!word) {
 					return Promise.reject(new Error('Generate a word first.'))
 				}
 				var startHeight = 42900000
-				var latestBlocks = 500
+				var latestBlocks = sugarWordsDuplicateCheckBlockCount()
 				var url = '/api/words/search?q=' + encodeURIComponent(word) + '&mode=word&limit=50&filter=verified&direct=1&start_height=' + startHeight + '&scan_mode=latest_after&blocks=' + latestBlocks
 				return wordExplorerApiGet(url, { 'timeout': 60000 }).then(function(data) {
 					var records = data && Array.isArray(data.records) ? data.records : []
@@ -3727,7 +3732,7 @@
 				var chainCheckPassed = false
 				renderSugarWords()
 				sugarWordsSetWriteButtonsChecking(true)
-				sugarWordsSetStatus('Checking indexed Sugarchain claims and the latest 500 blocks after block 42900000 for "' + escapeHtml(record.word) + '" before posting...', 'info')
+				sugarWordsSetStatus('Checking indexed Sugarchain claims and the latest ' + sugarWordsDuplicateCheckBlockCount() + ' blocks after block 42900000 for "' + escapeHtml(record.word) + '" before posting...', 'info')
 
 				sugarWordsFindOnChainWordClaim(record).then(function(result) {
 					if (result.duplicate) {

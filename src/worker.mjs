@@ -567,7 +567,7 @@ async function scanLatestSugarBlocksForWord(word, startHeight, blockCount) {
 	const normalizedWord = normalizeWord(word);
 	const height = Number(await fetchSugarJson('/info').then(info => info.blocks || info.headers || 0));
 	const floor = Math.max(0, Number(startHeight) || 0);
-	const safeCount = Math.max(1, Math.min(Number(blockCount) || 500, 5000));
+	const safeCount = Math.max(1, Math.min(Number(blockCount) || 40, 40));
 	const start = Math.max(floor + 1, height - safeCount + 1);
 	const summary = {
 		enabled: true,
