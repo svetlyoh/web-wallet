@@ -17,7 +17,7 @@
 		<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js"></script>
 		<script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.3.1/js/bootstrap.min.js"></script>
 		<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.qrcode/1.0/jquery.qrcode.min.js"></script>
-		<script src="multilang.js?4"></script>
+		<script src="multilang.js?5"></script>
 
 		<script src="https://cdn.jsdelivr.net/npm/jdenticon@3.2.0/dist/jdenticon.min.js"></script>
 
@@ -184,7 +184,15 @@
 				max-width: 315px;
 			}
 			.lingry-login-body {
-				padding: 14px;
+				padding: 10px 0 0;
+			}
+			.lingry-login-panel {
+				position: relative;
+				z-index: 3;
+				margin-top: 14px;
+			}
+			.lingry-login-panel.d-none {
+				display: none;
 			}
 			.lingry-login-card {
 				border: 1px solid rgba(10, 99, 61, 0.13);
@@ -236,6 +244,29 @@
 				line-height: 1.35;
 				margin-top: 10px;
 			}
+			.lingry-public-actions {
+				position: absolute;
+				top: 15px;
+				right: 15px;
+				z-index: 3;
+				display: flex;
+				gap: 8px;
+			}
+			.lingry-login-button {
+				min-height: 38px;
+				border: 1px solid rgba(255, 253, 244, 0.25);
+				border-radius: 999px;
+				background: rgba(255, 253, 244, 0.14);
+				color: #fffdf4;
+				font: inherit;
+				font-size: 13px;
+				font-weight: 800;
+				padding: 0 14px;
+			}
+			.lingry-login-button:focus {
+				outline: 3px solid rgba(84, 238, 149, 0.42);
+				outline-offset: 2px;
+			}
 			.lingry-stream-shell {
 				--lingry-deep: #043b2c;
 				--lingry-green: #07864c;
@@ -254,6 +285,12 @@
 				border-radius: 28px;
 				overflow: hidden;
 				box-shadow: 0 18px 48px rgba(3, 47, 35, 0.18);
+			}
+			.lingry-public-stream {
+				min-height: 100vh;
+				border: 0;
+				border-radius: 0;
+				box-shadow: none;
 			}
 			.lingry-stream-hero {
 				position: relative;
@@ -284,6 +321,10 @@
 				gap: 12px;
 				margin-bottom: 18px;
 				padding-right: 92px;
+			}
+			.lingry-public-stream .lingry-stream-top {
+				padding-right: 78px;
+				margin-bottom: 16px;
 			}
 			.lingry-stream-brand {
 				display: flex;
@@ -318,11 +359,22 @@
 				max-width: 300px;
 				margin-bottom: 8px;
 			}
+			.lingry-public-stream .lingry-stream-title {
+				font-size: 28px;
+				max-width: 260px;
+			}
 			.lingry-stream-subtitle {
 				color: rgba(255, 253, 244, 0.82);
 				font-size: 15px;
 				line-height: 1.35;
 				margin-bottom: 14px;
+			}
+			.lingry-stream-actions {
+				position: relative;
+				z-index: 2;
+				display: flex;
+				flex-wrap: wrap;
+				gap: 8px;
 			}
 			.lingry-menu-toggle {
 				position: relative;
@@ -331,13 +383,13 @@
 				align-items: center;
 				justify-content: center;
 				min-height: 40px;
-				padding: 0 14px;
+				padding: 0 12px;
 				border: 1px solid rgba(255, 253, 244, 0.25);
 				border-radius: 999px;
 				background: rgba(255, 253, 244, 0.14);
 				color: var(--lingry-cream);
 				font: inherit;
-				font-size: 14px;
+				font-size: 13px;
 				font-weight: 800;
 			}
 			.lingry-menu-toggle:focus {
@@ -377,6 +429,9 @@
 			}
 			.lingry-stream-body {
 				padding: 14px;
+			}
+			.lingry-public-stream .lingry-stream-body {
+				padding: 12px;
 			}
 			.lingry-stream-menu {
 				display: grid;
@@ -584,21 +639,21 @@
 			}
 			.lingry-stream-feed {
 				display: grid;
-				gap: 12px;
+				gap: 9px;
 			}
 			.lingry-feed-card {
 				background: rgba(255, 255, 255, 0.88);
 				border: 1px solid rgba(10, 99, 61, 0.13);
-				border-radius: 22px;
-				padding: 14px;
-				box-shadow: 0 10px 24px rgba(7, 75, 48, 0.1);
+				border-radius: 16px;
+				padding: 11px;
+				box-shadow: 0 8px 18px rgba(7, 75, 48, 0.08);
 			}
 			.lingry-feed-row {
 				display: flex;
 				align-items: center;
 				justify-content: space-between;
 				gap: 10px;
-				margin-bottom: 12px;
+				margin-bottom: 8px;
 			}
 			.lingry-address-chip {
 				border: 0;
@@ -606,10 +661,10 @@
 				background: #dff8e8;
 				color: #064432;
 				font: inherit;
-				font-size: 14px;
+				font-size: 12px;
 				font-weight: 800;
-				padding: 8px 10px;
-				min-height: 42px;
+				padding: 6px 9px;
+				min-height: 32px;
 				max-width: 100%;
 				word-break: break-all;
 				text-align: left;
@@ -626,34 +681,34 @@
 			}
 			.lingry-feed-action {
 				color: #446a59;
-				font-size: 15px;
+				font-size: 13px;
 				font-weight: 700;
-				margin-bottom: 4px;
+				margin-bottom: 3px;
 			}
 			.lingry-feed-word {
 				color: #043b2c;
-				font-size: 34px;
-				line-height: 1.04;
+				font-size: 23px;
+				line-height: 1.08;
 				font-weight: 800;
 				letter-spacing: -0.01em;
-				margin-bottom: 8px;
+				margin-bottom: 5px;
 				word-break: break-word;
 			}
 			.lingry-feed-meaning {
 				color: #1d4b39;
-				font-size: 17px;
-				line-height: 1.42;
+				font-size: 14px;
+				line-height: 1.36;
 				margin: 0;
 			}
 			.lingry-feed-status {
 				display: inline-flex;
-				margin-top: 12px;
+				margin-top: 9px;
 				border-radius: 999px;
 				background: #eefbf2;
 				color: #087343;
-				font-size: 12px;
+				font-size: 11px;
 				font-weight: 800;
-				padding: 6px 9px;
+				padding: 5px 8px;
 			}
 			[class*="entypo"]:before {
 				font-family: 'EntypoRegular', sans-serif;
@@ -706,6 +761,41 @@
 				grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
 				gap: 8px;
 				margin-bottom: 12px;
+			}
+			.lingry-more-menu {
+				position: relative;
+			}
+			.lingry-more-menu summary {
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				min-height: 48px;
+				border: 1px solid rgba(10, 99, 61, 0.18);
+				border-radius: 14px;
+				background: #e5f9ec;
+				color: #064432;
+				font-size: 22px;
+				font-weight: 800;
+				cursor: pointer;
+				list-style: none;
+			}
+			.lingry-more-menu summary::-webkit-details-marker {
+				display: none;
+			}
+			.lingry-more-menu[open] summary {
+				background: #cdf3dc;
+			}
+			.lingry-more-menu-panel {
+				position: absolute;
+				right: 0;
+				top: calc(100% + 6px);
+				z-index: 5;
+				min-width: 180px;
+				padding: 8px;
+				border: 1px solid rgba(10, 99, 61, 0.14);
+				border-radius: 14px;
+				background: rgba(255, 255, 255, 0.96);
+				box-shadow: 0 14px 28px rgba(7, 75, 48, 0.16);
 			}
 			.ai-ledger-actions .btn,
 			.ai-ledger-section .btn {
@@ -985,8 +1075,8 @@
 				}
 			}
 		</style>
-		<title>Wallet</title>
-		<meta name="description" content="Sugarchain Web Wallet">
+		<title>Lingry</title>
+		<meta name="description" content="Lingry word stream on Sugarchain">
 	</head>
 	<body>
 		<!-- Error message and search -->
@@ -999,47 +1089,63 @@
 		<div id="homepage" class="router-page">
 			<div class="container">
 				<div id="open-block">
-					<div class="lingry-login-shell">
-						<div class="lingry-login-hero">
-							<div class="lingry-login-brand">
-								<img class="lingry-login-logo" src="images/ChatGPT Image Jun 22, 2026, 10_07_56 PM (1).png" alt="Lingry">
-								<div class="lingry-login-brand-text">Lingry</div>
+					<div class="lingry-stream-shell lingry-public-stream">
+						<div class="lingry-stream-hero">
+							<div class="lingry-public-actions">
+								<button type="button" id="lingry-login-toggle" class="lingry-login-button" aria-expanded="false" aria-controls="lingry-login-panel">Login</button>
+							</div>
+							<div class="lingry-stream-top">
+								<div class="lingry-stream-brand">
+									<img class="lingry-stream-logo" src="images/ChatGPT Image Jun 22, 2026, 10_07_56 PM (1).png" alt="Lingry">
+									<div class="lingry-stream-brand-text">Lingry</div>
+								</div>
 							</div>
 							<div class="lingry-login-motto" aria-live="polite">
 								<div class="lingry-login-motto-kicker">Word stream</div>
 								<div class="lingry-login-motto-text" id="lingry-login-motto-text">Learn a new word. Coin a new thought.</div>
 							</div>
-							<div class="lingry-login-subtitle">Explore emerging words, get versed with words, and write your discoveries to Sugarchain.</div>
-						</div>
-						<div class="lingry-login-body">
-							<div class="lingry-login-card">
-								<div class="lingry-login-heading">Regular wallet</div>
-								<form id="open-regular-form" class="open-form tab-item" data-tab="open-regular">
-									<div class="mb-2">
-										<input id="open-email" name="open-email" class="form-control" type="email" autocomplete="email" tkey="email-address">
+							<div class="lingry-stream-subtitle">Explore emerging words, get versed with words, and read new meanings as they appear on Sugarchain.</div>
+							<div class="lingry-stream-actions">
+								<button type="button" class="lingry-menu-toggle" data-lingry-public-login="true">AI Generate</button>
+								<button type="button" class="lingry-menu-toggle" data-lingry-public-login="true">Prompt for New Word</button>
+							</div>
+							<div id="lingry-login-panel" class="lingry-login-panel d-none">
+								<div class="lingry-login-card">
+									<div class="lingry-login-heading">Regular login</div>
+									<form id="open-regular-form" class="open-form tab-item" data-tab="open-regular">
+										<div class="mb-2">
+											<input id="open-email" name="open-email" class="form-control" type="email" autocomplete="email" tkey="email-address">
+										</div>
+										<div class="mb-2">
+											<input id="open-password" name="open-password" class="form-control" type="password" autocomplete="current-password" tkey="password">
+										</div>
+										<div class="mb-2">
+											<input id="open-password-confirm" name="open-password-confirm" class="form-control" type="password" autocomplete="current-password" tkey="password-confirm">
+										</div>
+										<div class="lingry-login-actions">
+											<button class="btn btn-success btn-block" type="submit" id="open-regular-wallet">Login</button>
+											<button class="btn btn-block lingry-google-btn" type="button" id="open-google-wallet">Continue with Google</button>
+										</div>
+									</form>
+									<button class="lingry-key-toggle mt-2" type="button" id="open-key-toggle">Open by Key</button>
+									<form id="open-key-form" class="open-form tab-item d-none mt-2" data-tab="open-key">
+										<div class="mb-2">
+											<input id="passphrase" name="passphrase" class="form-control" type="password" autocomplete="off" tkey="wif-key">
+										</div>
+										<button class="btn btn-outline-dark btn-block" type="submit" id="open-key-wallet">Login by Key</button>
+									</form>
+									<div class="lingry-login-note">
+										Email and password deterministically recreate your local Lingry account in this browser. Google sign-in requires a configured OAuth client before it can open Lingry.
 									</div>
-									<div class="mb-2">
-										<input id="open-password" name="open-password" class="form-control" type="password" autocomplete="current-password" tkey="password">
-									</div>
-									<div class="mb-2">
-										<input id="open-password-confirm" name="open-password-confirm" class="form-control" type="password" autocomplete="current-password" tkey="password-confirm">
-									</div>
-									<div class="lingry-login-actions">
-										<button class="btn btn-success btn-block" type="submit" id="open-regular-wallet">Open Wallet</button>
-										<button class="btn btn-block lingry-google-btn" type="button" id="open-google-wallet">Continue with Google</button>
-									</div>
-								</form>
-								<button class="lingry-key-toggle mt-2" type="button" id="open-key-toggle">Open by Key</button>
-								<form id="open-key-form" class="open-form tab-item d-none mt-2" data-tab="open-key">
-									<div class="mb-2">
-										<input id="passphrase" name="passphrase" class="form-control" type="password" autocomplete="off" tkey="wif-key">
-									</div>
-									<button class="btn btn-outline-dark btn-block" type="submit" id="open-key-wallet">Open Key Wallet</button>
-								</form>
-								<div class="lingry-login-note">
-									Email and password deterministically recreate your local wallet in this browser. Google sign-in requires a configured OAuth client before it can open a wallet.
 								</div>
 							</div>
+						</div>
+						<div class="lingry-stream-body">
+							<div class="lingry-stream-section-title">
+								<span>Word Stream</span>
+								<span id="lingry-public-stream-count">Loading</span>
+							</div>
+							<div id="lingry-public-stream-feed" class="lingry-stream-feed"></div>
 						</div>
 					</div>
 				</div>
@@ -1081,13 +1187,18 @@
 													<div class="lingry-stream-brand-text">Lingry</div>
 												</div>
 											</div>
-											<button type="button" id="lingry-stream-balance" class="lingry-stream-balance" aria-label="Refresh Sugar wallet balance">
+											<button type="button" id="lingry-stream-balance" class="lingry-stream-balance" aria-label="Refresh Sugar balance">
 												<span id="lingry-stream-balance-amount" class="lingry-balance-amount">0.00</span>
 												<span id="lingry-stream-balance-ticker" class="lingry-balance-ticker">SUGAR</span>
 											</button>
-											<div class="lingry-stream-title">New words from your wallet</div>
-											<div class="lingry-stream-subtitle">A live stream of coined words, meanings, and on-chain word activity.</div>
-											<button type="button" id="lingry-menu-toggle" class="lingry-menu-toggle" aria-expanded="false" aria-controls="lingry-stream-menu">Menu</button>
+											<div class="lingry-stream-title">New words in the stream</div>
+											<div class="lingry-stream-subtitle">Read coined words, meanings, and recent word activity.</div>
+											<div class="lingry-stream-actions">
+												<button type="button" class="lingry-menu-toggle" data-lingry-tab="wallet-sugarwords">AI Generate</button>
+												<button type="button" class="lingry-menu-toggle" data-lingry-tab="wallet-sugarwords-prompt">Prompt for New Word</button>
+												<button type="button" id="lingry-menu-toggle" class="lingry-menu-toggle" aria-expanded="false" aria-controls="lingry-stream-menu">Menu</button>
+												<button type="button" id="lingry-logout" class="lingry-menu-toggle">Logout</button>
+											</div>
 										</div>
 										<div class="lingry-stream-body">
 											<div id="lingry-stream-menu" class="lingry-stream-menu d-none">
@@ -1200,9 +1311,14 @@
 
 									<div class="ai-ledger-actions">
 										<button id="sugarwords-generate" type="button" class="btn btn-outline-dark">Invent New Word</button>
-										<button id="sugarwords-write" type="button" class="btn btn-success">Write to Sugarchain OP_RETURN</button>
-										<button id="sugarwords-verify" type="button" class="btn btn-outline-dark">Verify on-chain</button>
-										<button id="sugarwords-download" type="button" class="btn btn-outline-secondary">Download Session JSON</button>
+										<button id="sugarwords-write" type="button" class="btn btn-success">Coin It</button>
+										<button id="sugarwords-download" type="button" class="btn btn-outline-secondary">Download My Words</button>
+										<details class="lingry-more-menu">
+											<summary aria-label="More actions">&#9776;</summary>
+											<div class="lingry-more-menu-panel">
+												<button id="sugarwords-verify" type="button" class="btn btn-outline-dark btn-block">Verify</button>
+											</div>
+										</details>
 									</div>
 
 									<div class="ai-ledger-layout">
@@ -1228,13 +1344,13 @@
 											</select>
 											<div class="sugarwords-editable-label">Meaning</div>
 											<textarea id="sugarwords-meaning" class="form-control ai-ledger-code mb-2" rows="2" maxlength="65" placeholder="Generated meaning"></textarea>
-											<div id="sugarwords-meaning-limit" class="sugarwords-editable-label text-muted">On-chain meaning limit: -</div>
+											<div id="sugarwords-meaning-limit" class="sugarwords-editable-label text-muted">Meaning limit: -</div>
 											<div class="sugarwords-editable-label">Etymology meaning</div>
 											<textarea id="sugarwords-etymology" class="form-control ai-ledger-code" rows="3" maxlength="40"></textarea>
 										</div>
 
-										<div class="ai-ledger-section">
-											<h3>SW OP_RETURN</h3>
+										<div class="ai-ledger-section d-none">
+											<h3>Coining Details</h3>
 											<div class="ai-ledger-kv">
 												<div class="label">Payload bytes</div>
 												<div id="sugarwords-byte-length" class="value">0</div>
@@ -1242,19 +1358,19 @@
 												<div id="sugarwords-fee" class="value">-</div>
 												<div class="label">Change</div>
 												<div id="sugarwords-change" class="value">-</div>
-												<div class="label">Wallet address</div>
-												<div id="sugarwords-wallet-address" class="value ai-ledger-code">Open a wallet first.</div>
+												<div class="label">Your address</div>
+												<div id="sugarwords-wallet-address" class="value ai-ledger-code">Login first.</div>
 												<div class="label">txid</div>
 												<div id="sugarwords-txid" class="value ai-ledger-code">-</div>
 											</div>
-											<label for="sugarwords-payload" class="mb-1">OP_RETURN payload</label>
+											<label for="sugarwords-payload" class="mb-1">Payload</label>
 											<textarea id="sugarwords-payload" class="form-control ai-ledger-code mb-2" rows="3" readonly></textarea>
-											<label for="sugarwords-hex" class="mb-1">OP_RETURN hex</label>
+											<label for="sugarwords-hex" class="mb-1">Hex</label>
 											<textarea id="sugarwords-hex" class="form-control ai-ledger-code" rows="3" readonly></textarea>
 										</div>
 									</div>
 
-									<div class="ai-ledger-section">
+									<div class="ai-ledger-section d-none">
 										<h3>Session Log</h3>
 										<div class="table-responsive">
 											<table class="table table-sm ai-ledger-table sugarwords-table mb-0">
@@ -1284,7 +1400,7 @@
 									<div class="ai-ledger-header">
 										<div>
 											<div class="ai-ledger-title">Prompt for New Word</div>
-											<div class="ai-ledger-subtitle">Describe a concept and generate a coined word with an SW record ready for Sugarchain.</div>
+											<div class="ai-ledger-subtitle">Describe a concept and generate a coined word ready for the Lingry stream.</div>
 										</div>
 										<div class="lingry-tool-nav">
 											<div id="sugarwords-prompt-network" class="ai-ledger-badge">SUGAR</div>
@@ -1301,9 +1417,14 @@
 
 									<div class="ai-ledger-actions">
 										<button id="sugarwords-prompt-generate" type="button" class="btn btn-outline-dark">Invent From Prompt</button>
-										<button id="sugarwords-prompt-write" type="button" class="btn btn-success">Write to Sugarchain OP_RETURN</button>
-										<button id="sugarwords-prompt-verify" type="button" class="btn btn-outline-dark">Verify on-chain</button>
-										<button id="sugarwords-prompt-download" type="button" class="btn btn-outline-secondary">Download Session JSON</button>
+										<button id="sugarwords-prompt-write" type="button" class="btn btn-success">Coin It</button>
+										<button id="sugarwords-prompt-download" type="button" class="btn btn-outline-secondary">Download My Words</button>
+										<details class="lingry-more-menu">
+											<summary aria-label="More actions">&#9776;</summary>
+											<div class="lingry-more-menu-panel">
+												<button id="sugarwords-prompt-verify" type="button" class="btn btn-outline-dark btn-block">Verify</button>
+											</div>
+										</details>
 									</div>
 
 									<div class="ai-ledger-layout">
@@ -1331,13 +1452,13 @@
 											</select>
 											<div class="sugarwords-editable-label">Meaning</div>
 											<textarea id="sugarwords-prompt-meaning" class="form-control ai-ledger-code mb-2" rows="2" maxlength="65" placeholder="Generated meaning"></textarea>
-											<div id="sugarwords-prompt-meaning-limit" class="sugarwords-editable-label text-muted">On-chain meaning limit: -</div>
+											<div id="sugarwords-prompt-meaning-limit" class="sugarwords-editable-label text-muted">Meaning limit: -</div>
 											<div class="sugarwords-editable-label">Etymology meaning</div>
 											<textarea id="sugarwords-prompt-etymology" class="form-control ai-ledger-code" rows="3" maxlength="40"></textarea>
 										</div>
 
-										<div class="ai-ledger-section">
-											<h3>SW OP_RETURN</h3>
+										<div class="ai-ledger-section d-none">
+											<h3>Coining Details</h3>
 											<div class="ai-ledger-kv">
 												<div class="label">Payload bytes</div>
 												<div id="sugarwords-prompt-byte-length" class="value">0</div>
@@ -1345,19 +1466,19 @@
 												<div id="sugarwords-prompt-fee" class="value">-</div>
 												<div class="label">Change</div>
 												<div id="sugarwords-prompt-change" class="value">-</div>
-												<div class="label">Wallet address</div>
-												<div id="sugarwords-prompt-wallet-address" class="value ai-ledger-code">Open a wallet first.</div>
+												<div class="label">Your address</div>
+												<div id="sugarwords-prompt-wallet-address" class="value ai-ledger-code">Login first.</div>
 												<div class="label">txid</div>
 												<div id="sugarwords-prompt-txid" class="value ai-ledger-code">-</div>
 											</div>
-											<label for="sugarwords-prompt-payload" class="mb-1">OP_RETURN payload</label>
+											<label for="sugarwords-prompt-payload" class="mb-1">Payload</label>
 											<textarea id="sugarwords-prompt-payload" class="form-control ai-ledger-code mb-2" rows="3" readonly></textarea>
-											<label for="sugarwords-prompt-hex" class="mb-1">OP_RETURN hex</label>
+											<label for="sugarwords-prompt-hex" class="mb-1">Hex</label>
 											<textarea id="sugarwords-prompt-hex" class="form-control ai-ledger-code" rows="3" readonly></textarea>
 										</div>
 									</div>
 
-									<div class="ai-ledger-section">
+									<div class="ai-ledger-section d-none">
 										<h3>Session Log</h3>
 										<div class="table-responsive">
 											<table class="table table-sm ai-ledger-table sugarwords-table mb-0">
@@ -1387,7 +1508,7 @@
 									<div class="ai-ledger-header">
 										<div>
 											<div class="ai-ledger-title">Sugarchain Word Explorer</div>
-											<div class="ai-ledger-subtitle">A dictionary-style browser for AI-created SugarWords stored in Sugarchain OP_RETURN records.</div>
+											<div class="ai-ledger-subtitle">A dictionary-style browser for AI-created SugarWords in Lingry.</div>
 										</div>
 										<div class="ai-ledger-badge">SW</div>
 									</div>
@@ -1395,18 +1516,18 @@
 									<div id="word-explorer-status" class="alert alert-secondary ai-ledger-status" role="alert">Browse latest words, search the local index, import a SugarWords session JSON, or verify one txid.</div>
 
 									<div class="word-explorer-note">
-										Note: Sugarchain verifies that a timestamped SugarWords claim exists on-chain. Imported JSON records are searchable locally, and become trusted when the matching OP_RETURN is verified.
+										Note: Sugarchain can verify timestamped SugarWords claims. Imported JSON records are searchable locally, and become trusted when the matching record is verified.
 									</div>
 
 									<div class="word-explorer-controls">
-										<input id="word-explorer-query" class="form-control ai-ledger-code" type="text" placeholder="Search word, meaning, txid, or OP_RETURN hex">
+										<input id="word-explorer-query" class="form-control ai-ledger-code" type="text" placeholder="Search word, meaning, or txid">
 										<select id="word-explorer-mode" class="custom-select">
 											<option value="all">All fields</option>
 											<option value="word">Word</option>
 											<option value="syllable">Syllable / contains</option>
 											<option value="meaning">Meaning</option>
 											<option value="txid">Transaction ID</option>
-											<option value="op_return_hex">OP_RETURN hex</option>
+											<option value="op_return_hex">Record hex</option>
 										</select>
 									</div>
 
@@ -1428,7 +1549,7 @@
 									<div class="word-explorer-direct-row">
 										<label class="word-explorer-toggle mb-0" for="word-explorer-direct">
 											<input id="word-explorer-direct" type="checkbox" checked>
-											<span>Search blockchain directly</span>
+											<span>Search live records</span>
 										</label>
 										<div class="text-muted small">Default: direct searches stay after block 42900000. Browse Latest and Scan use the latest-blocks value.</div>
 									</div>
@@ -1583,7 +1704,7 @@
 			<div class="modal-dialog modal-md" role="document">
 				<div class="modal-content">
 					<div class="modal-header">
-						<h5 id="sugarwords-confirm-title" class="modal-title">Confirm SugarWords Broadcast</h5>
+						<h5 id="sugarwords-confirm-title" class="modal-title">Coin Word</h5>
 						<button type="button" class="close" data-dismiss="modal" aria-label="Close">
 							<span aria-hidden="true">&times;</span>
 						</button>
@@ -1593,7 +1714,7 @@
 					</div>
 					<div class="modal-footer">
 						<button type="button" class="btn btn-block mr-auto btn-dark" data-dismiss="modal">Cancel</button>
-						<button id="sugarwords-confirm-broadcast" type="button" class="btn btn-block mt-0 mr-auto btn-success">Broadcast to Sugarchain</button>
+						<button id="sugarwords-confirm-broadcast" type="button" class="btn btn-block mt-0 mr-auto btn-success">Coin It</button>
 						<button id="sugarwords-confirm-close" type="button" class="btn btn-block mt-0 mr-auto btn-dark d-none" data-dismiss="modal">Close</button>
 					</div>
 				</div>
@@ -1608,7 +1729,7 @@
 			var networkConfigs = {
 				'SUGAR': {
 					'uri': 'sugarchain:',
-					'title': 'Sugar Wallet',
+					'title': 'Lingry',
 					'name': 'Main Network (SUGAR)',
 					'api': 'https://api.sugar.wtf',
 					'ticker': 'SUGAR',
@@ -2277,7 +2398,7 @@
 				var meaning = sugarWordsSanitizeMeaningForChain(record, record.meaning)
 				var maxMeaningChars = sugarWordsMaxMeaningChars(record)
 				if (meaning.length < 1 || meaning.length > maxMeaningChars) {
-					return 'Meaning must be 1-' + maxMeaningChars + ' characters for this SW OP_RETURN payload.'
+					return 'Meaning must be 1-' + maxMeaningChars + ' characters for this word record.'
 				}
 
 				var etymology = sugarWordsSanitizeField(record.etymology_meaning, 40)
@@ -2425,7 +2546,7 @@
 			function updateSugarWordsWalletContext() {
 				var ticker = getConfig()['ticker']
 				$('#sugarwords-network, #sugarwords-prompt-network').text(ticker)
-				$('#sugarwords-wallet-address, #sugarwords-prompt-wallet-address').text(globalData.address || 'Open a wallet first.')
+				$('#sugarwords-wallet-address, #sugarwords-prompt-wallet-address').text(globalData.address || 'Login first.')
 				$('#lingry-stream-balance-ticker').text(ticker)
 				if (!sugarWordsState.transaction) {
 					$('#sugarwords-fee, #sugarwords-prompt-fee').text((globalData.rfee || getConfig()['fee']) + ' ' + ticker)
@@ -2475,7 +2596,7 @@
 				return {
 					'word': record.word || 'word',
 					'meaning': record.meaning || 'meaning pending',
-					'status': 'on-chain',
+					'status': 'coined',
 					'timestamp': lingryStreamRecordTimestamp(record),
 					'txid': record.txid || '',
 					'op_return_payload': record.op_return_payload || ''
@@ -2564,7 +2685,7 @@
 
 			function lingryStreamAddressLabel(address) {
 				if (!address) {
-					return 'wallet pending'
+					return 'public'
 				}
 				return lingryStreamAddressExpanded ? address : address.slice(-8)
 			}
@@ -2592,6 +2713,16 @@
 				return date.toLocaleDateString()
 			}
 
+			function lingryDisplayStatus(status) {
+				return String(status || '')
+					.replace(/verified_on_chain/g, 'verified')
+					.replace(/local_unverified_txid/g, 'saved')
+					.replace(/local_only/g, 'local')
+					.replace(/blockchain/g, 'live records')
+					.replace(/on-chain/g, 'verified')
+					.replace(/_/g, ' ')
+			}
+
 			function lingryStreamRecords() {
 				var records = lingryStreamScanState.records.slice()
 				var seen = {}
@@ -2611,7 +2742,7 @@
 				if (lingryStreamScanState.running) {
 					return [{
 						'word': 'scanning',
-						'meaning': 'looking for recent Sugarchain OP_RETURN entries that begin with SW',
+						'meaning': 'looking for recent Sugarchain word entries',
 						'status': 'live scan',
 						'timestamp': new Date().toISOString()
 					}]
@@ -2625,20 +2756,20 @@
 			}
 
 			function renderLingryStream() {
-				var feed = $('#lingry-stream-feed')
-				if (!feed.length) {
+				var feeds = $('#lingry-stream-feed, #lingry-public-stream-feed')
+				if (!feeds.length) {
 					return
 				}
-				var address = globalData.address || ''
 				var records = lingryStreamRecords()
-				var label = lingryStreamAddressLabel(address)
 				var cards = records.map(function(record) {
 					var word = record.word || 'aaa'
 					var meaning = record.meaning || 'meaning pending'
-					var status = record.status == 'posted' ? 'on-chain' : (record.status || 'draft')
+					var status = record.status == 'posted' ? 'coined' : lingryDisplayStatus(record.status || 'draft')
+					var source = record.address || record.sender || globalData.address || record.txid || ''
+					var label = lingryStreamAddressLabel(source)
 					return '<article class="lingry-feed-card">' +
 						'<div class="lingry-feed-row">' +
-							'<button type="button" class="lingry-address-chip" data-full-address="' + escapeHtml(address) + '" aria-label="Show full wallet address">' + escapeHtml(label) + '</button>' +
+							'<button type="button" class="lingry-address-chip" data-full-address="' + escapeHtml(source) + '" aria-label="Show full source">' + escapeHtml(label) + '</button>' +
 							'<div class="lingry-feed-time">' + escapeHtml(lingryStreamTimeLabel(record.timestamp)) + '</div>' +
 						'</div>' +
 						'<div class="lingry-feed-action">coined a word</div>' +
@@ -2647,8 +2778,8 @@
 						'<div class="lingry-feed-status">' + escapeHtml(status) + '</div>' +
 					'</article>'
 				})
-				feed.html(cards.join(''))
-				$('#lingry-stream-count').text(lingryStreamScanState.status || (records.length + ' post' + (records.length == 1 ? '' : 's')))
+				feeds.html(cards.join(''))
+				$('#lingry-stream-count, #lingry-public-stream-count').text(lingryStreamScanState.status || (records.length + ' post' + (records.length == 1 ? '' : 's')))
 			}
 
 			function renderSugarWordsLog() {
@@ -2831,7 +2962,7 @@
 						sugarWordsState.usedWords.add(word)
 						sugarWordsState.transaction = null
 						renderSugarWords()
-						sugarWordsSetStatus('Generated "' + escapeHtml(word) + '". Review or edit the meaning before posting.', 'success')
+						sugarWordsSetStatus('Generated "' + escapeHtml(word) + '". Review or edit the meaning before coining.', 'success')
 					} catch (error) {
 						sugarWordsSetStatus(escapeHtml(error.message || 'Generated word failed validation.'), 'danger')
 					}
@@ -2948,7 +3079,7 @@
 			function sugarWordsSetWriteButtonsChecking(checking) {
 				$('#sugarwords-write, #sugarwords-prompt-write')
 					.prop('disabled', checking)
-					.text(checking ? 'Checking chain...' : 'Write to Sugarchain OP_RETURN')
+					.text(checking ? 'Checking...' : 'Coin It')
 			}
 
 			function sugarWordsDuplicateCheckBlockCount() {
@@ -2970,13 +3101,13 @@
 						return sugarWordsNormalizeWord(item.word) == word && String(item.verified_status || '') == 'verified_on_chain'
 					})
 					if (!data || !data.direct_summary || data.direct_summary.enabled !== true) {
-						throw new Error('Direct blockchain search did not return a verification summary.')
+						throw new Error('Direct search did not return a verification summary.')
 					}
 					var summary = data.direct_summary
 					var warnings = Array.isArray(summary.errors) ? summary.errors : []
 					var scanMadeProgress = Number(summary.scanned_blocks || 0) > 0 || Number(summary.checked_txids || 0) > 0 || Number(summary.verified_txids || 0) > 0
 					if (warnings.length && !scanMadeProgress) {
-						throw new Error('Sugarchain API returned warnings before the direct blockchain search could scan any blocks.')
+						throw new Error('Sugarchain API returned warnings before the direct search could scan any records.')
 					}
 					return {
 						'duplicate': !!match,
@@ -2996,7 +3127,7 @@
 					return
 				}
 				if (!globalData.keys || !globalData.address) {
-					sugarWordsSetStatus('Open a wallet before writing an OP_RETURN transaction.', 'warning')
+					sugarWordsSetStatus('Login before coining a word.', 'warning')
 					return
 				}
 				if (sugarWordsState.postedWords.has(record.word)) {
@@ -3014,7 +3145,7 @@
 				if (payload.bytes > 80) {
 					record.status = 'too_long'
 					renderSugarWords()
-					sugarWordsSetStatus('OP_RETURN payload is still too long after compaction. Regenerate or edit shorter fields.', 'danger')
+					sugarWordsSetStatus('This word record is still too long. Regenerate or edit shorter fields.', 'danger')
 					return
 				}
 
@@ -3023,7 +3154,7 @@
 				var chainCheckPassed = false
 				renderSugarWords()
 				sugarWordsSetWriteButtonsChecking(true)
-				sugarWordsSetStatus('Checking indexed Sugarchain claims and the latest ' + sugarWordsDuplicateCheckBlockCount() + ' blocks after block 42900000 for "' + escapeHtml(record.word) + '" before posting...', 'info')
+				sugarWordsSetStatus('Checking recent Lingry claims for "' + escapeHtml(record.word) + '" before coining...', 'info')
 
 				sugarWordsFindOnChainWordClaim(record).then(function(result) {
 					if (result.duplicate) {
@@ -3032,7 +3163,7 @@
 						renderSugarWords()
 						var txid = result.match && result.match.txid ? result.match.txid : ''
 						var txLink = txid ? ' Existing txid: <a href="' + blockExplorer.tx(txid) + '" target="_blank">' + escapeHtml(txid) + '</a>.' : ''
-						sugarWordsSetStatus('This word is already coined on Sugarchain and cannot be coined again.' + txLink, 'danger')
+						sugarWordsSetStatus('This word is already coined and cannot be coined again.' + txLink, 'danger')
 						throw new Error('duplicate_already_coined')
 					}
 					chainCheckPassed = true
@@ -3044,7 +3175,7 @@
 					}
 
 					var warningNote = result.warnings && result.warnings.length ? ' Direct search returned ' + result.warnings.length + ' non-blocking API warning' + (result.warnings.length == 1 ? '' : 's') + '.' : ''
-					sugarWordsSetStatus('No verified on-chain SugarWords claim found for "' + escapeHtml(record.word) + '".' + warningNote + ' Loading spendable UTXOs for the active wallet address...', 'info')
+					sugarWordsSetStatus('No existing Lingry claim found for "' + escapeHtml(record.word) + '".' + warningNote + ' Preparing your coin...', 'info')
 					return getUnspent(globalData.address, feeSatoshis + 1).then(function(data) {
 						return {
 							'data': data,
@@ -3063,7 +3194,7 @@
 					sugarWordsState.transaction = buildSugarWordsTransaction(chosenUtxos, feeSatoshis)
 					record.status = 'ready_to_post'
 					renderSugarWords()
-					openSugarWordsBroadcastConfirm()
+					return broadcastSugarWordsTransaction()
 				}).catch(function(error) {
 					if (error && error.message == 'duplicate_already_coined') {
 						return
@@ -3073,13 +3204,13 @@
 					renderSugarWords()
 					var message = error && error.message ? error.message : ''
 					if (!message && error && error.statusText == 'timeout') {
-						message = 'Blockchain duplicate check timed out. Try again after the Word Explorer scan catches up.'
+						message = 'Duplicate check timed out. Try again after the Word Explorer scan catches up.'
 					}
 					if (!message && error && error.responseJSON && error.responseJSON.error) {
 						message = error.responseJSON.error
 					}
 					message = message || messages.error['not-enough-funds']
-					sugarWordsSetStatus(chainCheckPassed ? escapeHtml(message) : 'Blockchain duplicate check failed, so posting is blocked. ' + escapeHtml(message), 'danger')
+					sugarWordsSetStatus(chainCheckPassed ? escapeHtml(message) : 'Duplicate check failed, so coining is blocked. ' + escapeHtml(message), 'danger')
 				}).finally(function() {
 					sugarWordsSetWriteButtonsChecking(false)
 					updateSugarWordsButtons()
@@ -3089,42 +3220,43 @@
 			function openSugarWordsBroadcastConfirm() {
 				var record = sugarWordsState.currentRecord
 				if (!record || !sugarWordsState.transaction || !sugarWordsState.payload) {
-					sugarWordsSetStatus('Create a signed SugarWords OP_RETURN transaction before broadcasting.', 'warning')
+					sugarWordsSetStatus('Prepare a word before coining it.', 'warning')
 					return
 				}
 
-				$('#sugarwords-confirm-title').text('Confirm SugarWords Broadcast')
-				$('#sugarwords-confirm-broadcast').removeClass('d-none').prop('disabled', false).text('Broadcast to Sugarchain')
+				$('#sugarwords-confirm-title').text('Coin Word')
+				$('#sugarwords-confirm-broadcast').removeClass('d-none').prop('disabled', false).text('Coin It')
 				$('#sugarwords-confirm-close').addClass('d-none')
 				$('#sugarwords-confirm-content').html(`
-					<p>This writes a zero-value OP_RETURN output. No SUGAR is sent to the OP_RETURN output; your wallet pays only the network fee.</p>
+					<p>This coins the word and pays only the small network fee.</p>
 					<div><b>word:</b> ${escapeHtml(record.word)}</div>
 					<div><b>part_of_speech:</b> ${escapeHtml(sugarWordsNormalizePartOfSpeech(record.part_of_speech))} (${escapeHtml(sugarWordsPartOfSpeechLabel(record.part_of_speech))})</div>
 					<div><b>meaning:</b> ${escapeHtml(sugarWordsState.payload.meaning_compact)}</div>
-					<div><b>OP_RETURN payload:</b> <span class="ai-ledger-code">${escapeHtml(sugarWordsState.payload.payload)}</span></div>
+					<div><b>payload:</b> <span class="ai-ledger-code">${escapeHtml(sugarWordsState.payload.payload)}</span></div>
 					<div><b>byte length:</b> ${sugarWordsState.payload.bytes}</div>
 					<div><b>estimated fee:</b> ${amountFormat(sugarWordsState.transaction.feeSatoshis)} ${escapeHtml(getConfig()['ticker'])}</div>
 					<div><b>funding/change address:</b> <span class="ai-ledger-code">${escapeHtml(globalData.address)}</span></div>
 				`)
 				$('#sugarwords-confirm-modal').modal('show')
-				sugarWordsSetStatus('Signed raw OP_RETURN transaction is ready. Broadcast still requires confirmation.', 'success')
+				sugarWordsSetStatus('Ready to coin.', 'success')
 			}
 
 			function broadcastSugarWordsTransaction() {
 				var record = sugarWordsState.currentRecord
 				if (!record || !sugarWordsState.transaction) {
-					return
+					return Promise.resolve()
 				}
 				if (sugarWordsState.postedWords.has(record.word)) {
 					record.status = 'duplicate_blocked'
 					renderSugarWords()
 					sugarWordsSetStatus('Duplicate post blocked for "' + escapeHtml(record.word) + '".', 'danger')
-					return
+					return Promise.resolve()
 				}
 
-				$('#sugarwords-confirm-broadcast').prop('disabled', true).text('Broadcasting...')
-				$('#sugarwords-confirm-content').html('Broadcasting signed transaction to ' + escapeHtml(getBackend()) + ' ...')
-				transactionBroadcast(sugarWordsState.transaction.rawTx).then(function(data) {
+				$('#sugarwords-confirm-broadcast').prop('disabled', true).text('Coining...')
+				$('#sugarwords-confirm-content').html('Coining your word...')
+				sugarWordsSetStatus('Coining "' + escapeHtml(record.word) + '"...', 'info')
+				return transactionBroadcast(sugarWordsState.transaction.rawTx).then(function(data) {
 					if (data.error != undefined) {
 						throw new Error(data.error.message || messages.error['broadcast-failed'])
 					}
@@ -3136,18 +3268,18 @@
 					sugarWordsState.postedWords.add(record.word)
 					renderSugarWords()
 					walletBalance()
-					$('#sugarwords-confirm-title').text('Broadcast Complete')
+					$('#sugarwords-confirm-title').text('Coined')
 					$('#sugarwords-confirm-content').html(`
-						<div>Saved SugarWords record in this browser session.</div>
+						<div>Saved your coined word.</div>
 						<div class="mt-2"><a href="${blockExplorer.tx(txid)}" target="_blank">${escapeHtml(txid)}</a></div>
 					`)
 					$('#sugarwords-confirm-broadcast').addClass('d-none')
 					$('#sugarwords-confirm-close').removeClass('d-none')
-					sugarWordsSetStatus('Broadcast returned txid ' + escapeHtml(txid) + '.', 'success')
+					sugarWordsSetStatus('Coined "' + escapeHtml(record.word) + '".', 'success')
 				}).catch(function(error) {
 					record.status = 'failed'
 					renderSugarWords()
-					$('#sugarwords-confirm-title').text('Broadcast Failed')
+					$('#sugarwords-confirm-title').text('Coining Failed')
 					$('#sugarwords-confirm-content').html(escapeHtml(error.message || messages.error['broadcast-failed']))
 					$('#sugarwords-confirm-broadcast').addClass('d-none')
 					$('#sugarwords-confirm-close').removeClass('d-none')
@@ -3158,22 +3290,22 @@
 			function verifySugarWordsRecord() {
 				var record = sugarWordsState.currentRecord
 				if (!record || !record.txid || !record.op_return_hex) {
-					sugarWordsSetStatus('Broadcast or select a posted SugarWords record before verification.', 'warning')
+					sugarWordsSetStatus('Coin or select a saved SugarWords record before verification.', 'warning')
 					return
 				}
 
-				sugarWordsSetStatus('Fetching Sugarchain transaction for OP_RETURN verification...', 'info')
+				sugarWordsSetStatus('Checking this word record...', 'info')
 				transactionInfo(record.txid).then(function(data) {
 					if (!data || data.error != undefined) {
-						throw new Error('Current wallet API could not fetch this transaction.')
+						throw new Error('Current API could not fetch this transaction.')
 					}
 
 					var payloads = extractOpReturnPayloadsFromTxInfo(data)
 					var matched = payloads.indexOf(record.op_return_hex.toLowerCase()) >= 0
 					if (matched) {
-						sugarWordsSetStatus('Verified. The on-chain OP_RETURN payload matches this SW record.', 'success')
+						sugarWordsSetStatus('Verified. This word record matches.', 'success')
 					} else {
-						sugarWordsSetStatus('Transaction fetched, but the OP_RETURN payload did not match this record.', 'danger')
+						sugarWordsSetStatus('Checked, but this saved record did not match.', 'danger')
 					}
 				}).catch(function(error) {
 					sugarWordsSetStatus((error.message || 'Transaction fetch failed.') + ' Local txid and payload remain saved.', 'warning')
@@ -3468,14 +3600,14 @@
 				var txid = record.txid || ''
 				var block = record.block_height == null || record.block_height === '' ? '-' : record.block_height
 				var postedTime = record.tx_time || record.indexed_at || '-'
-				var status = record.verified_status || 'unknown'
+				var status = lingryDisplayStatus(record.verified_status || 'unknown')
 				var duplicate = record.duplicate_status || 'first_seen'
 				var partOfSpeech = sugarWordsNormalizePartOfSpeech(record.part_of_speech)
 				return '' +
 					'<div class="word-explorer-card" data-word-id="' + escapeHtml(id) + '">' +
 						'<div class="word-explorer-word">' + escapeHtml(record.word || '-') + '</div>' +
 						'<div class="word-explorer-meaning">' + escapeHtml(record.meaning || '-') + '</div>' +
-						'<div class="word-explorer-status">' + escapeHtml(status.replace(/_/g, ' ')) + '</div>' +
+						'<div class="word-explorer-status">' + escapeHtml(status) + '</div>' +
 						'<div class="word-explorer-meta">' +
 							'<div class="label">Part of Speech</div><div class="value ai-ledger-code">' + escapeHtml(partOfSpeech) + ' <span class="text-muted">(' + escapeHtml(sugarWordsPartOfSpeechLabel(partOfSpeech)) + ')</span></div>' +
 							'<div class="label">Type</div><div class="value">' + escapeHtml(record.etymology_type || '-') + '</div>' +
@@ -3529,15 +3661,15 @@
 						'<div class="word-explorer-meaning">' + escapeHtml(first.meaning) + '</div>' +
 						'<div class="word-explorer-meta">' +
 							'<div class="label">Part of Speech</div><div class="value ai-ledger-code">' + escapeHtml(firstPartOfSpeech) + ' <span class="text-muted">(' + escapeHtml(sugarWordsPartOfSpeechLabel(firstPartOfSpeech)) + ')</span></div>' +
-							'<div class="label">OP_RETURN</div><div class="value ai-ledger-code">' + escapeHtml(first.op_return_payload) + '</div>' +
+							'<div class="label">Payload</div><div class="value ai-ledger-code">' + escapeHtml(first.op_return_payload) + '</div>' +
 							'<div class="label">OP hex</div><div class="value ai-ledger-code">' + escapeHtml(first.op_return_hex) + '</div>' +
 							'<div class="label">txid</div><div class="value ai-ledger-code">' + wordExplorerTxLink(first.txid) + '</div>' +
 							'<div class="label">block hash</div><div class="value ai-ledger-code">' + escapeHtml(first.block_hash || '-') + '</div>' +
 							'<div class="label">source</div><div class="value">' + escapeHtml(first.source || '-') + '</div>' +
-							'<div class="label">status</div><div class="value">' + escapeHtml(first.verified_status || '-') + '</div>' +
+							'<div class="label">status</div><div class="value">' + escapeHtml(lingryDisplayStatus(first.verified_status || '-')) + '</div>' +
 						'</div>' +
 						(first.etymology_meaning ? '<p><b>Readout:</b> ' + escapeHtml(first.etymology_meaning) + '</p>' : '') +
-						'<div class="word-explorer-note mb-0">Sugarchain proves this SugarWords claim existed at or before the block timestamp. It does not prove the word was original in natural language.</div>' +
+						'<div class="word-explorer-note mb-0">Sugarchain can timestamp this SugarWords claim. It does not prove the word was original in natural language.</div>' +
 					'</div>' +
 					'<div class="ai-ledger-section mt-3"><h3>Claims</h3><div class="word-explorer-results">' + claimCards + '</div></div>' +
 					'<div class="ai-ledger-section mt-3"><h3>Related Words</h3>' + (relatedLinks || '<div>No related local records yet.</div>') + '</div>'
@@ -3602,7 +3734,7 @@
 					parts.push('checked ' + summary.checked_txids + ' txid' + (summary.checked_txids == 1 ? '' : 's'))
 				}
 				if (Number(summary.verified_txids || 0)) {
-					parts.push('verified ' + summary.verified_txids + ' on-chain claim' + (summary.verified_txids == 1 ? '' : 's'))
+					parts.push('verified ' + summary.verified_txids + ' claim' + (summary.verified_txids == 1 ? '' : 's'))
 				}
 				if (Number(summary.scanned_blocks || 0)) {
 					parts.push('scanned ' + summary.scanned_blocks + ' recent block' + (summary.scanned_blocks == 1 ? '' : 's'))
@@ -3613,7 +3745,7 @@
 				if (summary.errors && summary.errors.length) {
 					parts.push(summary.errors.length + ' API warning' + (summary.errors.length == 1 ? '' : 's'))
 				}
-				return parts.length ? ' Blockchain direct search: ' + parts.join(', ') + '.' : ' Blockchain direct search completed.'
+				return parts.length ? ' Live search: ' + parts.join(', ') + '.' : ' Live search completed.'
 			}
 
 			var WORD_EXPLORER_START_HEIGHT = 42900000
@@ -3627,7 +3759,7 @@
 				var mode = encodeURIComponent(modeValue)
 				var filter = encodeURIComponent(filterValue)
 				var localMatches = wordExplorerSearchLocal(rawQuery, modeValue, filterValue)
-				wordExplorerSetStatus(directSearch ? 'Searching Sugarchain blockchain directly after block ' + WORD_EXPLORER_START_HEIGHT + '...' : 'Searching local SugarWords index...', 'info')
+				wordExplorerSetStatus(directSearch ? 'Searching live Sugarchain records...' : 'Searching local SugarWords index...', 'info')
 				wordExplorerApiGet('/api/words/search?q=' + q + '&mode=' + mode + '&limit=50&filter=' + filter + '&direct=' + (directSearch ? '1' : '0') + '&start_height=' + WORD_EXPLORER_START_HEIGHT).then(function(data) {
 					var records = wordExplorerMergeRecords(data.records || [], localMatches)
 					var message = directSearch ? 'Search complete.' + wordExplorerDirectSummaryMessage(data.direct_summary) : 'Search complete.'
@@ -3637,7 +3769,7 @@
 					renderWordExplorerResults(records, message)
 				}).catch(function(error) {
 					if (localMatches.length) {
-						renderWordExplorerResults(localMatches, 'Search matched imported JSON records stored in this browser. Backend blockchain search is unavailable.')
+						renderWordExplorerResults(localMatches, 'Search matched imported JSON records stored in this browser. Live search is unavailable.')
 						return
 					}
 					wordExplorerSetStatus(error.responseJSON && error.responseJSON.error ? error.responseJSON.error : 'Search failed.', 'danger')
@@ -3646,7 +3778,7 @@
 
 			function scanWordExplorerRecent() {
 				var blocks = wordExplorerLatestBlockCount()
-				wordExplorerSetStatus('Scanning the latest ' + blocks + ' Sugarchain blocks after block ' + WORD_EXPLORER_START_HEIGHT + ' for SugarWords OP_RETURN records...', 'info')
+				wordExplorerSetStatus('Scanning the latest ' + blocks + ' Sugarchain blocks for SugarWords records...', 'info')
 				scanWordExplorerLatestBlocks().then(function(data) {
 					wordExplorerSetStatus('Scan complete: ' + data.scanned_blocks + ' blocks, ' + data.scanned_transactions + ' transactions, ' + data.indexed_records + ' SugarWords records indexed.', data.errors && data.errors.length ? 'warning' : 'success')
 					loadWordExplorerLatest(true)
@@ -3661,7 +3793,7 @@
 					wordExplorerSetStatus('Enter a txid to verify.', 'warning')
 					return
 				}
-				wordExplorerSetStatus('Fetching transaction and extracting SugarWords OP_RETURN payloads...', 'info')
+				wordExplorerSetStatus('Fetching and checking SugarWords records...', 'info')
 				wordExplorerApiGet('/api/tx/' + encodeURIComponent(txid) + '/word').then(function(data) {
 					renderWordExplorerResults(data.records || [], 'Transaction verified and indexed.')
 				}).catch(function(error) {
@@ -3713,7 +3845,7 @@
 						wordExplorerSetStatus('Importing SugarWords session JSON and verifying records with txids...', 'info')
 						wordExplorerApiPost('/api/words/import-json', payload).then(function(data) {
 							var skipped = Number(data.skipped_count || 0)
-							var message = 'Imported ' + data.imported_count + ' SugarWords records. Verified records are marked on-chain; the rest remain local/imported.'
+							var message = 'Imported ' + data.imported_count + ' SugarWords records. Verified records are marked verified; the rest remain local/imported.'
 							if (skipped) {
 								message += ' Skipped ' + skipped + ' invalid record' + (skipped == 1 ? '.' : 's.')
 							}
@@ -4162,6 +4294,12 @@
 					e.preventDefault()
 				})
 
+				$('#lingry-logout').click(function(e) {
+					closeWallet()
+					setLingryMenuOpen(false)
+					e.preventDefault()
+				})
+
 				$(document).on('click', '[data-lingry-tab]', function(e) {
 					openLingryWalletTab($(this).data('lingry-tab'))
 					e.preventDefault()
@@ -4192,13 +4330,27 @@
 					e.preventDefault()
 				})
 
+				$('#lingry-login-toggle').click(function(e) {
+					var isOpen = $('#lingry-login-panel').hasClass('d-none')
+					$('#lingry-login-panel').toggleClass('d-none', !isOpen)
+					$(this).attr('aria-expanded', isOpen ? 'true' : 'false')
+					e.preventDefault()
+				})
+
+				$(document).on('click', '[data-lingry-public-login]', function(e) {
+					$('#lingry-login-panel').removeClass('d-none')
+					$('#lingry-login-toggle').attr('aria-expanded', 'true')
+					showMessage('Login to generate or prompt a new word.')
+					e.preventDefault()
+				})
+
 				$('#open-key-toggle').click(function(e) {
 					$('#open-key-form').toggleClass('d-none')
 					e.preventDefault()
 				})
 
 				$('#open-google-wallet').click(function(e) {
-					showMessage('Google sign-in needs a Google OAuth client ID before it can open a local wallet.')
+					showMessage('Google sign-in needs a Google OAuth client ID before it can open Lingry.')
 					e.preventDefault()
 				})
 
@@ -4226,6 +4378,8 @@
 				if (window.location.hash) {
 					$(window).trigger('hashchange')
 				}
+				renderLingryStream()
+				ensureLingryStreamScan(false)
 $('#send-tx').click(function() {
 					var error = false
 					var txFee = ($('#send-fee').val() != '') ? $('#send-fee').val() : globalData.rfee
