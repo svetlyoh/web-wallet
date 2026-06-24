@@ -38,7 +38,6 @@ loadLocalEnv('.env.local');
 
 const port = Number(process.env.PORT || 8080);
 const miniMaxModel = process.env.MINIMAX_MODEL || 'MiniMax-M3';
-const hardcodedMiniMaxApiKey = 'sk-api-JhtksjUxma4LONWTCcqOknX8Mr_GVf9HIbaGFSRvIbY8KDbBaQ9DMgEBV85aRv9ixN78oeIu9BKwXMqFr4jQwlQz2GDguFjZq4yOCO2gLP104bjgX6GZAgI';
 const wordExplorerApi = createWordExplorerApi();
 const sugarNetwork = {
 	messagePrefix: '\x19Sugarchain Signed Message:\n',
@@ -687,10 +686,10 @@ function buildRandomWordPrompt(usedWords, usedMeanings) {
 	].join('\n');
 }
 
-async function requestMiniMaxWord(usedWords, usedMeanings, conceptPrompt, generationMode, requestApiKey) {
-	const apiKey = requestApiKey || process.env.MINIMAX_API_KEY || hardcodedMiniMaxApiKey;
+async function requestMiniMaxWord(usedWords, usedMeanings, conceptPrompt, generationMode) {
+	const apiKey = process.env.MINIMAX_API_KEY || '';
 	if (!apiKey) {
-		throw new Error('Paste a MiniMax API key or configure MINIMAX_API_KEY on the server.');
+		throw new Error('AI word generation is not configured on this server.');
 	}
 
 	const useConceptPrompt = generationMode === 'prompt';
@@ -760,7 +759,6 @@ async function handleGenerateWord(req, res, forcedGenerationMode) {
 		const usedMeanings = Array.isArray(body.used_meanings) ? body.used_meanings.map(normalizeMeaningForComparison).filter(Boolean).slice(-12) : [];
 		const generationMode = forcedGenerationMode || (body.generation_mode === 'prompt' ? 'prompt' : 'random');
 		const conceptPrompt = generationMode === 'prompt' ? sanitizeText(body.concept_prompt, 500) : '';
-		const requestApiKey = sanitizeText(body.api_key, 300);
 		const aiProvider = sanitizeText(body.ai_provider || 'minimax', 32).toLowerCase();
 		if (aiProvider && aiProvider !== 'minimax') {
 			throw new Error('This local server currently supports MiniMax generation. Choose MiniMax in Settings.');
@@ -771,7 +769,7 @@ async function handleGenerateWord(req, res, forcedGenerationMode) {
 		let lastError = null;
 		for (let attempt = 0; attempt < 3; attempt++) {
 			try {
-				const candidate = await requestMiniMaxWord(usedWords, usedMeanings, conceptPrompt, generationMode, requestApiKey);
+				const candidate = await requestMiniMaxWord(usedWords, usedMeanings, conceptPrompt, generationMode);
 				const validated = validateGeneratedWord(candidate, usedWords);
 				if (isRepetitiveMeaning(validated.meaning)) {
 					throw new Error('Generated repetitive meaning; retrying.');

@@ -492,10 +492,10 @@ function buildRandomWordPrompt(usedWords, usedMeanings) {
 	].join('\n');
 }
 
-async function requestMiniMaxWord(usedWords, usedMeanings, conceptPrompt, generationMode, requestApiKey, env) {
-	const apiKey = requestApiKey || env.MINIMAX_API_KEY || '';
+async function requestMiniMaxWord(usedWords, usedMeanings, conceptPrompt, generationMode, env) {
+	const apiKey = env.MINIMAX_API_KEY || '';
 	if (!apiKey) {
-		throw new Error('Paste a MiniMax API key in the wallet tab.');
+		throw new Error('AI word generation is not configured on this server.');
 	}
 
 	const useConceptPrompt = generationMode === 'prompt';
@@ -564,14 +564,13 @@ async function handleGenerateWord(request, env, forcedGenerationMode) {
 		const usedMeanings = Array.isArray(body.used_meanings) ? body.used_meanings.map(normalizeMeaningForComparison).filter(Boolean).slice(-12) : [];
 		const generationMode = forcedGenerationMode || (body.generation_mode === 'prompt' ? 'prompt' : 'random');
 		const conceptPrompt = generationMode === 'prompt' ? sanitizeText(body.concept_prompt, 500) : '';
-		const requestApiKey = sanitizeText(body.api_key, 300);
 		if (generationMode === 'prompt' && !conceptPrompt) {
 			throw new Error('Prompt for New Word is empty.');
 		}
 		let lastError = null;
 		for (let attempt = 0; attempt < 3; attempt++) {
 			try {
-				const candidate = await requestMiniMaxWord(usedWords, usedMeanings, conceptPrompt, generationMode, requestApiKey, env);
+				const candidate = await requestMiniMaxWord(usedWords, usedMeanings, conceptPrompt, generationMode, env);
 				const validated = validateGeneratedWord(candidate, usedWords);
 				if (isRepetitiveMeaning(validated.meaning)) {
 					throw new Error('Generated repetitive meaning; retrying.');
