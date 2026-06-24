@@ -2,6 +2,13 @@
 	"$schema": "node_modules/wrangler/config-schema.json",
 	"name": "web-wallet",
 	"compatibility_date": "2026-06-22",
+	"compatibility_flags": [
+		"nodejs_compat"
+	],
+	"vars": {
+		"LINGRY_FUNDING_ADDRESS": "sugar1q39n666w687nxm9x98tx5kgw2uvk780gtmd6yyu",
+		"LINGRY_SUGAR_GRANTS_ENABLED": "true"
+	},
 	"observability": {
 		"enabled": true
 	},

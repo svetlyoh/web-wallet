@@ -4,5 +4,8 @@
 	},
 	"engines": {
 		"node": ">=18"
+	},
+	"dependencies": {
+		"bitcoinjs-lib": "^4.0.3"
 	}
 }

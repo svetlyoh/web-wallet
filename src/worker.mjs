@@ -1,5 +1,24 @@
+import bitcoin from 'bitcoinjs-lib';
+
 const MINI_MAX_MODEL = 'MiniMax-M3';
 const SUGAR_API_BASE = 'https://api.sugar.wtf';
+const SUGAR_DECIMALS = 8;
+const FAUCET_AMOUNT_SATOSHIS = 2500000;
+const FAUCET_MINIMUM_BALANCE_SATOSHIS = 1000000;
+const FAUCET_FEE_SATOSHIS = 1000;
+const FAUCET_DEFAULT_ADDRESS = 'sugar1q39n666w687nxm9x98tx5kgw2uvk780gtmd6yyu';
+const faucetAttempts = new Map();
+const sugarNetwork = {
+	messagePrefix: '\x19Sugarchain Signed Message:\n',
+	bip32: {
+		public: 0x0488b21e,
+		private: 0x0488ade4
+	},
+	bech32: 'sugar',
+	pubKeyHash: 0x3F,
+	scriptHash: 0x7D,
+	wif: 0x80
+};
 
 function jsonResponse(payload, status = 200) {
 	return new Response(JSON.stringify(payload), {
@@ -15,12 +34,65 @@ function normalizeWord(word) {
 	return String(word || '').trim().toLowerCase();
 }
 
+function normalizeAddress(value) {
+	return String(value || '').trim();
+}
+
+function sugarAmount(satoshis) {
+	return Number(satoshis || 0) / Math.pow(10, SUGAR_DECIMALS);
+}
+
 function sanitizeText(value, maxLength) {
 	return String(value || '').replace(/\|/g, '/').replace(/\s+/g, ' ').trim().slice(0, maxLength);
 }
 
 function normalizeHex(value) {
 	return String(value || '').trim().replace(/^0x/i, '').replace(/\s+/g, '').toLowerCase();
+}
+
+function getP2WPKHScript(pubkey) {
+	return bitcoin.payments.p2wpkh({
+		pubkey,
+		network: sugarNetwork
+	});
+}
+
+function getP2SHScript(redeem) {
+	return bitcoin.payments.p2sh({
+		redeem,
+		network: sugarNetwork
+	});
+}
+
+function getAddressFromKeys(keys) {
+	return getP2WPKHScript(keys.publicKey).address;
+}
+
+function validateSugarAddress(address) {
+	try {
+		bitcoin.address.fromBase58Check(address, sugarNetwork);
+		return true;
+	} catch (error) {
+		try {
+			bitcoin.address.fromBech32(address, sugarNetwork);
+			return true;
+		} catch (innerError) {
+			return false;
+		}
+	}
+}
+
+function getScriptType(script) {
+	if (script[0] === bitcoin.opcodes.OP_0 && script[1] === 0x14) {
+		return 'bech32';
+	}
+	if (script[0] === bitcoin.opcodes.OP_HASH160 && script[1] === 0x14 && script[22] === bitcoin.opcodes.OP_EQUAL) {
+		return 'segwit';
+	}
+	if (script[0] === bitcoin.opcodes.OP_DUP && script[1] === bitcoin.opcodes.OP_HASH160 && script[2] === 0x14 && script[23] === bitcoin.opcodes.OP_EQUALVERIFY && script[24] === bitcoin.opcodes.OP_CHECKSIG) {
+		return 'legacy';
+	}
+	return null;
 }
 
 function textToHex(text) {
@@ -538,6 +610,193 @@ async function fetchSugarJson(path, timeoutMs = 8000) {
 	}
 }
 
+async function postSugarForm(path, body, timeoutMs = 15000) {
+	const controller = new AbortController();
+	const timeout = setTimeout(() => controller.abort(), timeoutMs);
+	try {
+		const response = await fetch(SUGAR_API_BASE + path, {
+			method: 'POST',
+			headers: {
+				'content-type': 'application/x-www-form-urlencoded'
+			},
+			body: new URLSearchParams(body),
+			signal: controller.signal
+		});
+		const json = await response.json().catch(() => null);
+		if (!response.ok || !json) {
+			throw new Error('Sugarchain API request failed.');
+		}
+		return json;
+	} catch (error) {
+		if (error && error.name === 'AbortError') {
+			throw new Error('Sugarchain API request timed out.');
+		}
+		throw error;
+	} finally {
+		clearTimeout(timeout);
+	}
+}
+
+async function getAddressBalanceSatoshis(address) {
+	const result = await fetchSugarJson('/balance/' + encodeURIComponent(address));
+	return Number(result && result.balance || 0);
+}
+
+async function getAddressUtxos(address, amountSatoshis) {
+	const result = await fetchSugarJson('/unspent/' + encodeURIComponent(address) + '?amount=' + encodeURIComponent(amountSatoshis), 10000);
+	return Array.isArray(result) ? result : [];
+}
+
+function chooseFaucetUtxos(utxos, requiredSatoshis) {
+	const chosen = [];
+	let total = 0;
+	for (const utxo of utxos) {
+		chosen.push(utxo);
+		total += Number(utxo.value || 0);
+		if (total >= requiredSatoshis) {
+			break;
+		}
+	}
+	return { chosen, total };
+}
+
+function getUtxoScriptHex(utxo) {
+	if (typeof utxo.script === 'string') {
+		return utxo.script;
+	}
+	if (typeof utxo.scriptPubKey === 'string') {
+		return utxo.scriptPubKey;
+	}
+	if (utxo.scriptPubKey && typeof utxo.scriptPubKey.hex === 'string') {
+		return utxo.scriptPubKey.hex;
+	}
+	return '';
+}
+
+function buildFaucetTransaction(keys, recipientAddress, utxos, amountSatoshis, feeSatoshis) {
+	const faucetAddress = getAddressFromKeys(keys);
+	const txb = new bitcoin.TransactionBuilder(sugarNetwork);
+	const scripts = [];
+	let totalValue = 0;
+
+	txb.setVersion(2);
+	for (const utxo of utxos) {
+		const txid = utxo.txid;
+		const index = utxo.index !== undefined ? utxo.index : utxo.vout;
+		const scriptHex = getUtxoScriptHex(utxo);
+		const script = bitcoin.Buffer.from(scriptHex, 'hex');
+		const type = getScriptType(script);
+		const value = Number(utxo.value || 0);
+		totalValue += value;
+		if (type === 'bech32') {
+			const p2wpkh = getP2WPKHScript(keys.publicKey);
+			txb.addInput(txid, index, null, p2wpkh.output);
+		} else {
+			txb.addInput(txid, index);
+		}
+		scripts.push({ script, type, value });
+	}
+
+	if (totalValue < amountSatoshis + feeSatoshis) {
+		throw new Error('Starter wallet has insufficient spendable balance.');
+	}
+
+	txb.addOutput(recipientAddress, amountSatoshis);
+	const change = totalValue - amountSatoshis - feeSatoshis;
+	if (change > 0) {
+		txb.addOutput(faucetAddress, change);
+	}
+
+	for (let index = 0; index < scripts.length; index++) {
+		switch (scripts[index].type) {
+			case 'bech32':
+				txb.sign(index, keys, null, null, scripts[index].value, null);
+				break;
+			case 'segwit': {
+				const redeem = getP2WPKHScript(keys.publicKey);
+				const p2sh = getP2SHScript(redeem);
+				txb.sign(index, keys, p2sh.redeem.output, null, scripts[index].value, null);
+				break;
+			}
+			case 'legacy':
+				txb.sign(index, keys);
+				break;
+			default:
+				throw new Error('Unsupported starter wallet UTXO script type.');
+		}
+	}
+
+	return txb.build().toHex();
+}
+
+async function handleFaucetFund(request, env) {
+	if (request.method !== 'POST') {
+		return jsonResponse({ error: 'Method not allowed.' }, 405);
+	}
+
+	try {
+		const body = await request.json().catch(() => ({}));
+		const address = normalizeAddress(body.address);
+		if (!validateSugarAddress(address)) {
+			return jsonResponse({ funded: false, error: 'Invalid Sugarchain address.' }, 400);
+		}
+
+		const balance = await getAddressBalanceSatoshis(address);
+		if (balance >= FAUCET_MINIMUM_BALANCE_SATOSHIS) {
+			return jsonResponse({
+				funded: false,
+				reason: 'balance_ok',
+				balance,
+				minimum_balance: FAUCET_MINIMUM_BALANCE_SATOSHIS
+			});
+		}
+
+		const grantsEnabled = String(env.LINGRY_SUGAR_GRANTS_ENABLED || 'true').toLowerCase() !== 'false';
+		if (!grantsEnabled) {
+			return jsonResponse({ funded: false, error: 'Starter funding is disabled on this server.' }, 503);
+		}
+
+		const faucetWif = String(env.LINGRY_FUNDING_WIF || env.LINGRY_FAUCET_WIF || '').trim();
+		if (!faucetWif) {
+			return jsonResponse({ funded: false, error: 'Starter funding is not configured on this server.' }, 503);
+		}
+
+		const previousAttempt = faucetAttempts.get(address);
+		if (previousAttempt && Date.now() - previousAttempt < 10 * 60 * 1000) {
+			return jsonResponse({
+				funded: false,
+				reason: 'recent_attempt',
+				retry_after_seconds: Math.ceil((10 * 60 * 1000 - (Date.now() - previousAttempt)) / 1000)
+			});
+		}
+
+		const keys = bitcoin.ECPair.fromWIF(faucetWif, sugarNetwork);
+		const faucetAddress = getAddressFromKeys(keys);
+		const expectedAddress = env.LINGRY_FUNDING_ADDRESS || env.LINGRY_FAUCET_ADDRESS || FAUCET_DEFAULT_ADDRESS;
+		if (expectedAddress && faucetAddress !== expectedAddress) {
+			throw new Error('Starter funding key does not match the configured starter address.');
+		}
+
+		const required = FAUCET_AMOUNT_SATOSHIS + FAUCET_FEE_SATOSHIS;
+		const utxos = await getAddressUtxos(faucetAddress, required);
+		const selection = chooseFaucetUtxos(utxos, required);
+		const raw = buildFaucetTransaction(keys, address, selection.chosen, FAUCET_AMOUNT_SATOSHIS, FAUCET_FEE_SATOSHIS);
+		const broadcast = await postSugarForm('/broadcast', { raw });
+		if (broadcast.error) {
+			throw new Error(broadcast.error.message || 'Starter funding broadcast failed.');
+		}
+
+		faucetAttempts.set(address, Date.now());
+		return jsonResponse({
+			funded: true,
+			txid: broadcast.result,
+			amount: sugarAmount(FAUCET_AMOUNT_SATOSHIS)
+		});
+	} catch (error) {
+		return jsonResponse({ funded: false, error: error.message || 'Starter funding failed.' }, 400);
+	}
+}
+
 async function indexSugarTxid(txid, knownBlock = null) {
 	const txInfo = await fetchSugarJson('/transaction/' + txid);
 	const tx = txInfo && txInfo.txid ? txInfo : (txInfo && txInfo.result ? txInfo.result : txInfo);
@@ -684,6 +943,9 @@ export default {
 		}
 		if (url.pathname === '/api/generate-word') {
 			return handleGenerateWord(request, env, null);
+		}
+		if (url.pathname === '/api/faucet/fund') {
+			return handleFaucetFund(request, env);
 		}
 		if (url.pathname === '/api/words/search') {
 			return handleWordSearch(request);
