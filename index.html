@@ -849,6 +849,47 @@
 			.ai-ledger-status {
 				margin-bottom: 12px;
 			}
+			.lingry-drafts-list {
+				display: grid;
+				gap: 8px;
+			}
+			.lingry-draft-card {
+				width: 100%;
+				border: 1px solid rgba(10, 99, 61, 0.14);
+				border-radius: 14px;
+				background: rgba(245, 255, 249, 0.92);
+				color: #123b36;
+				padding: 10px 12px;
+				text-align: left;
+				font: inherit;
+			}
+			.lingry-draft-card:hover,
+			.lingry-draft-card:focus,
+			.lingry-draft-card.active {
+				border-color: rgba(7, 134, 76, 0.42);
+				background: #e5f9ec;
+				outline: none;
+			}
+			.lingry-draft-word {
+				display: block;
+				color: #043b2c;
+				font-size: 18px;
+				font-weight: 800;
+				line-height: 1.15;
+				word-break: break-word;
+			}
+			.lingry-draft-meaning {
+				display: block;
+				color: #446a59;
+				font-size: 13px;
+				line-height: 1.3;
+				margin-top: 4px;
+			}
+			.lingry-draft-empty {
+				color: #547263;
+				font-size: 14px;
+				margin: 0;
+			}
 			.ai-ledger-table td,
 			.ai-ledger-table th {
 				vertical-align: top;
@@ -1370,6 +1411,12 @@
 										</div>
 									</div>
 
+									<div class="ai-ledger-section">
+										<h3>Ready to Coin</h3>
+										<p class="lingry-draft-empty mb-2">Generated words you have not coined yet. Tap one to edit it.</p>
+										<div id="sugarwords-drafts" class="lingry-drafts-list"></div>
+									</div>
+
 									<div class="ai-ledger-section d-none">
 										<h3>Session Log</h3>
 										<div class="table-responsive">
@@ -1476,6 +1523,12 @@
 											<label for="sugarwords-prompt-hex" class="mb-1">Hex</label>
 											<textarea id="sugarwords-prompt-hex" class="form-control ai-ledger-code" rows="3" readonly></textarea>
 										</div>
+									</div>
+
+									<div class="ai-ledger-section">
+										<h3>Ready to Coin</h3>
+										<p class="lingry-draft-empty mb-2">Generated words you have not coined yet. Tap one to edit it.</p>
+										<div id="sugarwords-prompt-drafts" class="lingry-drafts-list"></div>
 									</div>
 
 									<div class="ai-ledger-section d-none">
@@ -2803,6 +2856,53 @@
 				$('#sugarwords-log-body, #sugarwords-prompt-log-body').html(rows.length ? rows.join('') : '<tr><td colspan="9">No SugarWords in this session yet.</td></tr>')
 			}
 
+			function sugarWordsReadyToCoinRecords() {
+				var drafts = []
+				for (var i = sugarWordsState.records.length - 1; i >= 0; i--) {
+					var record = sugarWordsState.records[i]
+					if (!record || record.status == 'posted') {
+						continue
+					}
+					if (!sugarWordsNormalizeWord(record.word) && !String(record.meaning || '').trim()) {
+						continue
+					}
+					drafts.push({
+						'index': i,
+						'record': record
+					})
+				}
+				return drafts
+			}
+
+			function renderSugarWordsDrafts() {
+				var drafts = sugarWordsReadyToCoinRecords()
+				var html = drafts.map(function(item) {
+					var record = item.record
+					var isActive = record === sugarWordsState.currentRecord
+					var word = record.word || 'untitled word'
+					var meaning = record.meaning || 'Meaning pending'
+					return '<button type="button" class="lingry-draft-card' + (isActive ? ' active' : '') + '" data-sugarwords-draft-index="' + item.index + '">' +
+						'<span class="lingry-draft-word">' + escapeHtml(word) + '</span>' +
+						'<span class="lingry-draft-meaning">' + escapeHtml(meaning) + '</span>' +
+					'</button>'
+				}).join('')
+				if (!html) {
+					html = '<p class="lingry-draft-empty">No saved word drafts yet.</p>'
+				}
+				$('#sugarwords-drafts, #sugarwords-prompt-drafts').html(html)
+			}
+
+			function selectSugarWordsDraft(index) {
+				var record = sugarWordsState.records[index]
+				if (!record || record.status == 'posted') {
+					return
+				}
+				sugarWordsState.currentRecord = record
+				sugarWordsState.transaction = null
+				renderSugarWords()
+				sugarWordsSetStatus('Loaded "' + escapeHtml(record.word || 'draft') + '". Edit it, then tap Coin It.', 'info')
+			}
+
 			function renderSugarWordsFields(prefix, record, payload) {
 				$('#' + prefix + '-word').val(record ? record.word : '')
 				$('#' + prefix + '-confidence').text(record && record.confidence_not_existing != undefined ? record.confidence_not_existing : '-')
@@ -2811,7 +2911,7 @@
 				var maxMeaningChars = record ? sugarWordsMaxMeaningChars(record) : 65
 				var meaningBudget = record ? sugarWordsMeaningByteBudget(record) : 65
 				$('#' + prefix + '-meaning').attr('maxlength', maxMeaningChars).val(record ? record.meaning : '')
-				$('#' + prefix + '-meaning-limit').text(record ? 'On-chain meaning limit: ' + maxMeaningChars + ' ASCII characters / ' + meaningBudget + ' available bytes for this word and part of speech.' : 'On-chain meaning limit: -')
+				$('#' + prefix + '-meaning-limit').text(record ? 'Meaning limit: ' + maxMeaningChars + ' ASCII characters / ' + meaningBudget + ' available bytes for this word and part of speech.' : 'Meaning limit: -')
 				$('#' + prefix + '-etymology').val(record ? record.etymology_meaning : '')
 				$('#' + prefix + '-payload').val(payload ? payload.payload : '')
 				$('#' + prefix + '-hex').val(payload ? payload.hex : '')
@@ -2869,6 +2969,7 @@
 				}
 
 				renderSugarWordsLog()
+				renderSugarWordsDrafts()
 				updateSugarWordsWalletContext()
 				saveSugarWordsSession()
 			}
@@ -4557,6 +4658,11 @@ $('#send-tx').click(function() {
 
 				$('#sugarwords-prompt-download').click(function(e) {
 					downloadSugarWordsSession()
+					e.preventDefault()
+				})
+
+				$(document).on('click', '[data-sugarwords-draft-index]', function(e) {
+					selectSugarWordsDraft(parseInt($(this).data('sugarwords-draft-index'), 10))
 					e.preventDefault()
 				})
 
