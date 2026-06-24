@@ -1345,11 +1345,6 @@
 
 									<div id="sugarwords-status" class="alert alert-secondary ai-ledger-status" role="alert">Tap Invent New Word to begin.</div>
 
-									<div class="ai-ledger-section">
-										<div class="sugarwords-editable-label">MiniMax API Key</div>
-										<input id="sugarwords-api-key" class="form-control ai-ledger-code" type="password" autocomplete="off" placeholder="Paste API key for this generation request">
-									</div>
-
 									<div class="ai-ledger-actions">
 										<button id="sugarwords-generate" type="button" class="btn btn-outline-dark">Invent New Word</button>
 										<button id="sugarwords-write" type="button" class="btn btn-success">Coin It</button>
@@ -1456,11 +1451,6 @@
 									</div>
 
 									<div id="sugarwords-prompt-status" class="alert alert-secondary ai-ledger-status" role="alert">Type a concept and invent a new word from your prompt.</div>
-
-									<div class="ai-ledger-section">
-										<div class="sugarwords-editable-label">MiniMax API Key</div>
-										<input id="sugarwords-prompt-api-key" class="form-control ai-ledger-code" type="password" autocomplete="off" placeholder="Paste API key for this generation request">
-									</div>
 
 									<div class="ai-ledger-actions">
 										<button id="sugarwords-prompt-generate" type="button" class="btn btn-outline-dark">Invent From Prompt</button>
@@ -1712,6 +1702,28 @@
 									<button class="btn btn-outline-dark b-width" type="button" tkey="update"></button>
 								</span>
 							</div>
+						</div>
+						<div id="lingry-ai-settings">
+							<label for="lingry-ai-provider">AI word provider</label>
+							<div class="input-group pb-2">
+								<select id="lingry-ai-provider" class="custom-select">
+									<option value="minimax">MiniMax</option>
+									<option value="chatgpt">ChatGPT</option>
+									<option value="anthropic">Anthropic</option>
+									<option value="gemini">Gemini</option>
+								</select>
+							</div>
+							<label for="lingry-ai-api-key">
+								API key
+								<span title="MiniMax uses the built-in key by default. Paste another key here if you want to override it for this browser. Other providers are saved here for future support.">?</span>
+							</label>
+							<div class="input-group pb-2">
+								<input id="lingry-ai-api-key" class="form-control ai-ledger-code" type="password" autocomplete="off" placeholder="Optional override key">
+								<span class="input-group-append">
+									<button id="lingry-ai-settings-save" class="btn btn-outline-dark b-width" type="button">Save</button>
+								</span>
+							</div>
+							<div class="text-muted small pb-2">MiniMax is ready by default. Paste another API key only if you want to use your own.</div>
 						</div>
 						<div id="wallet-language-select">
 							<label tkey="wallet-language"></label>
@@ -1966,6 +1978,36 @@
 					$('#network-list .dropdown-menu').append(`<a class="dropdown-item ${networkConfigs[key]['name'] == network['name'] ? 'active' : ''}" href="#/network/${key}">${networkConfigs[key]['name']}</a>`)
 					$('#lingry-stream-networks').append(`<button type="button" class="lingry-menu-item lingry-menu-wide ${networkConfigs[key]['name'] == network['name'] ? 'active' : ''}" data-lingry-network="${key}">${networkConfigs[key]['name']}</button>`)
 				}
+			}
+
+			var lingryAiSettings = {
+				'providerKey': 'lingry_ai_provider',
+				'apiKeyKey': 'lingry_ai_api_key'
+			}
+
+			function getLingryAiProvider() {
+				return window.localStorage.getItem(lingryAiSettings.providerKey) || 'minimax'
+			}
+
+			function getLingryAiApiKey() {
+				return window.localStorage.getItem(lingryAiSettings.apiKeyKey) || ''
+			}
+
+			function loadLingryAiSettings() {
+				$('#lingry-ai-provider').val(getLingryAiProvider())
+				$('#lingry-ai-api-key').val(getLingryAiApiKey())
+			}
+
+			function saveLingryAiSettings() {
+				var provider = $('#lingry-ai-provider').val() || 'minimax'
+				var apiKey = sugarWordsSanitizeField($('#lingry-ai-api-key').val(), 300)
+				window.localStorage.setItem(lingryAiSettings.providerKey, provider)
+				if (apiKey) {
+					window.localStorage.setItem(lingryAiSettings.apiKeyKey, apiKey)
+				} else {
+					window.localStorage.removeItem(lingryAiSettings.apiKeyKey)
+				}
+				showMessage('AI word settings saved.')
 			}
 
 			function setLingryMenuOpen(open) {
@@ -2999,7 +3041,7 @@
 			}
 
 			function generateRandomSugarWord() {
-				requestSugarWordGeneration('random', '', '#sugarwords-generate', 'Requesting one random strict JSON word object from the local /api/generate-word route...', sugarWordsSanitizeField($('#sugarwords-api-key').val(), 300))
+				requestSugarWordGeneration('random', '', '#sugarwords-generate', 'Inventing a new word...', getLingryAiProvider(), getLingryAiApiKey())
 			}
 
 			function generateSugarWordFromPrompt() {
@@ -3010,10 +3052,10 @@
 				}
 				saveSugarWordsPrompt()
 				clearSugarWordsGeneratedFields()
-				requestSugarWordGeneration('prompt', conceptPrompt, '#sugarwords-prompt-generate', 'Sending only the Prompt for New Word text to the local /api/generate-word route...', sugarWordsSanitizeField($('#sugarwords-prompt-api-key').val(), 300))
+				requestSugarWordGeneration('prompt', conceptPrompt, '#sugarwords-prompt-generate', 'Inventing a new word from your prompt...', getLingryAiProvider(), getLingryAiApiKey())
 			}
 
-			function requestSugarWordGeneration(generationMode, conceptPrompt, activeButtonSelector, statusMessage, apiKey) {
+			function requestSugarWordGeneration(generationMode, conceptPrompt, activeButtonSelector, statusMessage, aiProvider, apiKey) {
 				$('#sugarwords-generate, #sugarwords-prompt-generate').prop('disabled', true)
 				$(activeButtonSelector).text('Inventing...')
 				sugarWordsSetStatus(statusMessage, 'info')
@@ -3026,6 +3068,7 @@
 					'used_meanings': recentMeanings,
 					'concept_prompt': conceptPrompt,
 					'generation_mode': generationMode,
+					'ai_provider': aiProvider || 'minimax',
 					'api_key': apiKey || ''
 				}
 				var requestUrl = generationMode == 'prompt' ? '/api/invent-word-from-prompt' : '/api/generate-word'
@@ -4345,6 +4388,7 @@
 				$('#wallet-version').text(walletVersion)
 				$('#wallet-backend input').val(getBackend())
 				$('#address-type-select select').val(getAddressType());
+				loadLingryAiSettings()
 
 				displayNetworks()
 				routePage()
@@ -4781,6 +4825,15 @@ $('#send-tx').click(function() {
 				// Change wallet backend
 				$('#wallet-backend button').click(function(e) {
 					switchBackend($('#wallet-backend input').val())
+				})
+
+				$('#lingry-ai-settings-save').click(function(e) {
+					saveLingryAiSettings()
+					e.preventDefault()
+				})
+
+				$('#lingry-ai-provider').on('change', function() {
+					saveLingryAiSettings()
 				})
 
 				// Change wallet language
