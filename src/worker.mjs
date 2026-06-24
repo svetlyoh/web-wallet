@@ -1,4 +1,5 @@
 import bitcoin from 'bitcoinjs-lib';
+import { Buffer } from 'node:buffer';
 
 const MINI_MAX_MODEL = 'MiniMax-M3';
 const SUGAR_API_BASE = 'https://api.sugar.wtf';
@@ -684,7 +685,7 @@ function buildFaucetTransaction(keys, recipientAddress, utxos, amountSatoshis, f
 		const txid = utxo.txid;
 		const index = utxo.index !== undefined ? utxo.index : utxo.vout;
 		const scriptHex = getUtxoScriptHex(utxo);
-		const script = bitcoin.Buffer.from(scriptHex, 'hex');
+		const script = Buffer.from(scriptHex, 'hex');
 		const type = getScriptType(script);
 		const value = Number(utxo.value || 0);
 		totalValue += value;

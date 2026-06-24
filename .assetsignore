@@ -13,4 +13,7 @@ bun.lock
 wrangler.jsonc
 .assetsignore
 .gitignore
+.env
+.env.*
+!.env.example
 *.log
