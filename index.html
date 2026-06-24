@@ -2252,6 +2252,25 @@
 			}
 
 
+			function aiLedgerHexToBuffer(hex) {
+				var cleanHex = String(hex || '').replace(/[^0-9a-f]/gi, '')
+				if (cleanHex.length % 2) {
+					cleanHex = '0' + cleanHex
+				}
+				return bitcoin.Buffer.from(cleanHex, 'hex')
+			}
+
+
+			function aiLedgerAsciiToHex(text) {
+				var value = String(text || '')
+				var hex = ''
+				for (var i = 0; i < value.length; i++) {
+					hex += ('0' + value.charCodeAt(i).toString(16)).slice(-2)
+				}
+				return hex
+			}
+
+
 			function getUtxoScriptHex(utxo) {
 				if (typeof utxo.script == 'string') {
 					return utxo.script
