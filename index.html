@@ -355,6 +355,24 @@
 				padding-right: 78px;
 				margin-bottom: 16px;
 			}
+			.lingry-stream-account {
+				position: relative;
+				z-index: 1;
+				display: inline-flex;
+				align-items: center;
+				max-width: 100%;
+				margin: -4px 0 12px;
+				border: 1px solid rgba(255, 253, 244, 0.22);
+				border-radius: 999px;
+				background: rgba(255, 253, 244, 0.13);
+				color: rgba(255, 253, 244, 0.9);
+				font-size: 12px;
+				font-weight: 800;
+				padding: 6px 10px;
+				overflow: hidden;
+				text-overflow: ellipsis;
+				white-space: nowrap;
+			}
 			.lingry-stream-brand {
 				display: flex;
 				align-items: center;
@@ -576,11 +594,15 @@
 				background: transparent;
 				box-shadow: none;
 			}
-			.lingry-public-tool #lingry-stream-balance,
-			.lingry-public-tool #lingry-logout,
-			.lingry-public-tool [data-lingry-tab="wallet-send"],
-			.lingry-public-tool [data-lingry-tab="wallet-keys"],
-			.lingry-public-tool [data-lingry-history] {
+			.lingry-signed-in .lingry-public-actions {
+				display: none !important;
+			}
+			.lingry-public-tool:not(.lingry-signed-in) #lingry-stream-balance,
+			.lingry-public-tool:not(.lingry-signed-in) #lingry-logout,
+			.lingry-public-tool:not(.lingry-signed-in) #lingry-stream-account,
+			.lingry-public-tool:not(.lingry-signed-in) [data-lingry-tab="wallet-send"],
+			.lingry-public-tool:not(.lingry-signed-in) [data-lingry-tab="wallet-keys"],
+			.lingry-public-tool:not(.lingry-signed-in) [data-lingry-history] {
 				display: none !important;
 			}
 			.lingry-wallet-open #sugarwords,
@@ -1321,6 +1343,7 @@
 												<span id="lingry-stream-balance-ticker" class="lingry-balance-ticker">SUGAR</span>
 											</button>
 											<button type="button" id="lingry-logout" class="lingry-logout-button" aria-label="Logout" title="Logout"><span aria-hidden="true">&#8618;</span></button>
+											<div id="lingry-stream-account" class="lingry-stream-account d-none"></div>
 											<div class="lingry-stream-title">New words in the stream</div>
 											<div class="lingry-stream-subtitle">Read coined words, meanings, and recent word activity.</div>
 											<div class="lingry-stream-actions">
@@ -2091,6 +2114,14 @@
 				$('#lingry-menu-toggle').attr('aria-expanded', open ? 'true' : 'false')
 			}
 
+			function updateLingrySignedInUi() {
+				var address = globalData.address || ''
+				$('body').toggleClass('lingry-signed-in', !!address)
+				$('#lingry-stream-account')
+					.toggleClass('d-none', !address)
+					.text(address ? ('Signed in as ' + address) : '')
+			}
+
 			function openLingryWalletTab(tabName) {
 				$('#wallet-block .tab-item').addClass('d-none')
 				$('#wallet-block .card-header .card-header-tabs .nav-link').removeClass('active')
@@ -2106,15 +2137,25 @@
 			function openLingryPublicToolTab(tabName) {
 				$('#open-block').addClass('d-none')
 				$('#wallet-block').removeClass('d-none')
-				$('body').addClass('lingry-wallet-open lingry-public-tool')
+				$('body').addClass('lingry-wallet-open').toggleClass('lingry-public-tool', !globalData.keys)
 				openLingryWalletTab(tabName)
 				updateSugarWordsWalletContext()
 			}
 
 			function openLingryPublicStream() {
+				if (globalData.keys) {
+					$('#open-block').addClass('d-none')
+					$('#wallet-block').removeClass('d-none')
+					$('body').removeClass('lingry-public-tool').addClass('lingry-wallet-open lingry-signed-in')
+					openLingryWalletTab('wallet-balance')
+					updateLingrySignedInUi()
+					walletBalance()
+					return
+				}
 				$('#open-block').removeClass('d-none')
 				$('#wallet-block').addClass('d-none')
-				$('body').removeClass('lingry-wallet-open lingry-public-tool')
+				$('body').removeClass('lingry-wallet-open lingry-public-tool lingry-signed-in')
+				updateLingrySignedInUi()
 				setLingryMenuOpen(false)
 				setHomeTitle()
 				renderLingryStream()
@@ -2754,6 +2795,7 @@
 				$('#sugarwords-network, #sugarwords-prompt-network').text(ticker)
 				$('#sugarwords-wallet-address, #sugarwords-prompt-wallet-address').text(globalData.address || 'Login first.')
 				$('#lingry-stream-balance-ticker').text(ticker)
+				updateLingrySignedInUi()
 				if (!sugarWordsState.transaction) {
 					$('#sugarwords-fee, #sugarwords-prompt-fee').text((globalData.rfee || getConfig()['fee']) + ' ' + ticker)
 					$('#sugarwords-change, #sugarwords-prompt-change').text('-')
@@ -4299,7 +4341,8 @@
 				$('#wallet-address').html(globalData.address)
 				$('#open-block').addClass('d-none')
 				$('#wallet-block').removeClass('d-none')
-				$('body').removeClass('lingry-public-tool').addClass('lingry-wallet-open')
+				$('body').removeClass('lingry-public-tool').addClass('lingry-wallet-open lingry-signed-in')
+				updateLingrySignedInUi()
 				$('#history-link').attr('href', blockExplorer.address(globalData.address))
 				$('#send-fee').attr('placeholder', getText('fee') + ' (' + getText('recommended') + ' ' + globalData.rfee + ' ' + getConfig()['ticker'] + ')')
 
@@ -4465,12 +4508,13 @@
 			function closeWallet() {
 				$('#open-block').removeClass('d-none')
 				$('#wallet-block').addClass('d-none')
-				$('body').removeClass('lingry-wallet-open lingry-public-tool')
+				$('body').removeClass('lingry-wallet-open lingry-public-tool lingry-signed-in')
 				globalData.clear()
 				lingryStreamAddressExpanded = false
 				sugarWordsState.transaction = null
 				sugarWordsState.utxos = []
 				$('#lingry-session-key-card').addClass('d-none')
+				updateLingrySignedInUi()
 				updateSugarWordsWalletContext()
 				setHomeTitle()
 			}
