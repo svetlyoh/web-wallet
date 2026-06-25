@@ -570,14 +570,27 @@ function isRepetitiveMeaning(meaning) {
 		(normalized.includes('twilight') || normalized.includes('dusk'));
 }
 
-function buildConceptWordPrompt(concept) {
+function languageInstructionLines(languageInstruction) {
+	return languageInstruction ? [
+		'',
+		'Language instruction:',
+		languageInstruction,
+		''
+	] : [];
+}
+
+function buildConceptWordPrompt(concept, languageInstruction = '') {
+	const taskLine = languageInstruction ?
+		'Your job is to create one new word in the requested language for the concept provided below.' :
+		'Your job is to create one new English word for the concept provided below.';
 	return [
 		'You are an expert etymologist, lexicographer, and wordsmith.',
 		'',
-		'Your job is to create one new English word for the concept provided below.',
+		taskLine,
 		'',
 		'CONCEPT:',
 		concept,
+		...languageInstructionLines(languageInstruction),
 		'',
 		'Instructions:',
 		'',
@@ -618,14 +631,18 @@ function buildConceptWordPrompt(concept) {
 	].join('\n');
 }
 
-function buildRandomWordPrompt(usedWords, usedMeanings) {
+function buildRandomWordPrompt(usedWords, usedMeanings, languageInstruction = '') {
 	const usedList = Array.from(usedWords).join(', ') || 'none';
 	const recentMeanings = usedMeanings.length ? usedMeanings.join(' | ') : 'none';
+	const taskLine = languageInstruction ?
+		'Randomly identify a useful concept, action, feeling, object, situation, or phenomenon that the requested language lacks a concise word for. Then create one new word in that language for it.' :
+		'Randomly identify a useful concept, action, feeling, object, situation, or phenomenon that English lacks a concise word for. Then create one new English word for it.';
 	return [
 		'You are an expert etymologist, lexicographer, and wordsmith.',
 		'',
 		'Task:',
-		'Randomly identify a useful concept, action, feeling, object, situation, or phenomenon that English lacks a concise word for. Then create one new English word for it.',
+		taskLine,
+		...languageInstructionLines(languageInstruction),
 		'',
 		'Already-used session words to avoid:',
 		usedList,
@@ -686,14 +703,14 @@ function buildRandomWordPrompt(usedWords, usedMeanings) {
 	].join('\n');
 }
 
-async function requestMiniMaxWord(usedWords, usedMeanings, conceptPrompt, generationMode) {
+async function requestMiniMaxWord(usedWords, usedMeanings, conceptPrompt, generationMode, languageInstruction = '') {
 	const apiKey = process.env.MINIMAX_API_KEY || '';
 	if (!apiKey) {
 		throw new Error('AI word generation is not configured on this server.');
 	}
 
 	const useConceptPrompt = generationMode === 'prompt';
-	const prompt = useConceptPrompt ? buildConceptWordPrompt(sanitizeText(conceptPrompt, 500)) : buildRandomWordPrompt(usedWords, usedMeanings);
+	const prompt = useConceptPrompt ? buildConceptWordPrompt(sanitizeText(conceptPrompt, 500), languageInstruction) : buildRandomWordPrompt(usedWords, usedMeanings, languageInstruction);
 	const controller = new AbortController();
 	const timeout = setTimeout(() => controller.abort(), 45000);
 
@@ -759,6 +776,7 @@ async function handleGenerateWord(req, res, forcedGenerationMode) {
 		const usedMeanings = Array.isArray(body.used_meanings) ? body.used_meanings.map(normalizeMeaningForComparison).filter(Boolean).slice(-12) : [];
 		const generationMode = forcedGenerationMode || (body.generation_mode === 'prompt' ? 'prompt' : 'random');
 		const conceptPrompt = generationMode === 'prompt' ? sanitizeText(body.concept_prompt, 500) : '';
+		const languageInstruction = sanitizeText(body.language_instruction || '', 240);
 		const aiProvider = sanitizeText(body.ai_provider || 'minimax', 32).toLowerCase();
 		if (aiProvider && aiProvider !== 'minimax') {
 			throw new Error('This local server currently supports MiniMax generation. Choose MiniMax in Settings.');
@@ -769,7 +787,7 @@ async function handleGenerateWord(req, res, forcedGenerationMode) {
 		let lastError = null;
 		for (let attempt = 0; attempt < 3; attempt++) {
 			try {
-				const candidate = await requestMiniMaxWord(usedWords, usedMeanings, conceptPrompt, generationMode);
+				const candidate = await requestMiniMaxWord(usedWords, usedMeanings, conceptPrompt, generationMode, languageInstruction);
 				const validated = validateGeneratedWord(candidate, usedWords);
 				if (isRepetitiveMeaning(validated.meaning)) {
 					throw new Error('Generated repetitive meaning; retrying.');

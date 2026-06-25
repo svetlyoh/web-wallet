@@ -211,6 +211,13 @@
 				font-weight: 800;
 				margin-bottom: 12px;
 			}
+			.lingry-login-inline-error {
+				color: #07864c;
+				font-size: 12px;
+				font-weight: 900;
+				margin-left: auto;
+				white-space: nowrap;
+			}
 			.lingry-auth-switch {
 				display: grid;
 				grid-template-columns: 1fr 1fr;
@@ -249,11 +256,17 @@
 				margin-top: 10px;
 			}
 			.lingry-login-actions .btn,
+			#open-key-wallet,
 			.lingry-key-toggle {
 				min-height: 48px;
 				border-radius: 14px;
 				font-size: 15px;
 				font-weight: 800;
+			}
+			#open-key-wallet {
+				width: 100%;
+				border-radius: 999px;
+				margin-top: 2px;
 			}
 			.lingry-google-btn {
 				background: #ffffff;
@@ -570,6 +583,47 @@
 			.lingry-stream-networks {
 				grid-column: 1 / -1;
 			}
+			.lingry-menu-more {
+				display: contents;
+			}
+			.lingry-menu-more.d-none {
+				display: none;
+			}
+			.lingry-menu-language-wrap,
+			.lingry-menu-balance {
+				grid-column: 1 / -1;
+				border-radius: 12px;
+				background: #f2fff6;
+				color: #064432;
+				font-size: 12px;
+				font-weight: 900;
+				padding: 8px 10px;
+			}
+			.lingry-menu-language-wrap {
+				display: grid;
+				gap: 5px;
+			}
+			.lingry-menu-language {
+				min-height: 38px;
+				border: 1px solid rgba(10, 99, 61, 0.16);
+				border-radius: 10px;
+				background: #ffffff;
+				color: #043b2c;
+				font: inherit;
+				font-size: 13px;
+				font-weight: 800;
+				padding: 6px 8px;
+			}
+			.lingry-menu-balance {
+				grid-column: auto;
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				gap: 8px;
+			}
+			.lingry-menu-balance span {
+				color: #4a7a62;
+			}
 			.lingry-stream-networks {
 				display: grid;
 				gap: 8px;
@@ -607,6 +661,7 @@
 			}
 			.lingry-wallet-open #sugarwords,
 			.lingry-wallet-open #sugarwords-prompt,
+			.lingry-wallet-open #wallet-send,
 			.lingry-wallet-open #wallet-keys {
 				max-width: 390px;
 				min-height: 100vh;
@@ -620,6 +675,7 @@
 			}
 			.lingry-wallet-open #sugarwords .ai-ledger-header,
 			.lingry-wallet-open #sugarwords-prompt .ai-ledger-header,
+			.lingry-wallet-open #wallet-send .ai-ledger-header,
 			.lingry-wallet-open #wallet-keys .ai-ledger-header {
 				position: relative;
 				display: grid;
@@ -634,6 +690,7 @@
 			}
 			.lingry-wallet-open #sugarwords .ai-ledger-header::after,
 			.lingry-wallet-open #sugarwords-prompt .ai-ledger-header::after,
+			.lingry-wallet-open #wallet-send .ai-ledger-header::after,
 			.lingry-wallet-open #wallet-keys .ai-ledger-header::after {
 				content: "";
 				position: absolute;
@@ -643,12 +700,14 @@
 			}
 			.lingry-wallet-open #sugarwords .ai-ledger-header > *,
 			.lingry-wallet-open #sugarwords-prompt .ai-ledger-header > *,
+			.lingry-wallet-open #wallet-send .ai-ledger-header > *,
 			.lingry-wallet-open #wallet-keys .ai-ledger-header > * {
 				position: relative;
 				z-index: 1;
 			}
 			.lingry-wallet-open #sugarwords .ai-ledger-title,
 			.lingry-wallet-open #sugarwords-prompt .ai-ledger-title,
+			.lingry-wallet-open #wallet-send .ai-ledger-title,
 			.lingry-wallet-open #wallet-keys .ai-ledger-title {
 				color: #fffdf4;
 				font-size: 26px;
@@ -659,6 +718,7 @@
 			}
 			.lingry-wallet-open #sugarwords .ai-ledger-subtitle,
 			.lingry-wallet-open #sugarwords-prompt .ai-ledger-subtitle,
+			.lingry-wallet-open #wallet-send .ai-ledger-subtitle,
 			.lingry-wallet-open #wallet-keys .ai-ledger-subtitle {
 				color: rgba(255, 253, 244, 0.82);
 				font-size: 15px;
@@ -744,6 +804,23 @@
 				width: 100%;
 				white-space: nowrap;
 			}
+			.lingry-tool-brand {
+				display: flex;
+				align-items: center;
+				gap: 9px;
+				margin-bottom: 8px;
+			}
+			.lingry-tool-brand img {
+				width: 34px;
+				height: 34px;
+				border-radius: 10px;
+				object-fit: cover;
+			}
+			.lingry-tool-brand span {
+				color: #fffdf4;
+				font-size: 16px;
+				font-weight: 900;
+			}
 			.lingry-wallet-open #sugarwords .ai-ledger-status,
 			.lingry-wallet-open #sugarwords-prompt .ai-ledger-status {
 				margin: 12px 14px;
@@ -755,6 +832,7 @@
 			}
 			.lingry-wallet-open #sugarwords .ai-ledger-section,
 			.lingry-wallet-open #sugarwords-prompt .ai-ledger-section,
+			.lingry-wallet-open #wallet-send .ai-ledger-section,
 			.lingry-wallet-open #wallet-keys .ai-ledger-section {
 				margin: 12px 14px;
 				border: 1px solid rgba(10, 99, 61, 0.13);
@@ -789,17 +867,40 @@
 			.lingry-wallet-open #sugarwords .custom-select,
 			.lingry-wallet-open #sugarwords-prompt .form-control,
 			.lingry-wallet-open #sugarwords-prompt .custom-select,
+			.lingry-wallet-open #wallet-send .form-control,
 			.lingry-wallet-open #wallet-keys .form-control {
 				border-color: rgba(10, 99, 61, 0.18);
 				border-radius: 12px;
 				background: rgba(245, 255, 249, 0.92);
 				color: #043b2c;
 			}
+			.lingry-wallet-open #wallet-send label,
 			.lingry-wallet-open #wallet-keys label {
 				color: #245c46;
 				font-size: 12px;
 				font-weight: 800;
 				text-transform: uppercase;
+			}
+			.lingry-send-balance-row {
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				gap: 10px;
+				margin-bottom: 12px;
+				color: #245c46;
+				font-size: 13px;
+				font-weight: 900;
+			}
+			.lingry-wallet-open #wallet-send .input-group {
+				gap: 7px;
+			}
+			.lingry-wallet-open #wallet-send .input-group > .form-control {
+				border-radius: 12px !important;
+			}
+			.lingry-wallet-open #wallet-send .btn,
+			.lingry-copy-icon {
+				border-radius: 999px;
+				font-weight: 900;
 			}
 			.lingry-wallet-open #sugarwords .sugarwords-word,
 			.lingry-wallet-open #sugarwords-prompt .sugarwords-word {
@@ -944,6 +1045,14 @@
 				font-weight: 800;
 				white-space: nowrap;
 			}
+			.lingry-language-flag {
+				width: 22px;
+				height: 16px;
+				border-radius: 4px;
+				border: 1px solid rgba(4, 59, 44, 0.12);
+				object-fit: cover;
+				box-shadow: 0 2px 5px rgba(4, 59, 44, 0.08);
+			}
 			.lingry-feed-word {
 				color: #043b2c;
 				font-size: 23px;
@@ -959,25 +1068,79 @@
 				line-height: 1.36;
 				margin: 0;
 			}
-			.lingry-feed-footer {
-				display: flex;
-				justify-content: flex-end;
-				margin-top: 8px;
-			}
 			.lingry-feed-share {
 				border: 1px solid rgba(8, 129, 76, 0.18);
-				border-radius: 999px;
+				border-radius: 50%;
 				background: #effcf3;
 				color: #075339;
 				font: inherit;
-				font-size: 12px;
+				font-size: 17px;
 				font-weight: 800;
-				min-height: 30px;
-				padding: 5px 10px;
+				width: 32px;
+				height: 32px;
+				min-width: 32px;
+				padding: 0;
+				display: inline-flex;
+				align-items: center;
+				justify-content: center;
+				margin-left: auto;
 			}
 			.lingry-feed-share:focus {
 				outline: 3px solid rgba(84, 238, 149, 0.42);
 				outline-offset: 2px;
+			}
+			.lingry-share-card {
+				border: 1px solid rgba(8, 129, 76, 0.16);
+				border-radius: 18px;
+				background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(239, 252, 243, 0.96));
+				box-shadow: 0 12px 30px rgba(7, 75, 48, 0.1);
+				margin-bottom: 14px;
+				padding: 16px;
+			}
+			.lingry-share-kicker {
+				color: #08814c;
+				font-size: 11px;
+				font-weight: 900;
+				letter-spacing: 0.08em;
+				text-transform: uppercase;
+				margin-bottom: 5px;
+			}
+			.lingry-share-word {
+				color: #043b2c;
+				font-size: 28px;
+				line-height: 1.02;
+				font-weight: 900;
+				margin-bottom: 8px;
+				word-break: break-word;
+			}
+			.lingry-share-meaning {
+				color: #1d4b39;
+				font-size: 15px;
+				line-height: 1.38;
+				margin: 0 0 10px;
+			}
+			.lingry-share-meta {
+				color: #658173;
+				font-size: 12px;
+				font-weight: 800;
+				margin-bottom: 12px;
+			}
+			.lingry-share-actions {
+				display: grid;
+				grid-template-columns: repeat(2, minmax(0, 1fr));
+				gap: 8px;
+			}
+			.lingry-share-action {
+				border: 1px solid rgba(8, 129, 76, 0.2);
+				border-radius: 999px;
+				background: #0f8f55;
+				color: #fffdf4;
+				font-weight: 900;
+				min-height: 38px;
+			}
+			.lingry-share-action.secondary {
+				background: #effcf3;
+				color: #075339;
 			}
 			[class*="entypo"]:before {
 				font-family: 'EntypoRegular', sans-serif;
@@ -1413,7 +1576,7 @@
 								<div class="lingry-login-motto-kicker">Word stream</div>
 								<div class="lingry-login-motto-text" id="lingry-login-motto-text">Learn a new word. Coin a new thought.</div>
 							</div>
-							<div class="lingry-stream-subtitle">Explore emerging words, get versed with words, and read new meanings as they appear on Sugarchain.</div>
+							<div class="lingry-stream-subtitle">Explore emerging words, get versed with words, read new meanings, and watch language grow in real time.</div>
 							<div class="lingry-stream-actions">
 								<button type="button" class="lingry-menu-toggle" data-lingry-public-tab="wallet-sugarwords">AI Generate</button>
 								<button type="button" class="lingry-menu-toggle" data-lingry-public-tab="wallet-sugarwords-prompt">Prompt for New Word</button>
@@ -1426,13 +1589,14 @@
 									</div>
 									<div class="lingry-login-heading">
 										<span id="lingry-login-heading-text">Login</span>
+										<span id="open-key-error" class="lingry-login-inline-error d-none">Incorrect Key</span>
 										<button class="lingry-key-toggle" type="button" id="open-key-toggle">Open by Key</button>
 									</div>
 									<form id="open-key-form" class="open-form tab-item d-none mb-2" data-tab="open-key">
 										<div id="open-key-passphrase-wrap" class="mb-2">
 											<input id="passphrase" name="passphrase" class="form-control" type="password" autocomplete="off" tkey="wif-key">
 										</div>
-										<button class="btn btn-outline-dark btn-block" type="submit" id="open-key-wallet">Login by Key</button>
+										<button class="btn btn-success btn-block" type="submit" id="open-key-wallet">Login with key</button>
 									</form>
 									<form id="open-regular-form" class="open-form tab-item" data-tab="open-regular">
 										<div class="mb-2">
@@ -1453,6 +1617,7 @@
 							</div>
 						</div>
 						<div class="lingry-stream-body">
+							<div id="lingry-public-share-card" class="lingry-share-card d-none"></div>
 							<div class="lingry-stream-section-title">
 								<span>Word Stream</span>
 								<span id="lingry-public-stream-count">Loading</span>
@@ -1524,20 +1689,21 @@
 										</div>
 										<div class="lingry-stream-body">
 											<div id="lingry-stream-menu" class="lingry-stream-menu d-none">
-												<button type="button" class="lingry-menu-item" data-lingry-tab="wallet-balance">Stream</button>
-												<button type="button" class="lingry-menu-item" data-lingry-tab="wallet-send">Send</button>
-												<button type="button" class="lingry-menu-item" data-lingry-history="true">History</button>
 												<button type="button" class="lingry-menu-item" data-lingry-tab="wallet-keys">Keys</button>
-												<button type="button" class="lingry-menu-item lingry-menu-wide" data-lingry-tab="wallet-sugarwords">AI Generate</button>
-												<button type="button" class="lingry-menu-item lingry-menu-wide" data-lingry-tab="wallet-sugarwords-prompt">Prompt for New Word</button>
-												<button type="button" class="lingry-menu-item lingry-menu-wide" data-lingry-tab="wallet-word-explorer">Word Explorer</button>
-												<button type="button" class="lingry-menu-item lingry-menu-wide" data-lingry-share-app="true">Share Lingry</button>
-												<button type="button" class="lingry-menu-item" data-lingry-route="create">Create</button>
-												<button type="button" class="lingry-menu-item" data-lingry-route="broadcast">Broadcast</button>
-												<button type="button" class="lingry-menu-item" data-lingry-route="settings">Settings</button>
-												<button type="button" class="lingry-menu-item" data-lingry-tab="wallet-balance">Home</button>
-												<div id="lingry-stream-networks" class="lingry-stream-networks"></div>
+												<button type="button" class="lingry-menu-item" data-lingry-share-app="true">Share Lingry</button>
+												<label class="lingry-menu-language-wrap" for="lingry-language-select">
+													<span>Language for new words</span>
+													<select id="lingry-language-select" class="lingry-menu-language"></select>
+												</label>
+												<button type="button" class="lingry-menu-item lingry-menu-wide" data-lingry-more-toggle="true" aria-expanded="false" aria-controls="lingry-menu-more-features">More Features</button>
+												<div id="lingry-menu-more-features" class="lingry-menu-more d-none">
+													<div class="lingry-menu-balance"><span>Balance</span><strong id="lingry-menu-balance">0.00 SUGAR</strong></div>
+													<button type="button" class="lingry-menu-item" data-lingry-tab="wallet-send">Send</button>
+													<button type="button" class="lingry-menu-item lingry-menu-wide" data-lingry-tab="wallet-word-explorer">Word Explorer</button>
+													<div id="lingry-stream-networks" class="lingry-stream-networks"></div>
+												</div>
 											</div>
+											<div id="lingry-share-card" class="lingry-share-card d-none"></div>
 											<div class="lingry-stream-section-title">
 												<span>Word Stream</span>
 												<span id="lingry-stream-count">1 post</span>
@@ -1550,35 +1716,53 @@
 								</div>
 							</div>
 
-							<div id="wallet-send" class="tab-item d-none" data-tab="wallet-send">
-								<p>
-									<span>
-										<span tkey="available-balance"></span>
+							<div id="wallet-send" class="tab-item ai-ledger d-none" data-tab="wallet-send">
+								<div class="ai-ledger-header">
+									<div>
+										<div class="lingry-tool-brand">
+											<img src="images/ChatGPT Image Jun 22, 2026, 10_07_56 PM (1).png" alt="Lingry">
+											<span>Lingry</span>
+										</div>
+										<div class="ai-ledger-title">Send</div>
+										<div class="ai-ledger-subtitle">Move SUGAR from your Lingry account.</div>
+									</div>
+									<div class="lingry-tool-nav">
+										<button type="button" class="lingry-tool-stream" data-lingry-tab="wallet-balance">Stream</button>
+										<button type="button" class="lingry-tool-stream" data-lingry-tab="wallet-keys">Keys</button>
+										<button type="button" class="lingry-tool-stream" data-lingry-open-menu="true">Menu</button>
+									</div>
+								</div>
+
+								<div class="ai-ledger-section">
+									<div class="lingry-send-balance-row">
+										<span>Balance</span>
 										<b class="wallet-balance balance-small c-pointer">
 											<span class="amount"></span>
 											<span class="ticker" tkey="loading"></span>
 										</b>
-									</span>
-									<a href="#" id="send-reset" style="float: right;" tkey="reset"></a>
-								</p>
-								
-								<div id="send-outputs">
-									<div class="input-group send-outputs-item mb-2">
-										<input name="send-address" class="form-control" type="text" value="" tkey="enter-address">
-										<input name="send-amount" class="form-control" type="text" value="" tkey="amount">
-										<div class="input-group-append">
-											<button id="add-output" class="btn btn-success">
-												<span class="entypo plus"></span>
-											</button>
+									</div>
+
+									<label>Recipient and amount</label>
+									<div id="send-outputs">
+										<div class="input-group send-outputs-item mb-2">
+											<input name="send-address" class="form-control" type="text" value="" tkey="enter-address">
+											<input name="send-amount" class="form-control" type="text" value="" tkey="amount">
+											<div class="input-group-append">
+												<button id="add-output" class="btn btn-success" aria-label="Add recipient">
+													<span class="entypo plus"></span>
+												</button>
+											</div>
 										</div>
 									</div>
-								</div>
 
-								<div class="input-group">
-									<input id="send-fee" class="form-control" type="text" value="">
-									<div class="input-group-append">
-										<button class="btn btn-outline-dark b-width" type="submit" id="send-tx" tkey="send"></button>
+									<label for="send-fee">Fee</label>
+									<div class="input-group">
+										<input id="send-fee" class="form-control" type="text" value="">
+										<div class="input-group-append">
+											<button class="btn btn-success b-width" type="submit" id="send-tx" tkey="send"></button>
+										</div>
 									</div>
+									<button type="button" id="send-reset" class="btn btn-outline-secondary btn-block mt-2">Reset</button>
 								</div>
 							</div>
 							
@@ -1602,6 +1786,9 @@
 											<label>Address</label>
 											<div class="input-group pb-2">
 												<input class="form-control" readonly type="text">
+												<span class="input-group-append">
+													<button id="wallet-keys-address-copy" class="btn btn-outline-dark lingry-copy-icon" type="button" aria-label="Copy address" title="Copy address">&#10697;</button>
+												</span>
 											</div>
 										</div>
 
@@ -2285,9 +2472,17 @@
 				showMessage('AI word generation is ready.')
 			}
 
+			function setLingryMoreFeaturesOpen(open) {
+				$('#lingry-menu-more-features').toggleClass('d-none', !open)
+				$('[data-lingry-more-toggle]').attr('aria-expanded', open ? 'true' : 'false').text(open ? 'Less Features' : 'More Features')
+			}
+
 			function setLingryMenuOpen(open) {
 				$('#lingry-stream-menu').toggleClass('d-none', !open)
 				$('#lingry-menu-toggle').attr('aria-expanded', open ? 'true' : 'false')
+				if (!open) {
+					setLingryMoreFeaturesOpen(false)
+				}
 			}
 
 			function updateLingrySignedInUi() {
@@ -2318,6 +2513,7 @@
 			}
 
 			function openLingryPublicStream() {
+				$('#error-message').addClass('d-none')
 				if (globalData.keys) {
 					$('#open-block').addClass('d-none')
 					$('#wallet-block').removeClass('d-none')
@@ -2432,6 +2628,8 @@
 					switch(pageName) {
 						// Home page Ã‚Â¯\_(Ã£Æ’â€ž)_/Ã‚Â¯
 						case 'homepage':
+							lingrySharedWordState = null
+							renderLingrySharedWordCard()
 							if (globalData.keys != undefined) {
 								$('body').addClass('lingry-wallet-open')
 							}
@@ -2454,8 +2652,13 @@
 							break
 
 						case 'word':
-							openLingryPublicStream()
+							openLingryLegacyWordShare(urlParams[2] || '')
 							setTitle('Lingry word')
+							break
+
+						case 'share':
+							openLingrySharedWord(urlParams[2] || '')
+							setTitle('Lingry shared word')
 							break
 
 						// Swith network
@@ -2720,6 +2923,35 @@
 				'storageKey': 'sugarchain_sugarwords_session_v1',
 				'promptStorageKey': 'sugarchain_sugarwords_concept_prompt'
 			}
+			var LINGRY_LANGUAGE_STORAGE_KEY = 'lingry.word_language_code'
+			var LINGRY_LANGUAGES = [
+				{ 'code': 'W', 'name': 'American English', 'menu': 'US English', 'flag': 'images/flags/us.svg', 'prompt': 'American English' },
+				{ 'code': 'E', 'name': 'British English', 'menu': 'British English', 'flag': 'images/flags/gb.svg', 'prompt': 'British English' },
+				{ 'code': 'S', 'name': 'Spanish', 'menu': 'Spanish', 'flag': 'images/flags/es.svg', 'prompt': 'Spanish' },
+				{ 'code': 'G', 'name': 'German', 'menu': 'German', 'flag': 'images/flags/de.svg', 'prompt': 'German' },
+				{ 'code': 'F', 'name': 'French', 'menu': 'French', 'flag': 'images/flags/fr.svg', 'prompt': 'French' },
+				{ 'code': 'I', 'name': 'Italian', 'menu': 'Italian', 'flag': 'images/flags/it.svg', 'prompt': 'Italian' },
+				{ 'code': 'R', 'name': 'Russian', 'menu': 'Russian', 'flag': 'images/flags/ru.svg', 'prompt': 'Russian, romanized into lowercase ASCII letters' },
+				{ 'code': 'P', 'name': 'Portuguese', 'menu': 'Portuguese', 'flag': 'images/flags/pt.svg', 'prompt': 'Portuguese' },
+				{ 'code': 'C', 'name': 'Chinese', 'menu': 'Chinese', 'flag': 'images/flags/cn.svg', 'prompt': 'Mandarin Chinese, romanized into lowercase ASCII letters' },
+				{ 'code': 'A', 'name': 'Arabic', 'menu': 'Arabic', 'flag': 'images/flags/sa.svg', 'prompt': 'Arabic, romanized into lowercase ASCII letters' },
+				{ 'code': 'H', 'name': 'Hindi', 'menu': 'Hindi', 'flag': 'images/flags/in.svg', 'prompt': 'Hindi, romanized into lowercase ASCII letters' },
+				{ 'code': 'B', 'name': 'Bengali', 'menu': 'Bengali', 'flag': 'images/flags/bd.svg', 'prompt': 'Bengali, romanized into lowercase ASCII letters' },
+				{ 'code': 'J', 'name': 'Japanese', 'menu': 'Japanese', 'flag': 'images/flags/jp.svg', 'prompt': 'Japanese, romanized into lowercase ASCII letters' },
+				{ 'code': 'K', 'name': 'Korean', 'menu': 'Korean', 'flag': 'images/flags/kr.svg', 'prompt': 'Korean, romanized into lowercase ASCII letters' },
+				{ 'code': 'T', 'name': 'Turkish', 'menu': 'Turkish', 'flag': 'images/flags/tr.svg', 'prompt': 'Turkish' },
+				{ 'code': 'V', 'name': 'Vietnamese', 'menu': 'Vietnamese', 'flag': 'images/flags/vn.svg', 'prompt': 'Vietnamese without tone marks, lowercase ASCII letters only' },
+				{ 'code': 'U', 'name': 'Urdu', 'menu': 'Urdu', 'flag': 'images/flags/pk.svg', 'prompt': 'Urdu, romanized into lowercase ASCII letters' },
+				{ 'code': 'N', 'name': 'Indonesian', 'menu': 'Indonesian', 'flag': 'images/flags/id.svg', 'prompt': 'Indonesian' },
+				{ 'code': 'M', 'name': 'Malay', 'menu': 'Malay', 'flag': 'images/flags/my.svg', 'prompt': 'Malay' },
+				{ 'code': 'Y', 'name': 'Yoruba', 'menu': 'Yoruba', 'flag': 'images/flags/ng.svg', 'prompt': 'Yoruba without tone marks, lowercase ASCII letters only' },
+				{ 'code': 'L', 'name': 'Polish', 'menu': 'Polish', 'flag': 'images/flags/pl.svg', 'prompt': 'Polish without diacritics, lowercase ASCII letters only' },
+				{ 'code': 'D', 'name': 'Dutch', 'menu': 'Dutch', 'flag': 'images/flags/nl.svg', 'prompt': 'Dutch' },
+				{ 'code': 'O', 'name': 'Persian', 'menu': 'Persian', 'flag': 'images/flags/ir.svg', 'prompt': 'Persian, romanized into lowercase ASCII letters' },
+				{ 'code': 'Q', 'name': 'Punjabi', 'menu': 'Punjabi', 'flag': 'images/flags/punjab.svg', 'prompt': 'Punjabi, romanized into lowercase ASCII letters' },
+				{ 'code': 'X', 'name': 'Thai', 'menu': 'Thai', 'flag': 'images/flags/th.svg', 'prompt': 'Thai, romanized into lowercase ASCII letters' },
+				{ 'code': 'Z', 'name': 'Swahili', 'menu': 'Swahili', 'flag': 'images/flags/tz.svg', 'prompt': 'Swahili' }
+			]
 
 			function sugarWordsSetStatus(message, variant) {
 				var alertClass = 'alert-' + (variant || 'secondary')
@@ -2763,6 +2995,78 @@
 				return labels[pos] || 'Noun'
 			}
 
+			function lingryLanguageByCode(code) {
+				code = String(code || 'W').trim().toUpperCase().charAt(0)
+				for (var i = 0; i < LINGRY_LANGUAGES.length; i++) {
+					if (LINGRY_LANGUAGES[i].code == code) {
+						return LINGRY_LANGUAGES[i]
+					}
+				}
+				return LINGRY_LANGUAGES[0]
+			}
+
+			function getLingrySelectedLanguage() {
+				var code = 'W'
+				try {
+					code = window.localStorage.getItem(LINGRY_LANGUAGE_STORAGE_KEY) || 'W'
+				} catch (error) {
+					code = 'W'
+				}
+				return lingryLanguageByCode(code)
+			}
+
+			function setLingrySelectedLanguage(code) {
+				var language = lingryLanguageByCode(code)
+				try {
+					window.localStorage.setItem(LINGRY_LANGUAGE_STORAGE_KEY, language.code)
+				} catch (error) {
+					// Language selection still works for this session.
+				}
+				updateLingryLanguageUi()
+			}
+
+			function populateLingryLanguageSelect() {
+				var options = LINGRY_LANGUAGES.map(function(language) {
+					return '<option value="' + escapeHtml(language.code) + '">S' + escapeHtml(language.code) + ' - ' + escapeHtml(language.menu) + '</option>'
+				})
+				$('#lingry-language-select').html(options.join(''))
+				updateLingryLanguageUi()
+			}
+
+			function updateLingryLanguageUi() {
+				var language = getLingrySelectedLanguage()
+				$('#lingry-language-select').val(language.code)
+			}
+
+			function lingryLanguageFromPayload(payload) {
+				var match = String(payload || '').trim().match(/^S([A-Z])\|/)
+				return match ? lingryLanguageByCode(match[1]) : LINGRY_LANGUAGES[0]
+			}
+
+			function lingryLanguageForRecord(record) {
+				if (record && record.op_return_payload) {
+					return lingryLanguageFromPayload(record.op_return_payload)
+				}
+				return lingryLanguageByCode(record && record.language_code || getLingrySelectedLanguage().code)
+			}
+
+			function lingrySugarWordsProtocol(record) {
+				return 'S' + lingryLanguageForRecord(record).code
+			}
+
+			function lingryLanguageInstruction(language) {
+				language = language || getLingrySelectedLanguage()
+				if (language.code == 'W') {
+					return ''
+				}
+				return 'Return the generated word, meaning, and etymology in ' + language.prompt + '. Keep the output lowercase ASCII where a word is required, and avoid accents or non-Latin scripts so the word can be coined.'
+			}
+
+			function lingryLanguageFlagHtml(record) {
+				var language = lingryLanguageForRecord(record)
+				return '<img class="lingry-language-flag" src="' + escapeHtml(language.flag) + '" alt="' + escapeHtml(language.menu) + '" title="' + escapeHtml(language.menu) + '">'
+			}
+
 			function sugarWordsByteLength(text) {
 				if (window.TextEncoder) {
 					return new TextEncoder().encode(text).length
@@ -2782,7 +3086,7 @@
 				var word = sugarWordsNormalizeWord(record && record.word)
 				var partOfSpeech = sugarWordsNormalizePartOfSpeech(record && record.part_of_speech)
 				var maxBytes = 80
-				var fixedBytes = sugarWordsByteLength('SW|' + word + '|' + partOfSpeech + '|')
+				var fixedBytes = sugarWordsByteLength(lingrySugarWordsProtocol(record) + '|' + word + '|' + partOfSpeech + '|')
 				return Math.max(0, maxBytes - fixedBytes)
 			}
 
@@ -2843,20 +3147,22 @@
 				var word = sugarWordsNormalizeWord(record.word)
 				var partOfSpeech = sugarWordsNormalizePartOfSpeech(record.part_of_speech)
 				var meaning = sugarWordsSanitizeMeaningForChain(record, record.meaning)
-				var payload = 'SW|' + word + '|' + partOfSpeech + '|' + meaning
+				var protocol = lingrySugarWordsProtocol(record)
+				var payload = protocol + '|' + word + '|' + partOfSpeech + '|' + meaning
 				var maxBytes = 80
 
 				if (sugarWordsByteLength(payload) > maxBytes) {
-					var fixedBytes = sugarWordsByteLength('SW|' + word + '|' + partOfSpeech + '|')
+					var fixedBytes = sugarWordsByteLength(protocol + '|' + word + '|' + partOfSpeech + '|')
 					var meaningBudget = Math.max(8, maxBytes - fixedBytes)
 					meaning = sugarWordsTrimToByteLength(meaning, meaningBudget)
-					payload = 'SW|' + word + '|' + partOfSpeech + '|' + meaning
+					payload = protocol + '|' + word + '|' + partOfSpeech + '|' + meaning
 				}
 
 				return {
 					'payload': payload,
 					'hex': sugarWordsTextToHex(payload),
 					'bytes': sugarWordsByteLength(payload),
+					'language_code': lingryLanguageForRecord(record).code,
 					'part_of_speech': partOfSpeech,
 					'meaning_compact': meaning
 				}
@@ -2867,10 +3173,11 @@
 					'schema': 'sugarchain_sugarwords_session_v1',
 					'created_at': new Date().toISOString(),
 					'chain': 'sugarchain',
-					'protocol': 'SW',
+					'protocol': 'S-language',
 					'records': sugarWordsState.records.map(function(record) {
 						return {
 							'word': record.word,
+							'language_code': record.language_code || lingryLanguageForRecord(record).code,
 							'part_of_speech': sugarWordsNormalizePartOfSpeech(record.part_of_speech),
 							'meaning': record.meaning,
 							'etymology_meaning': record.etymology_meaning,
@@ -2934,6 +3241,7 @@
 						sugarWordsState.records = parsed.records.map(function(record) {
 							record = record || {}
 							record.part_of_speech = sugarWordsNormalizePartOfSpeech(record.part_of_speech)
+							record.language_code = (record.language_code || lingryLanguageFromPayload(record.op_return_payload).code || 'W').toUpperCase()
 							return record
 						})
 						sugarWordsState.currentRecord = sugarWordsState.records.length ? sugarWordsState.records[sugarWordsState.records.length - 1] : null
@@ -2973,10 +3281,13 @@
 
 			function updateLingryBalanceLabels(balanceText, tickerText) {
 				var shortAddress = globalData.address ? globalData.address.slice(-8) : 'Guest'
+				var balanceNumber = Number(globalData.balance || 0)
+				var balanceLabel = amountFormatDecimals(balanceNumber, 2).toFixed(2) + ' ' + (tickerText || getConfig()['ticker'])
 				$('#lingry-stream-balance-amount').text(shortAddress)
 				$('#lingry-stream-balance-ticker').text('')
 				$('.lingry-tool-balance-amount').text(shortAddress)
 				$('.lingry-tool-balance-ticker').text('')
+				$('#lingry-menu-balance').text(balanceLabel)
 			}
 
 			function updateSugarWordsWalletContext() {
@@ -3063,6 +3374,7 @@
 			var lingrySessionCreatedKey = ''
 			var lingryFaucetRequests = {}
 			var lingryShareRecords = []
+			var lingrySharedWordState = null
 			var LINGRY_WISDOM_LINES = [
 				'Coin carefully; tiny words have long shadows.',
 				'A new word is just a thought wearing shoes.',
@@ -3101,7 +3413,7 @@
 			}
 
 			function lingryStreamIsSwRecord(record) {
-				return String(record && record.op_return_payload || '').trim().indexOf('SW|') == 0
+				return /^S[A-Z]\|/.test(String(record && record.op_return_payload || '').trim())
 			}
 
 			function lingryStreamRecordWithinDays(record, days) {
@@ -3126,6 +3438,7 @@
 					'timestamp': lingryStreamRecordTimestamp(record),
 					'txid': record.txid || '',
 					'op_return_payload': record.op_return_payload || '',
+					'language_code': record.language_code || lingryLanguageFromPayload(record.op_return_payload).code,
 					'address': record.address || record.sender || ''
 				}
 			}
@@ -3326,10 +3639,101 @@
 				return window.location.origin + window.location.pathname + '#/'
 			}
 
+			function lingryBase64UrlEncode(value) {
+				try {
+					return btoa(unescape(encodeURIComponent(value))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '')
+				} catch (error) {
+					return ''
+				}
+			}
+
+			function lingryBase64UrlDecode(value) {
+				try {
+					var normalized = String(value || '').replace(/-/g, '+').replace(/_/g, '/')
+					while (normalized.length % 4) {
+						normalized += '='
+					}
+					return decodeURIComponent(escape(atob(normalized)))
+				} catch (error) {
+					return ''
+				}
+			}
+
+			function lingryShareRecordPayload(record) {
+				record = record || {}
+				return {
+					'word': sugarWordsNormalizeWord(record.word || '') || String(record.word || 'word'),
+					'meaning': String(record.meaning || 'meaning pending'),
+					'language_code': record.language_code || lingryLanguageForRecord(record).code,
+					'part_of_speech': sugarWordsNormalizePartOfSpeech(record.part_of_speech || record.pos || ''),
+					'etymology_meaning': String(record.etymology_meaning || ''),
+					'txid': String(record.txid || ''),
+					'timestamp': String(record.timestamp || '')
+				}
+			}
+
 			function lingryWordShareUrl(record) {
-				var word = sugarWordsNormalizeWord(record && record.word || '') || 'word'
-				var txid = String(record && record.txid || '').trim()
-				return lingryAppShareUrl() + 'word/' + encodeURIComponent(word) + (txid ? '?tx=' + encodeURIComponent(txid) : '')
+				var payload = lingryBase64UrlEncode(JSON.stringify(lingryShareRecordPayload(record)))
+				return lingryAppShareUrl() + 'share/' + encodeURIComponent(payload)
+			}
+
+			function renderLingrySharedWordCard() {
+				var containers = $('#lingry-share-card, #lingry-public-share-card')
+				if (!containers.length) {
+					return
+				}
+				if (!lingrySharedWordState) {
+					containers.addClass('d-none').empty()
+					return
+				}
+				var record = lingrySharedWordState
+				var partOfSpeech = sugarWordsNormalizePartOfSpeech(record.part_of_speech || record.pos || '')
+				var meta = []
+				if (partOfSpeech) {
+					meta.push(sugarWordsPartOfSpeechLabel(partOfSpeech))
+				}
+				if (record.txid) {
+					meta.push('tx ' + String(record.txid).slice(0, 8))
+				}
+				var html = '<div class="lingry-share-kicker">Shared Lingry word</div>' +
+					lingryLanguageFlagHtml(record) +
+					'<div class="lingry-share-word">' + escapeHtml(record.word || 'word') + '</div>' +
+					'<p class="lingry-share-meaning">' + escapeHtml(record.meaning || 'meaning pending') + '</p>' +
+					(record.etymology_meaning ? '<div class="lingry-share-meta">Etymology: ' + escapeHtml(record.etymology_meaning) + '</div>' : '') +
+					(meta.length ? '<div class="lingry-share-meta">' + escapeHtml(meta.join(' - ')) + '</div>' : '') +
+					'<div class="lingry-share-actions">' +
+						'<button type="button" class="lingry-share-action" data-lingry-open-login="true">Login</button>' +
+						'<button type="button" class="lingry-share-action secondary" data-lingry-open-signup="true">Sign up</button>' +
+					'</div>'
+				containers.removeClass('d-none').html(html)
+			}
+
+			function openLingrySharedWord(encoded) {
+				lingrySharedWordState = null
+				var decoded = lingryBase64UrlDecode(encoded)
+				if (decoded) {
+					try {
+						lingrySharedWordState = lingryShareRecordPayload(JSON.parse(decoded))
+					} catch (error) {
+						lingrySharedWordState = null
+					}
+				}
+				openLingryPublicStream()
+				renderLingrySharedWordCard()
+			}
+
+			function openLingryLegacyWordShare(value) {
+				var raw = String(value || '')
+				var parts = raw.split('?')
+				var query = new URLSearchParams(parts[1] || '')
+				var txid = query.get('tx') || ''
+				lingrySharedWordState = lingryShareRecordPayload({
+					'word': decodeURIComponent(parts[0] || 'word'),
+					'meaning': txid ? 'Open Lingry to explore this coined word from the stream.' : 'Open Lingry to explore this shared word.',
+					'txid': txid
+				})
+				openLingryPublicStream()
+				renderLingrySharedWordCard()
 			}
 
 			function lingryRecordShareText(record) {
@@ -3339,7 +3743,8 @@
 				var partOfSpeech = sugarWordsNormalizePartOfSpeech(record.part_of_speech || record.pos || '')
 				var lines = [
 					'Lingry word: ' + word,
-					'Meaning: ' + meaning
+					'Meaning: ' + meaning,
+					'Open this Lingry word and explore the stream:'
 				]
 				if (partOfSpeech) {
 					lines.push('Part of speech: ' + sugarWordsPartOfSpeechLabel(partOfSpeech))
@@ -3452,12 +3857,13 @@
 					return '<article class="lingry-feed-card">' +
 						'<div class="lingry-feed-row">' +
 							'<button type="button" class="lingry-address-chip" data-full-address="' + escapeHtml(source) + '" aria-label="Show full source">' + escapeHtml(label) + '</button>' +
+							lingryLanguageFlagHtml(record) +
 							'<div class="lingry-feed-action">coined a word</div>' +
 							'<div class="lingry-feed-time">' + escapeHtml(lingryStreamTimeLabel(record.timestamp)) + '</div>' +
+							'<button type="button" class="lingry-feed-share" data-lingry-share-record="' + index + '" aria-label="Share word" title="Share word">&#8599;</button>' +
 						'</div>' +
 						'<div class="lingry-feed-word">' + escapeHtml(word) + '</div>' +
 						'<p class="lingry-feed-meaning">' + escapeHtml(meaning) + '</p>' +
-						'<div class="lingry-feed-footer"><button type="button" class="lingry-feed-share" data-lingry-share-record="' + index + '">Share</button></div>' +
 					'</article>'
 				})
 				feeds.html(cards.join(''))
@@ -3554,6 +3960,7 @@
 			function createManualSugarWordsDraft(prefix) {
 				var record = {
 					'word': sugarWordsNormalizeWord($('#' + prefix + '-word').val()),
+					'language_code': getLingrySelectedLanguage().code,
 					'part_of_speech': sugarWordsNormalizePartOfSpeech($('#' + prefix + '-pos').val()),
 					'meaning': '',
 					'etymology_meaning': '',
@@ -3577,6 +3984,7 @@
 				var record = sugarWordsState.currentRecord
 				var payload = null
 				if (record) {
+					record.language_code = (record.language_code || getLingrySelectedLanguage().code).toUpperCase()
 					record.meaning = sugarWordsSanitizeMeaningForChain(record, record.meaning)
 					payload = buildSugarWordsPayload(record)
 					record.op_return_payload = payload.payload
@@ -3653,7 +4061,10 @@
 					'used_meanings': recentMeanings,
 					'concept_prompt': conceptPrompt,
 					'generation_mode': generationMode,
-					'ai_provider': getLingryAiProvider()
+					'ai_provider': getLingryAiProvider(),
+					'language_code': getLingrySelectedLanguage().code,
+					'language_name': getLingrySelectedLanguage().name,
+					'language_instruction': lingryLanguageInstruction(getLingrySelectedLanguage())
 				}
 				var requestUrl = generationMode == 'prompt' ? '/api/invent-word-from-prompt' : '/api/generate-word'
 
@@ -3668,6 +4079,7 @@
 						var word = sugarWordsNormalizeWord(data && data.word)
 						var record = {
 							'word': word,
+							'language_code': getLingrySelectedLanguage().code,
 							'part_of_speech': sugarWordsNormalizePartOfSpeech(data && data.part_of_speech),
 							'meaning': sugarWordsSanitizeField(data && data.meaning, 65),
 							'etymology_meaning': sugarWordsSanitizeField(data && data.etymology_meaning, 40),
@@ -3815,6 +4227,37 @@
 				return hostname.indexOf('workers.dev') >= 0 ? 40 : 500
 			}
 
+			function lingryDelay(ms) {
+				return new Promise(function(resolve) {
+					setTimeout(resolve, ms)
+				})
+			}
+
+			function sugarWordsGetSpendableUtxos(feeSatoshis, attempt) {
+				attempt = attempt || 1
+				return getUnspent(globalData.address, feeSatoshis + 1).then(function(data) {
+					if (data && data.error == undefined && data.result && Array.isArray(data.result) && data.result.length > 0) {
+						return data
+					}
+					if (attempt < 3) {
+						return lingryDelay(1600).then(function() {
+							return sugarWordsGetSpendableUtxos(feeSatoshis, attempt + 1)
+						})
+					}
+					return data
+				}).catch(function(error) {
+					if (attempt < 3) {
+						return lingryDelay(1600).then(function() {
+							return sugarWordsGetSpendableUtxos(feeSatoshis, attempt + 1)
+						})
+					}
+					return {
+						'error': error || true,
+						'result': []
+					}
+				})
+			}
+
 			function sugarWordsFindOnChainWordClaim(record) {
 				var word = sugarWordsNormalizeWord(record && record.word)
 				if (!word) {
@@ -3829,13 +4272,24 @@
 						return sugarWordsNormalizeWord(item.word) == word && String(item.verified_status || '') == 'verified_on_chain'
 					})
 					if (!data || !data.direct_summary || data.direct_summary.enabled !== true) {
-						throw new Error('Direct search did not return a verification summary.')
+						return {
+							'duplicate': !!match,
+							'match': match || null,
+							'summary': null,
+							'warnings': ['Duplicate check summary was unavailable.']
+						}
 					}
 					var summary = data.direct_summary
 					var warnings = Array.isArray(summary.errors) ? summary.errors : []
 					var scanMadeProgress = Number(summary.scanned_blocks || 0) > 0 || Number(summary.checked_txids || 0) > 0 || Number(summary.verified_txids || 0) > 0
 					if (warnings.length && !scanMadeProgress) {
-						throw new Error('Sugarchain API returned warnings before the direct search could scan any records.')
+						return {
+							'duplicate': !!match,
+							'match': match || null,
+							'summary': summary,
+							'warnings': warnings,
+							'degraded': true
+						}
 					}
 					return {
 						'duplicate': !!match,
@@ -3886,6 +4340,20 @@
 
 				sugarWordsFindOnChainWordClaim(record).then(function(result) {
 					if (result.duplicate) {
+						var samePayload = result.match && result.match.op_return_payload && result.match.op_return_payload == record.op_return_payload
+						var sameAddress = result.match && result.match.address && globalData.address && result.match.address == globalData.address
+						if (samePayload || sameAddress) {
+							record.txid = result.match.txid || record.txid || null
+							record.status = 'posted'
+							record.timestamp = result.match.timestamp || result.match.indexed_at || new Date().toISOString()
+							sugarWordsState.postedWords.add(record.word)
+							sugarWordsState.transaction = null
+							mergeLingryStreamRecords([result.match])
+							renderSugarWords()
+							renderLingryStream()
+							sugarWordsSetStatus('Coined "' + escapeHtml(record.word) + '".', 'success')
+							throw new Error('duplicate_already_coined')
+						}
 						record.status = 'duplicate_blocked'
 						sugarWordsState.transaction = null
 						renderSugarWords()
@@ -3902,9 +4370,8 @@
 						feeSatoshis = minimumFeeSatoshis
 					}
 
-					var warningNote = result.warnings && result.warnings.length ? ' Direct search returned ' + result.warnings.length + ' non-blocking API warning' + (result.warnings.length == 1 ? '' : 's') + '.' : ''
-					sugarWordsSetStatus('No existing Lingry claim found for "' + escapeHtml(record.word) + '".' + warningNote + ' Preparing your coin...', 'info')
-					return getUnspent(globalData.address, feeSatoshis + 1).then(function(data) {
+					sugarWordsSetStatus('Preparing your coin...', 'info')
+					return sugarWordsGetSpendableUtxos(feeSatoshis).then(function(data) {
 						return {
 							'data': data,
 							'feeSatoshis': feeSatoshis
@@ -3914,7 +4381,7 @@
 					var data = result.data
 					var feeSatoshis = result.feeSatoshis
 					if (!data || data.error != undefined || !data.result || !Array.isArray(data.result) || data.result.length == 0) {
-						throw new Error(messages.error['not-enough-utxo'] || messages.error['not-enough-funds'])
+						throw new Error('lingry_spendable_outputs_pending')
 					}
 
 					sugarWordsState.utxos = data.result
@@ -3927,18 +4394,26 @@
 					if (error && error.message == 'duplicate_already_coined') {
 						return
 					}
+					var message = error && error.message ? error.message : ''
+					var looksLikeFundingLatency = message == 'lingry_spendable_outputs_pending' || /not.?enough|insufficient|utxo/i.test(message)
+					if (looksLikeFundingLatency) {
+						record.status = 'ready_to_post'
+						sugarWordsState.transaction = null
+						renderSugarWords()
+						sugarWordsSetStatus('The network is still catching up. Check Stream, or tap Coin It again in a few seconds.', 'info')
+						return
+					}
 					record.status = 'failed'
 					sugarWordsState.transaction = null
 					renderSugarWords()
-					var message = error && error.message ? error.message : ''
 					if (!message && error && error.statusText == 'timeout') {
-						message = 'Duplicate check timed out. Try again after the Word Explorer scan catches up.'
+						message = 'The network is still catching up. Try Coin It again in a few seconds.'
 					}
 					if (!message && error && error.responseJSON && error.responseJSON.error) {
 						message = error.responseJSON.error
 					}
-					message = message || messages.error['not-enough-funds']
-					sugarWordsSetStatus(chainCheckPassed ? escapeHtml(message) : 'Duplicate check failed, so coining is blocked. ' + escapeHtml(message), 'danger')
+					message = message || 'The network is still catching up. Try Coin It again in a few seconds.'
+					sugarWordsSetStatus(chainCheckPassed ? escapeHtml(message) : 'The network is still catching up. Preparing can be retried in a few seconds.', chainCheckPassed ? 'danger' : 'warning')
 				}).finally(function() {
 					sugarWordsSetWriteButtonsChecking(false)
 					updateSugarWordsButtons()
@@ -4005,13 +4480,24 @@
 					$('#sugarwords-confirm-close').removeClass('d-none')
 					sugarWordsSetStatus('Coined "' + escapeHtml(record.word) + '".', 'success')
 				}).catch(function(error) {
+					var message = error && error.message ? error.message : messages.error['broadcast-failed']
+					if (/not.?enough|insufficient|utxo|mempool|already|duplicate/i.test(message)) {
+						record.status = 'ready_to_post'
+						renderSugarWords()
+						$('#sugarwords-confirm-title').text('Coining Pending')
+						$('#sugarwords-confirm-content').html('The network is still catching up. Check Stream, or tap Coin It again in a few seconds.')
+						$('#sugarwords-confirm-broadcast').addClass('d-none')
+						$('#sugarwords-confirm-close').removeClass('d-none')
+						sugarWordsSetStatus('The network is still catching up. Check Stream, or tap Coin It again in a few seconds.', 'info')
+						return
+					}
 					record.status = 'failed'
 					renderSugarWords()
 					$('#sugarwords-confirm-title').text('Coining Failed')
-					$('#sugarwords-confirm-content').html(escapeHtml(error.message || messages.error['broadcast-failed']))
+					$('#sugarwords-confirm-content').html(escapeHtml(message))
 					$('#sugarwords-confirm-broadcast').addClass('d-none')
 					$('#sugarwords-confirm-close').removeClass('d-none')
-					sugarWordsSetStatus(error.message || messages.error['broadcast-failed'], 'danger')
+					sugarWordsSetStatus(message, 'danger')
 				})
 			}
 
@@ -4630,6 +5116,10 @@
 
 // Show big error message at the top of the page :D 
 			function showMessage(message) {
+				if ($('#homepage').is(':visible') || $('body').hasClass('lingry-wallet-open') || $('body').hasClass('lingry-public-tool')) {
+					$('#error-message').addClass('d-none')
+					return
+				}
 				$('#error-message').html(message)
 				$('#error-message').removeClass('d-none')
 				setTimeout(function() {
@@ -4640,6 +5130,14 @@
 			function showQrAddress(text) {
 				$('#qr-code-addres').empty()
 				$('#qr-code-addres').qrcode(text)
+			}
+
+			function showLingryKeyError() {
+				$('#open-key-error').removeClass('d-none')
+			}
+
+			function clearLingryKeyError() {
+				$('#open-key-error').addClass('d-none')
 			}
 
 			/* Wallet functions */
@@ -4655,8 +5153,6 @@
 					if (data['error'] == undefined) {
 						globalData.balance = data.result.balance
 						balance = amountFormat(globalData.balance)
-					} else {
-						showMessage(messages.error['balance-load-failed'])
 					}
 
 					$('.wallet-balance .amount').text(balance)
@@ -4664,11 +5160,18 @@
 					updateLingryBalanceLabels(balance, getConfig()['ticker'])
 					return Number(globalData.balance || 0)
 				}).catch(function(error) {
-					showMessage(messages.error['balance-load-failed'])
 					$('.wallet-balance .amount').text(balance)
 					$('.wallet-balance .ticker').text(getConfig()['ticker'])
 					updateLingryBalanceLabels(balance, getConfig()['ticker'])
 					return 0
+				}).catch(function(error) {
+					return {
+						'duplicate': false,
+						'match': null,
+						'summary': null,
+						'warnings': [error && error.message ? error.message : 'Duplicate check unavailable.'],
+						'degraded': true
+					}
 				})
 			}
 
@@ -4695,6 +5198,8 @@
 			// Open wallet by key
 			function openWallet(keys, options) {
 				options = options || {}
+				$('#error-message').addClass('d-none')
+				clearLingryKeyError()
 				globalData.address = getAddress(keys)
 				lingryStreamAddressExpanded = false
 				var pubkey = keys.publicKey.toString('hex')
@@ -5080,6 +5585,11 @@
 					e.preventDefault()
 				})
 
+				$('#lingry-stream-menu').on('click', '[data-lingry-more-toggle]', function(e) {
+					setLingryMoreFeaturesOpen($('#lingry-menu-more-features').hasClass('d-none'))
+					e.preventDefault()
+				})
+
 				$('#lingry-stream-menu').on('click', '[data-lingry-history]', function(e) {
 					window.open(blockExplorer.address(globalData.address), '_blank')
 					setLingryMenuOpen(false)
@@ -5127,6 +5637,14 @@
 					e.preventDefault()
 				})
 
+				$('#wallet-keys-address-copy').click(function(e) {
+					var address = $('#wallet-keys-address input').val() || globalData.address || ''
+					if (address) {
+						lingryCopyText(address, function() {}, function() {})
+					}
+					e.preventDefault()
+				})
+
 				$('#lingry-login-toggle').click(function(e) {
 					setLingryAuthMode('login')
 					var isOpen = $('#lingry-login-panel').hasClass('d-none')
@@ -5142,9 +5660,18 @@
 				})
 
 				$(document).on('click', '[data-lingry-open-login]', function(e) {
+					setLingryAuthMode('login')
 					openLingryPublicStream()
 					$('#lingry-login-panel').removeClass('d-none')
 					$('#lingry-login-toggle').attr('aria-expanded', 'true')
+					e.preventDefault()
+				})
+
+				$(document).on('click', '[data-lingry-open-signup]', function(e) {
+					setLingryAuthMode('signup')
+					openLingryPublicStream()
+					$('#lingry-login-panel').removeClass('d-none')
+					$('#lingry-login-toggle, #lingry-signup-toggle').attr('aria-expanded', 'true')
 					e.preventDefault()
 				})
 
@@ -5163,7 +5690,7 @@
 					$('#lingry-login-heading-text').text(isSignup ? 'Sign up' : 'Login')
 					$('#open-regular-wallet').text(isSignup ? 'Sign up' : 'Login')
 					$('#open-key-toggle').text(isSignup ? 'Sign up for Key' : 'Open by Key')
-					$('#open-key-wallet').text(isSignup ? 'Sign up by Key' : 'Login by Key')
+					$('#open-key-wallet').text(isSignup ? 'Sign up by Key' : 'Login with key')
 					$('#open-key-passphrase-wrap').toggleClass('d-none', isSignup)
 					$('#passphrase').prop('required', !isSignup)
 				}
@@ -5181,8 +5708,23 @@
 				})
 
 				$('#open-key-toggle').click(function(e) {
+					clearLingryKeyError()
 					$('#open-key-form').toggleClass('d-none')
 					e.preventDefault()
+				})
+
+				$('#passphrase').on('input', function() {
+					clearLingryKeyError()
+				})
+
+				$('#lingry-language-select').on('change', function() {
+					setLingrySelectedLanguage($(this).val())
+					if (sugarWordsState.currentRecord && sugarWordsState.currentRecord.status != 'posted') {
+						sugarWordsState.currentRecord.language_code = getLingrySelectedLanguage().code
+						sugarWordsState.transaction = null
+						renderSugarWords()
+					}
+					renderLingryStream()
 				})
 
 				$('#open-google-wallet').click(function(e) {
@@ -5214,6 +5756,7 @@
 				if (window.location.hash) {
 					$(window).trigger('hashchange')
 				}
+				populateLingryLanguageSelect()
 				renderLingryStream()
 				ensureLingryStreamScan(false)
 $('#send-tx').click(function() {
@@ -5284,6 +5827,7 @@ $('#send-tx').click(function() {
 
 				// Open wallet by WIF key
 				$('#open-key-form').submit(function(e){
+					clearLingryKeyError()
 					if (lingryAuthMode == 'signup') {
 						globalData.keys = createLingryWalletKeys()
 						var createdWif = globalData.keys.toWIF()
@@ -5300,10 +5844,11 @@ $('#send-tx').click(function() {
 					var wif = $('#passphrase').val().trim()
 					var wifLength = wif.length
 					if ([51, 52].includes(wifLength)) {
+						globalData.keys = undefined
 						try {
 							globalData.keys = bitcoin.ECPair.fromWIF(wif, getConfig()['network'])
 						} catch(e) {
-							showMessage(messages.error['bad-priv-key'])
+							showLingryKeyError()
 						}
 
 						if (globalData.keys != undefined) {
@@ -5312,7 +5857,7 @@ $('#send-tx').click(function() {
 							openWallet(globalData.keys)
 						}
 					} else {
-						showMessage(messages.error['bad-priv-key'])
+						showLingryKeyError()
 					}
 
 					e.preventDefault()
