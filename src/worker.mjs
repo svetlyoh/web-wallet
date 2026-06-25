@@ -868,19 +868,22 @@ async function indexSugarTxid(txid, knownBlock = null) {
 	return records;
 }
 
-async function scanLatestSugarBlocks(startHeight, blockCount, word = '') {
+async function scanLatestSugarBlocks(startHeight, blockCount, word = '', offsetBlocks = 0) {
 	const normalizedWord = normalizeWord(word);
 	const height = Number(await fetchSugarJson('/info').then(info => info.blocks || info.headers || 0));
 	const floor = Math.max(0, Number(startHeight) || 0);
 	const requestedCount = Math.max(1, Number(blockCount) || 80);
+	const offset = Math.max(0, Number(offsetBlocks) || 0);
 	const safeCount = Math.max(1, Math.min(requestedCount, 32));
-	const start = Math.max(floor + 1, height - safeCount + 1);
+	const end = Math.max(floor, height - offset);
+	const start = Math.max(floor + 1, end - safeCount + 1);
 	const summary = {
 		enabled: true,
 		requested_blocks: requestedCount,
 		effective_blocks: safeCount,
+		offset_blocks: offset,
 		start_height: floor,
-		end_height: height,
+		end_height: end,
 		scan_mode: 'latest_after',
 		checked_txids: 0,
 		verified_txids: 0,
@@ -894,13 +897,13 @@ async function scanLatestSugarBlocks(startHeight, blockCount, word = '') {
 	if (requestedCount > safeCount) {
 		summary.errors.push({ error: 'Cloudflare live scan capped at ' + safeCount + ' latest blocks for responsiveness.' });
 	}
-	if (start > height) {
+	if (start > end) {
 		return { records: matches, summary };
 	}
 
 	const batchSize = 32;
-	for (let batchStart = start; batchStart <= height; batchStart += batchSize) {
-		const batchEnd = Math.min(height, batchStart + batchSize - 1);
+	for (let batchStart = start; batchStart <= end; batchStart += batchSize) {
+		const batchEnd = Math.min(end, batchStart + batchSize - 1);
 		const heights = [];
 		for (let current = batchStart; current <= batchEnd; current++) {
 			heights.push(current);
@@ -988,11 +991,13 @@ async function handleWordScan(request) {
 	}
 	let startHeight = 42900000;
 	let blocks = 120;
+	let offset = 0;
 	try {
 		const body = await request.json().catch(() => ({}));
 		startHeight = Number(body.start_height) || startHeight;
 		blocks = Number(body.blocks) || blocks;
-		const result = await scanLatestSugarBlocks(startHeight, blocks);
+		offset = Number(body.offset) || 0;
+		const result = await scanLatestSugarBlocks(startHeight, blocks, '', offset);
 		mergeWorkerWordCache(result.records, result.summary);
 		return jsonResponse({
 			...result.summary,
@@ -1003,6 +1008,7 @@ async function handleWordScan(request) {
 			enabled: true,
 			requested_blocks: blocks,
 			effective_blocks: 0,
+			offset_blocks: offset,
 			start_height: startHeight,
 			end_height: 0,
 			scan_mode: 'latest_after',

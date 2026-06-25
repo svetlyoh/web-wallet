@@ -373,6 +373,13 @@
 				text-overflow: ellipsis;
 				white-space: nowrap;
 			}
+			.lingry-identity-chip {
+				min-width: 72px;
+				justify-content: center;
+				font-size: 12px;
+				font-weight: 900;
+				letter-spacing: 0.03em;
+			}
 			.lingry-stream-brand {
 				display: flex;
 				align-items: center;
@@ -611,6 +618,8 @@
 			.lingry-public-tool:not(.lingry-signed-in) #lingry-stream-balance,
 			.lingry-public-tool:not(.lingry-signed-in) #lingry-logout,
 			.lingry-public-tool:not(.lingry-signed-in) #lingry-stream-account,
+			.lingry-public-tool:not(.lingry-signed-in) .lingry-tool-logout,
+			.lingry-public-tool:not(.lingry-signed-in) .lingry-tool-topline .lingry-identity-chip,
 			.lingry-public-tool:not(.lingry-signed-in) [data-lingry-tab="wallet-send"],
 			.lingry-public-tool:not(.lingry-signed-in) [data-lingry-tab="wallet-keys"],
 			.lingry-public-tool:not(.lingry-signed-in) [data-lingry-history] {
@@ -634,8 +643,8 @@
 			.lingry-wallet-open #wallet-keys .ai-ledger-header {
 				position: relative;
 				display: grid;
-				grid-template-columns: minmax(0, 1fr) auto;
-				gap: 12px;
+				grid-template-columns: minmax(0, 1fr);
+				gap: 14px;
 				align-items: start;
 				padding: 18px 16px 16px;
 				background:
@@ -662,10 +671,17 @@
 			.lingry-wallet-open #sugarwords-prompt .ai-ledger-title,
 			.lingry-wallet-open #wallet-keys .ai-ledger-title {
 				color: #fffdf4;
-				font-size: 29px;
+				font-size: 26px;
 				line-height: 1.04;
 				font-weight: 800;
 				margin-bottom: 8px;
+				padding-right: 128px;
+				white-space: nowrap;
+			}
+			.lingry-wallet-open #sugarwords-prompt .ai-ledger-title {
+				font-size: 23px;
+				white-space: normal;
+				max-width: 230px;
 			}
 			.lingry-wallet-open #sugarwords .ai-ledger-subtitle,
 			.lingry-wallet-open #sugarwords-prompt .ai-ledger-subtitle,
@@ -677,9 +693,10 @@
 			.lingry-tool-nav {
 				display: flex;
 				flex-direction: column;
-				align-items: flex-end;
+				align-items: stretch;
 				gap: 9px;
-				min-width: 138px;
+				min-width: 0;
+				width: 100%;
 			}
 			.lingry-tool-topline,
 			.lingry-tool-tabs {
@@ -688,6 +705,18 @@
 				justify-content: flex-end;
 				gap: 7px;
 				flex-wrap: wrap;
+			}
+			.lingry-tool-topline {
+				position: absolute;
+				top: 16px;
+				right: 16px;
+				justify-content: flex-end;
+			}
+			.lingry-tool-tabs {
+				display: grid;
+				grid-template-columns: repeat(2, minmax(0, 1fr));
+				width: 100%;
+				margin-top: 4px;
 			}
 			.lingry-wallet-open #sugarwords .ai-ledger-badge,
 			.lingry-wallet-open #sugarwords-prompt .ai-ledger-badge,
@@ -734,6 +763,7 @@
 				text-align: center;
 			}
 			.lingry-tool-tabs .lingry-tool-stream {
+				width: 100%;
 				white-space: nowrap;
 			}
 			.lingry-wallet-open #sugarwords .ai-ledger-status,
@@ -851,6 +881,29 @@
 				font-size: 10px;
 				font-weight: 900;
 				text-transform: lowercase;
+			}
+			.sugarwords-prompt-entry {
+				margin: 12px 14px;
+				border: 1px solid rgba(10, 99, 61, 0.13);
+				border-radius: 18px;
+				background: rgba(255, 255, 255, 0.82);
+				box-shadow: 0 10px 24px rgba(7, 75, 48, 0.08);
+				padding: 12px;
+			}
+			.sugarwords-prompt-hint {
+				color: #c26b00;
+				font-size: 15px;
+				font-weight: 850;
+				line-height: 1.35;
+				margin-bottom: 8px;
+			}
+			.sugarwords-prompt-entry .sugarwords-editable-label {
+				color: #0b6f46;
+				font-size: 11px;
+				font-weight: 900;
+				letter-spacing: 0.06em;
+				text-transform: uppercase;
+				margin: 0 0 5px;
 			}
 			.lingry-stream-section-title {
 				display: flex;
@@ -1472,9 +1525,9 @@
 													<div class="lingry-stream-brand-text">Lingry</div>
 												</div>
 											</div>
-											<button type="button" id="lingry-stream-balance" class="lingry-stream-balance" aria-label="Refresh Sugar balance">
-												<span id="lingry-stream-balance-amount" class="lingry-balance-amount">0.00</span>
-												<span id="lingry-stream-balance-ticker" class="lingry-balance-ticker">SUGAR</span>
+											<button type="button" id="lingry-stream-balance" class="lingry-stream-balance lingry-identity-chip" aria-label="Refresh account">
+												<span id="lingry-stream-balance-amount" class="lingry-balance-amount">--------</span>
+												<span id="lingry-stream-balance-ticker" class="lingry-balance-ticker d-none">SUGAR</span>
 											</button>
 											<button type="button" id="lingry-menu-toggle" class="lingry-menu-toggle lingry-stream-menu-icon" aria-label="Menu" title="Menu" aria-expanded="false" aria-controls="lingry-stream-menu">&#9776;</button>
 											<button type="button" id="lingry-logout" class="lingry-logout-button" data-lingry-logout="true" aria-label="Logout" title="Logout"><span aria-hidden="true">&#8618;</span></button>
@@ -1614,11 +1667,11 @@
 									<div class="ai-ledger-header">
 										<div>
 											<div class="ai-ledger-title">AI Generate</div>
-											<div class="ai-ledger-subtitle">Generate a fresh coined word and save its SW record to Sugarchain.</div>
+											<div id="sugarwords-wisdom" class="ai-ledger-subtitle">Tiny words can carry suspiciously large ladders.</div>
 										</div>
 										<div class="lingry-tool-nav">
 											<div class="lingry-tool-topline">
-												<div id="sugarwords-network" class="ai-ledger-badge"><span class="lingry-tool-balance-amount">0.00</span><span class="lingry-tool-balance-ticker">SUGAR</span></div>
+												<div id="sugarwords-network" class="ai-ledger-badge lingry-identity-chip"><span class="lingry-tool-balance-amount">--------</span><span class="lingry-tool-balance-ticker d-none">SUGAR</span></div>
 												<button type="button" class="lingry-tool-stream lingry-tool-icon" data-lingry-open-menu="true" aria-label="Menu" title="Menu">&#9776;</button>
 												<button type="button" class="lingry-tool-logout" data-lingry-logout="true" aria-label="Logout" title="Logout"><span aria-hidden="true">&#8618;</span></button>
 											</div>
@@ -1721,11 +1774,11 @@
 									<div class="ai-ledger-header">
 										<div>
 											<div class="ai-ledger-title">Prompt for New Word</div>
-											<div class="ai-ledger-subtitle">Describe a concept and generate a coined word ready for the Lingry stream.</div>
+											<div id="sugarwords-prompt-wisdom" class="ai-ledger-subtitle">A good word is a tiny handle on a slippery thought.</div>
 										</div>
 										<div class="lingry-tool-nav">
 											<div class="lingry-tool-topline">
-												<div id="sugarwords-prompt-network" class="ai-ledger-badge"><span class="lingry-tool-balance-amount">0.00</span><span class="lingry-tool-balance-ticker">SUGAR</span></div>
+												<div id="sugarwords-prompt-network" class="ai-ledger-badge lingry-identity-chip"><span class="lingry-tool-balance-amount">--------</span><span class="lingry-tool-balance-ticker d-none">SUGAR</span></div>
 												<button type="button" class="lingry-tool-stream lingry-tool-icon" data-lingry-open-menu="true" aria-label="Menu" title="Menu">&#9776;</button>
 												<button type="button" class="lingry-tool-logout" data-lingry-logout="true" aria-label="Logout" title="Logout"><span aria-hidden="true">&#8618;</span></button>
 											</div>
@@ -1736,7 +1789,13 @@
 										</div>
 									</div>
 
-									<div id="sugarwords-prompt-status" class="alert alert-secondary ai-ledger-status" role="alert">Type a concept and invent a new word from your prompt.</div>
+									<div id="sugarwords-prompt-status" class="alert alert-secondary ai-ledger-status d-none" role="alert">Type a concept and invent a new word from your prompt.</div>
+
+									<div class="sugarwords-prompt-entry">
+										<div class="sugarwords-prompt-hint">Type a concept and invent a new word from your prompt.</div>
+										<div class="sugarwords-editable-label">Prompt for New Word</div>
+										<textarea id="sugarwords-prompt-concept-prompt" class="form-control sugarwords-editor-text mb-2" rows="3" maxlength="500" placeholder="Type a concept and invent a new word from your prompt." onkeydown="event.stopPropagation()" onkeypress="event.stopPropagation()" onkeyup="event.stopPropagation()"></textarea>
+									</div>
 
 									<div class="ai-ledger-actions">
 										<button id="sugarwords-prompt-generate" type="button" class="btn btn-outline-dark">Invent From Prompt</button>
@@ -1745,8 +1804,6 @@
 
 									<div class="ai-ledger-layout">
 										<div class="ai-ledger-section sugarwords-editor-card">
-											<div class="sugarwords-editable-label">Prompt for New Word</div>
-											<textarea id="sugarwords-prompt-concept-prompt" class="form-control sugarwords-editor-text mb-2" rows="3" maxlength="500" placeholder="Describe the concept you want a new word for." onkeydown="event.stopPropagation()" onkeypress="event.stopPropagation()" onkeyup="event.stopPropagation()"></textarea>
 											<h3>Generated Word</h3>
 											<input id="sugarwords-prompt-word" class="form-control sugarwords-word" maxlength="32" placeholder="generated-word">
 											<div class="sugarwords-editable-label">Meaning</div>
@@ -2261,10 +2318,12 @@
 
 			function updateLingrySignedInUi() {
 				var address = globalData.address || ''
+				var shortAddress = address ? address.slice(-8) : ''
 				$('body').toggleClass('lingry-signed-in', !!address)
 				$('#lingry-stream-account')
 					.toggleClass('d-none', !address)
-					.text(address ? ('Signed in as ' + address) : '')
+					.attr('title', address)
+					.text(shortAddress)
 			}
 
 			function openLingryWalletTab(tabName) {
@@ -2273,6 +2332,7 @@
 				$('#wallet-block [data-tab=' + tabName + ']').removeClass('d-none')
 				$('#wallet-block .tab-link[data-tab-name=' + tabName + ']').addClass('active')
 				$('body').addClass('lingry-wallet-open')
+				rotateLingryWisdom()
 				if (tabName == 'wallet-balance') {
 					ensureLingryStreamScan(false)
 				}
@@ -2695,6 +2755,7 @@
 				var alertClass = 'alert-' + (variant || 'secondary')
 				$('#sugarwords-status, #sugarwords-prompt-status')
 					.removeClass('alert-secondary alert-success alert-warning alert-danger alert-info')
+					.removeClass('d-none')
 					.addClass(alertClass)
 					.html(message)
 			}
@@ -2941,15 +3002,11 @@
 			}
 
 			function updateLingryBalanceLabels(balanceText, tickerText) {
-				var ticker = tickerText || getConfig()['ticker']
-				var value = Number(balanceText || 0)
-				if (isNaN(value)) {
-					value = 0
-				}
-				$('#lingry-stream-balance-amount').text(value.toFixed(2))
-				$('#lingry-stream-balance-ticker').text(ticker)
-				$('.lingry-tool-balance-amount').text(value.toFixed(2))
-				$('.lingry-tool-balance-ticker').text(ticker)
+				var shortAddress = globalData.address ? globalData.address.slice(-8) : '--------'
+				$('#lingry-stream-balance-amount').text(shortAddress)
+				$('#lingry-stream-balance-ticker').text('')
+				$('.lingry-tool-balance-amount').text(shortAddress)
+				$('.lingry-tool-balance-ticker').text('')
 			}
 
 			function updateSugarWordsWalletContext() {
@@ -3036,19 +3093,37 @@
 			var lingrySessionCreatedKey = ''
 			var lingryFaucetRequests = {}
 			var lingryShareRecords = []
-			var LINGRY_STREAM_SCAN_WINDOWS = [3, 5, 7]
-			var LINGRY_STREAM_BLOCKS_PER_DAY = 17280
+			var LINGRY_WISDOM_LINES = [
+				'Coin carefully; tiny words have long shadows.',
+				'A new word is just a thought wearing shoes.',
+				'Meaning arrives early, grammar catches the next bus.',
+				'If the idea wiggles, give it a name.',
+				'Every fresh word is a small door with a loud hinge.',
+				'Invent gently; language remembers fingerprints.',
+				'The best words make strangers nod too quickly.',
+				'Name the feeling before it sneaks out the window.',
+				'A coined word is a lantern for an unnamed corner.',
+				'Good vocabulary is curiosity with pockets.'
+			]
+			var LINGRY_STREAM_INITIAL_BLOCKS = 20000
+			var LINGRY_STREAM_REFRESH_WINDOWS = [1000, 2000, 5000, 10000, 20000]
 			var lingryStreamScanState = {
 				'running': false,
 				'complete': false,
-				'activeDays': 0,
+				'activeBlocks': 0,
 				'records': [],
 				'status': '',
-				'lastRun': 0
+				'lastRun': 0,
+				'coveredBlocks': 0,
+				'seen': {}
 			}
 
-			function lingryStreamBlocksForDays(days) {
-				return Math.max(1, Math.ceil(days * LINGRY_STREAM_BLOCKS_PER_DAY))
+			function rotateLingryWisdom() {
+				if (!LINGRY_WISDOM_LINES.length) {
+					return
+				}
+				var line = LINGRY_WISDOM_LINES[Math.floor(Math.random() * LINGRY_WISDOM_LINES.length)]
+				$('#sugarwords-wisdom, #sugarwords-prompt-wisdom').text(line)
 			}
 
 			function lingryStreamRecordTimestamp(record) {
@@ -3085,30 +3160,92 @@
 				}
 			}
 
-			function lingryStreamLatestSwRecords(days) {
+			function lingryStreamRecordKey(record) {
+				return String(record && (record.txid || record.op_return_payload || record.op_return_hex || record.word) || '').toLowerCase()
+			}
+
+			function saveLingryStreamSession() {
+				try {
+					window.sessionStorage.setItem('lingry.stream.cache.v1', JSON.stringify({
+						'records': lingryStreamScanState.records.slice(0, 120),
+						'coveredBlocks': lingryStreamScanState.coveredBlocks || 0,
+						'lastRun': lingryStreamScanState.lastRun || 0
+					}))
+				} catch (error) {
+					// Session cache is a convenience only.
+				}
+			}
+
+			function loadLingryStreamSession() {
+				try {
+					var cached = JSON.parse(window.sessionStorage.getItem('lingry.stream.cache.v1') || '{}')
+					var records = Array.isArray(cached.records) ? cached.records : []
+					lingryStreamScanState.records = []
+					lingryStreamScanState.seen = {}
+					mergeLingryStreamRecords(records)
+					lingryStreamScanState.coveredBlocks = Number(cached.coveredBlocks || 0)
+					lingryStreamScanState.lastRun = Number(cached.lastRun || 0)
+				} catch (error) {
+					lingryStreamScanState.records = []
+					lingryStreamScanState.seen = {}
+				}
+			}
+
+			function mergeLingryStreamRecords(records) {
+				var added = 0
+				records = Array.isArray(records) ? records : []
+				records.forEach(function(record) {
+					if (!lingryStreamIsSwRecord(record)) {
+						return
+					}
+					var normalized = lingryStreamNormalizeOnChainRecord(record)
+					var key = lingryStreamRecordKey(normalized)
+					if (!key || lingryStreamScanState.seen[key]) {
+						return
+					}
+					lingryStreamScanState.seen[key] = true
+					lingryStreamScanState.records.push(normalized)
+					added += 1
+				})
+				if (added) {
+					lingryStreamScanState.records = lingryStreamScanState.records.sort(function(a, b) {
+						return lingryStreamRecordTimeValue(b) - lingryStreamRecordTimeValue(a)
+					}).slice(0, 120)
+					saveLingryStreamSession()
+				}
+				return added
+			}
+
+			function lingryStreamLatestSwRecords(blocks) {
 				return wordExplorerApiGet('/api/words/latest?limit=100&filter=all', { 'timeout': 60000 }).then(function(data) {
 					return (data.records || [])
 						.filter(lingryStreamIsSwRecord)
-						.filter(function(record) {
-							return lingryStreamRecordWithinDays(record, days)
-						})
 						.map(lingryStreamNormalizeOnChainRecord)
 				})
 			}
 
-			function scanLingryStreamDays(days) {
-				lingryStreamScanState.activeDays = days
-				lingryStreamScanState.status = 'Scanning ' + days + 'd'
+			function scanLingryStreamBlocks(blocks, offset) {
+				blocks = Math.max(1, Number(blocks) || 1000)
+				offset = Math.max(0, Number(offset) || 0)
+				lingryStreamScanState.activeBlocks = blocks
+				lingryStreamScanState.status = 'Scanning ' + blocks + ' blocks'
 				renderLingryStream()
 				return wordExplorerApiPost('/api/words/scan', {
 					'mode': 'latest_after',
 					'start_height': WORD_EXPLORER_START_HEIGHT,
-					'blocks': lingryStreamBlocksForDays(days)
+					'blocks': blocks,
+					'offset': offset
 				}).then(function(scan) {
-					return lingryStreamLatestSwRecords(days).then(function(records) {
+					var scanned = Number(scan.effective_blocks || scan.scanned_blocks || 0)
+					lingryStreamScanState.coveredBlocks = Math.max(lingryStreamScanState.coveredBlocks || 0, offset + scanned)
+					var directRecords = Array.isArray(scan.records) ? scan.records : []
+					var added = mergeLingryStreamRecords(directRecords)
+					return lingryStreamLatestSwRecords(blocks).then(function(records) {
+						added += mergeLingryStreamRecords(records)
 						return {
 							'scan': scan,
-							'records': records
+							'records': lingryStreamScanState.records,
+							'added': added
 						}
 					})
 				})
@@ -3118,17 +3255,16 @@
 				if (lingryStreamScanState.running) {
 					return
 				}
-				if (!force && lingryStreamScanState.complete && Date.now() - lingryStreamScanState.lastRun < 10 * 60 * 1000) {
+				if (!force && lingryStreamScanState.complete && lingryStreamScanState.records.length && Date.now() - lingryStreamScanState.lastRun < 10 * 60 * 1000) {
 					return
 				}
 				lingryStreamScanState.running = true
 				lingryStreamScanState.complete = false
-				lingryStreamScanState.records = []
-				lingryStreamScanState.status = 'Scanning 3d'
+				loadLingryStreamSession()
+				lingryStreamScanState.status = force ? 'Refreshing stream' : 'Scanning 20000 blocks'
 				renderLingryStream()
-				lingryStreamLatestSwRecords(7).then(function(records) {
-					if (lingryStreamScanState.running && records.length) {
-						lingryStreamScanState.records = records
+				lingryStreamLatestSwRecords(1000).then(function(records) {
+					if (lingryStreamScanState.running && mergeLingryStreamRecords(records)) {
 						lingryStreamScanState.status = 'Refreshing SW'
 						renderLingryStream()
 					}
@@ -3137,16 +3273,18 @@
 				})
 
 				var scanIndex = 0
+				var windows = force ? LINGRY_STREAM_REFRESH_WINDOWS.slice() : [LINGRY_STREAM_INITIAL_BLOCKS]
 				function scanNextWindow() {
-					var days = LINGRY_STREAM_SCAN_WINDOWS[scanIndex]
-					return scanLingryStreamDays(days).then(function(result) {
-						if (result.records.length || scanIndex == LINGRY_STREAM_SCAN_WINDOWS.length - 1) {
+					var blocks = windows[scanIndex]
+					var offset = force ? (lingryStreamScanState.coveredBlocks || 0) : 0
+					return scanLingryStreamBlocks(blocks, offset).then(function(result) {
+						if (lingryStreamScanState.records.length || scanIndex == windows.length - 1) {
 							lingryStreamScanState.running = false
 							lingryStreamScanState.complete = true
-							lingryStreamScanState.activeDays = days
-							lingryStreamScanState.records = result.records
+							lingryStreamScanState.activeBlocks = blocks
 							lingryStreamScanState.lastRun = Date.now()
-							lingryStreamScanState.status = result.records.length ? ('SW entries ' + days + 'd') : 'No SW in 7d'
+							lingryStreamScanState.status = lingryStreamScanState.records.length ? (lingryStreamScanState.records.length + ' stream word' + (lingryStreamScanState.records.length == 1 ? '' : 's')) : 'No recent words yet'
+							saveLingryStreamSession()
 							renderLingryStream()
 							return result
 						}
@@ -4541,10 +4679,7 @@
 				var balance = '0.00'
 				$('.wallet-balance .amount').text('')
 				$('.wallet-balance .ticker').text(getText('loading'))
-				$('#lingry-stream-balance-amount').text('')
-				$('#lingry-stream-balance-ticker').text(getText('loading'))
-				$('.lingry-tool-balance-amount').text('')
-				$('.lingry-tool-balance-ticker').text(getText('loading'))
+				updateLingryBalanceLabels(balance, getConfig()['ticker'])
 
 				return addressBalance(globalData.address).then(function(data) {
 					if (data['error'] == undefined) {
