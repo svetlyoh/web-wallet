@@ -496,6 +496,44 @@
 				outline: 3px solid rgba(84, 238, 149, 0.42);
 				outline-offset: 2px;
 			}
+			.lingry-language-chip {
+				position: relative;
+				z-index: 3;
+				display: inline-flex;
+				align-items: center;
+				justify-content: center;
+				width: 32px;
+				height: 28px;
+				border: 1px solid rgba(255, 253, 244, 0.22);
+				border-radius: 999px;
+				background: rgba(255, 253, 244, 0.14);
+				box-shadow: 0 8px 18px rgba(0, 0, 0, 0.12);
+				cursor: pointer;
+				overflow: hidden;
+			}
+			.lingry-stream-language {
+				position: absolute;
+				top: 16px;
+				right: 92px;
+			}
+			.lingry-language-chip img {
+				width: 20px;
+				height: 14px;
+				border-radius: 3px;
+				object-fit: cover;
+			}
+			.lingry-language-picker {
+				position: absolute;
+				inset: 0;
+				width: 100%;
+				height: 100%;
+				opacity: 0;
+				cursor: pointer;
+			}
+			.lingry-language-chip:focus-within {
+				outline: 3px solid rgba(84, 238, 149, 0.42);
+				outline-offset: 2px;
+			}
 			.lingry-logout-button {
 				position: absolute;
 				top: 52px;
@@ -796,6 +834,9 @@
 				color: #fffdf4;
 				font-size: 17px;
 				font-weight: 800;
+			}
+			.lingry-tool-language {
+				flex: 0 0 auto;
 			}
 			.lingry-tool-nav .lingry-tool-stream {
 				text-align: center;
@@ -1668,6 +1709,10 @@
 												<span id="lingry-stream-balance-amount" class="lingry-balance-amount">Guest</span>
 												<span id="lingry-stream-balance-ticker" class="lingry-balance-ticker d-none">SUGAR</span>
 											</button>
+											<label class="lingry-language-chip lingry-stream-language" title="Language for new words">
+												<img data-lingry-language-flag="true" src="images/flags/us.svg" alt="Language">
+												<select class="lingry-language-picker" aria-label="Language for new words"></select>
+											</label>
 											<button type="button" id="lingry-menu-toggle" class="lingry-menu-toggle lingry-stream-menu-icon" aria-label="Menu" title="Menu" aria-expanded="false" aria-controls="lingry-stream-menu">&#9776;</button>
 											<button type="button" id="lingry-logout" class="lingry-logout-button" data-lingry-logout="true" aria-label="Logout" title="Logout"><span aria-hidden="true">&#8618;</span></button>
 											<div class="lingry-stream-title">New words in the stream</div>
@@ -1827,6 +1872,10 @@
 									<div class="ai-ledger-header">
 										<div class="lingry-tool-nav">
 											<div class="lingry-tool-topline">
+												<label class="lingry-language-chip lingry-tool-language" title="Language for new words">
+													<img data-lingry-language-flag="true" src="images/flags/us.svg" alt="Language">
+													<select class="lingry-language-picker" aria-label="Language for new words"></select>
+												</label>
 												<div id="sugarwords-network" class="ai-ledger-badge lingry-identity-chip"><span class="lingry-tool-balance-amount">Guest</span><span class="lingry-tool-balance-ticker d-none">SUGAR</span></div>
 												<button type="button" class="lingry-tool-stream lingry-tool-icon" data-lingry-open-menu="true" aria-label="Menu" title="Menu">&#9776;</button>
 												<button type="button" class="lingry-tool-logout" data-lingry-logout="true" aria-label="Logout" title="Logout"><span aria-hidden="true">&#8618;</span></button>
@@ -1935,6 +1984,10 @@
 									<div class="ai-ledger-header">
 										<div class="lingry-tool-nav">
 											<div class="lingry-tool-topline">
+												<label class="lingry-language-chip lingry-tool-language" title="Language for new words">
+													<img data-lingry-language-flag="true" src="images/flags/us.svg" alt="Language">
+													<select class="lingry-language-picker" aria-label="Language for new words"></select>
+												</label>
 												<div id="sugarwords-prompt-network" class="ai-ledger-badge lingry-identity-chip"><span class="lingry-tool-balance-amount">Guest</span><span class="lingry-tool-balance-ticker d-none">SUGAR</span></div>
 												<button type="button" class="lingry-tool-stream lingry-tool-icon" data-lingry-open-menu="true" aria-label="Menu" title="Menu">&#9776;</button>
 												<button type="button" class="lingry-tool-logout" data-lingry-logout="true" aria-label="Logout" title="Logout"><span aria-hidden="true">&#8618;</span></button>
@@ -3030,12 +3083,19 @@
 					return '<option value="' + escapeHtml(language.code) + '">S' + escapeHtml(language.code) + ' - ' + escapeHtml(language.menu) + '</option>'
 				})
 				$('#lingry-language-select').html(options.join(''))
+				$('.lingry-language-picker').html(options.join(''))
 				updateLingryLanguageUi()
 			}
 
 			function updateLingryLanguageUi() {
 				var language = getLingrySelectedLanguage()
 				$('#lingry-language-select').val(language.code)
+				$('.lingry-language-picker').val(language.code)
+				$('[data-lingry-language-flag]').attr({
+					'src': language.flag,
+					'alt': language.menu,
+					'title': language.menu
+				})
 			}
 
 			function lingryLanguageFromPayload(payload) {
@@ -3388,7 +3448,12 @@
 				'Good vocabulary is curiosity with pockets.'
 			]
 			var LINGRY_STREAM_INITIAL_BLOCKS = 20000
-			var LINGRY_STREAM_REFRESH_WINDOWS = [1000, 2000, 5000, 10000, 20000]
+			var LINGRY_STREAM_SCAN_CHUNK_BLOCKS = 500
+			var LINGRY_STREAM_TARGET_RECORDS = 15
+			var LINGRY_STREAM_MAX_LOOKBACK_BLOCKS = 20000
+			var LINGRY_STREAM_REFRESH_LOOKBACK_BLOCKS = 5000
+			var LINGRY_STREAM_REFRESH_INTERVAL_MS = 5 * 60 * 1000
+			var LINGRY_STREAM_SPARSE_REFRESH_INTERVAL_MS = 2 * 60 * 1000
 			var lingryStreamScanState = {
 				'running': false,
 				'complete': false,
@@ -3397,6 +3462,7 @@
 				'status': '',
 				'lastRun': 0,
 				'coveredBlocks': 0,
+				'lastAdded': 0,
 				'seen': {}
 			}
 
@@ -3412,8 +3478,12 @@
 				return record.tx_time || record.timestamp || record.indexed_at || ''
 			}
 
-			function lingryStreamIsSwRecord(record) {
+			function lingryStreamIsProtocolRecord(record) {
 				return /^S[A-Z]\|/.test(String(record && record.op_return_payload || '').trim())
+			}
+
+			function lingryStreamHasEnoughRecords() {
+				return lingryStreamScanState.records.length >= LINGRY_STREAM_TARGET_RECORDS
 			}
 
 			function lingryStreamRecordWithinDays(record, days) {
@@ -3444,7 +3514,9 @@
 			}
 
 			function lingryStreamRecordKey(record) {
-				return String(record && (record.txid || record.op_return_payload || record.op_return_hex || record.word) || '').toLowerCase()
+				var txid = String(record && record.txid || '').trim().toLowerCase()
+				var payload = String(record && (record.op_return_payload || record.op_return_hex || record.word) || '').trim().toLowerCase()
+				return txid && payload ? txid + ':' + payload : (txid || payload)
 			}
 
 			function saveLingryStreamSession() {
@@ -3478,7 +3550,7 @@
 				var added = 0
 				records = Array.isArray(records) ? records : []
 				records.forEach(function(record) {
-					if (!lingryStreamIsSwRecord(record)) {
+					if (!lingryStreamIsProtocolRecord(record)) {
 						return
 					}
 					var normalized = lingryStreamNormalizeOnChainRecord(record)
@@ -3499,10 +3571,10 @@
 				return added
 			}
 
-			function lingryStreamLatestSwRecords(blocks) {
+			function lingryStreamLatestProtocolRecords(blocks) {
 				return wordExplorerApiGet('/api/words/latest?limit=100&filter=all', { 'timeout': 60000 }).then(function(data) {
 					return (data.records || [])
-						.filter(lingryStreamIsSwRecord)
+						.filter(lingryStreamIsProtocolRecord)
 						.map(lingryStreamNormalizeOnChainRecord)
 				})
 			}
@@ -3511,7 +3583,7 @@
 				blocks = Math.max(1, Number(blocks) || 1000)
 				offset = Math.max(0, Number(offset) || 0)
 				lingryStreamScanState.activeBlocks = blocks
-				lingryStreamScanState.status = 'Scanning ' + blocks + ' blocks'
+				lingryStreamScanState.status = 'Scanning ' + (offset + blocks) + ' blocks'
 				renderLingryStream()
 				return wordExplorerApiPost('/api/words/scan', {
 					'mode': 'latest_after',
@@ -3523,14 +3595,56 @@
 					lingryStreamScanState.coveredBlocks = Math.max(lingryStreamScanState.coveredBlocks || 0, offset + scanned)
 					var directRecords = Array.isArray(scan.records) ? scan.records : []
 					var added = mergeLingryStreamRecords(directRecords)
-					return lingryStreamLatestSwRecords(blocks).then(function(records) {
-						added += mergeLingryStreamRecords(records)
-						return {
-							'scan': scan,
+					return {
+						'scan': scan,
+						'records': lingryStreamScanState.records,
+						'added': added
+					}
+				})
+			}
+
+			function scanLingryStreamWindow(totalBlocks, offset, targetRecords) {
+				totalBlocks = Math.max(1, Number(totalBlocks) || LINGRY_STREAM_SCAN_CHUNK_BLOCKS)
+				offset = Math.max(0, Number(offset) || 0)
+				targetRecords = Math.max(1, Number(targetRecords) || LINGRY_STREAM_TARGET_RECORDS)
+				var remaining = totalBlocks
+				var currentOffset = offset
+				var totalAdded = 0
+				var lastResult = null
+
+				function scanNextChunk() {
+					if (remaining <= 0) {
+						return Promise.resolve(lastResult || {
+							'scan': { 'effective_blocks': 0, 'scanned_blocks': 0, 'errors': [] },
 							'records': lingryStreamScanState.records,
-							'added': added
+							'added': totalAdded
+						})
+					}
+					var chunkBlocks = Math.min(remaining, LINGRY_STREAM_SCAN_CHUNK_BLOCKS)
+					var covered = totalBlocks - remaining + chunkBlocks
+					lingryStreamScanState.activeBlocks = totalBlocks
+					lingryStreamScanState.status = 'Scanning ' + covered + '/' + totalBlocks + ' blocks'
+					renderLingryStream()
+					return scanLingryStreamBlocks(chunkBlocks, currentOffset).then(function(result) {
+						lastResult = result
+						totalAdded += Number(result.added || 0)
+						lingryStreamScanState.lastAdded = totalAdded
+						var scan = result.scan || {}
+						var scanned = Number(scan.effective_blocks || scan.scanned_blocks || chunkBlocks)
+						if (!scanned || scanned < 1 || lingryStreamScanState.records.length >= targetRecords) {
+							remaining = 0
+							return lastResult
 						}
+						currentOffset += scanned
+						remaining = Math.max(0, remaining - scanned)
+						lingryStreamScanState.coveredBlocks = Math.max(lingryStreamScanState.coveredBlocks || 0, currentOffset)
+						return scanNextChunk()
 					})
+				}
+
+				return scanNextChunk().then(function(result) {
+					result.added = totalAdded
+					return result
 				})
 			}
 
@@ -3538,45 +3652,42 @@
 				if (lingryStreamScanState.running) {
 					return
 				}
-				if (!force && lingryStreamScanState.complete && lingryStreamScanState.records.length && Date.now() - lingryStreamScanState.lastRun < 10 * 60 * 1000) {
+				var refreshInterval = lingryStreamScanState.records.length < LINGRY_STREAM_TARGET_RECORDS ? LINGRY_STREAM_SPARSE_REFRESH_INTERVAL_MS : LINGRY_STREAM_REFRESH_INTERVAL_MS
+				if (!force && lingryStreamScanState.complete && lingryStreamScanState.records.length && Date.now() - lingryStreamScanState.lastRun < refreshInterval) {
 					return
 				}
 				lingryStreamScanState.running = true
 				lingryStreamScanState.complete = false
 				loadLingryStreamSession()
-				lingryStreamScanState.status = force ? 'Refreshing stream' : 'Scanning 20000 blocks'
+				lingryStreamScanState.lastAdded = 0
+				lingryStreamScanState.status = force ? 'Refreshing recent words' : 'Finding recent words'
 				renderLingryStream()
-				lingryStreamLatestSwRecords(1000).then(function(records) {
+				lingryStreamLatestProtocolRecords(1000).then(function(records) {
 					if (lingryStreamScanState.running && mergeLingryStreamRecords(records)) {
-						lingryStreamScanState.status = 'Refreshing SW'
+						lingryStreamScanState.status = 'Refreshing words'
 						renderLingryStream()
 					}
 				}).catch(function() {
 					// The direct scan below is the source of truth when the local index is unavailable.
 				})
 
-				var scanIndex = 0
-				var windows = force ? LINGRY_STREAM_REFRESH_WINDOWS.slice() : [LINGRY_STREAM_INITIAL_BLOCKS]
-				function scanNextWindow() {
-					var blocks = windows[scanIndex]
-					var offset = force ? (lingryStreamScanState.coveredBlocks || 0) : 0
-					return scanLingryStreamBlocks(blocks, offset).then(function(result) {
-						if (lingryStreamScanState.records.length || scanIndex == windows.length - 1) {
-							lingryStreamScanState.running = false
-							lingryStreamScanState.complete = true
-							lingryStreamScanState.activeBlocks = blocks
-							lingryStreamScanState.lastRun = Date.now()
-							lingryStreamScanState.status = lingryStreamScanState.records.length ? (lingryStreamScanState.records.length + ' stream word' + (lingryStreamScanState.records.length == 1 ? '' : 's')) : 'No recent words yet'
-							saveLingryStreamSession()
-							renderLingryStream()
-							return result
-						}
-						scanIndex += 1
-						return scanNextWindow()
-					})
+				var lookback = force ? LINGRY_STREAM_REFRESH_LOOKBACK_BLOCKS : LINGRY_STREAM_INITIAL_BLOCKS
+				if (!force && lingryStreamHasEnoughRecords()) {
+					lookback = LINGRY_STREAM_REFRESH_LOOKBACK_BLOCKS
 				}
+				lookback = Math.min(lookback, LINGRY_STREAM_MAX_LOOKBACK_BLOCKS)
+				var offset = force ? 0 : 0
 
-				return scanNextWindow().catch(function(error) {
+				return scanLingryStreamWindow(lookback, offset, LINGRY_STREAM_TARGET_RECORDS).then(function(result) {
+					lingryStreamScanState.running = false
+					lingryStreamScanState.complete = true
+					lingryStreamScanState.activeBlocks = lookback
+					lingryStreamScanState.lastRun = Date.now()
+					lingryStreamScanState.status = lingryStreamScanState.records.length ? (lingryStreamScanState.records.length + ' stream word' + (lingryStreamScanState.records.length == 1 ? '' : 's')) : 'No recent words yet'
+					saveLingryStreamSession()
+					renderLingryStream()
+					return result
+				}).catch(function(error) {
 					lingryStreamScanState.running = false
 					lingryStreamScanState.complete = true
 					lingryStreamScanState.lastRun = Date.now()
@@ -5717,7 +5828,7 @@
 					clearLingryKeyError()
 				})
 
-				$('#lingry-language-select').on('change', function() {
+				$(document).on('change', '#lingry-language-select, .lingry-language-picker', function() {
 					setLingrySelectedLanguage($(this).val())
 					if (sugarWordsState.currentRecord && sugarWordsState.currentRecord.status != 'posted') {
 						sugarWordsState.currentRecord.language_code = getLingrySelectedLanguage().code

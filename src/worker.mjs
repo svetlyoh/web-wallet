@@ -8,6 +8,12 @@ const FAUCET_AMOUNT_SATOSHIS = 2500000;
 const FAUCET_MINIMUM_BALANCE_SATOSHIS = 1000000;
 const FAUCET_FEE_SATOSHIS = 1000;
 const FAUCET_DEFAULT_ADDRESS = 'sugar1q39n666w687nxm9x98tx5kgw2uvk780gtmd6yyu';
+const SUGAR_API_RETRIES = 2;
+const SUGAR_API_TX_PAGE_SIZE = 10;
+const WORKER_LIVE_SCAN_LIMIT = 500;
+const WORKER_DEFAULT_CACHE_SCAN_BLOCKS = 500;
+const WORKER_RANGE_BATCH_SIZE = 100;
+const WORKER_TX_LOOKUP_CONCURRENCY = 8;
 const faucetAttempts = new Map();
 const workerWordCache = {
 	records: [],
@@ -46,6 +52,15 @@ function normalizeAddress(value) {
 
 function sugarAmount(satoshis) {
 	return Number(satoshis || 0) / Math.pow(10, SUGAR_DECIMALS);
+}
+
+function delay(ms) {
+	return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function isoFromUnix(value) {
+	const number = Number(value);
+	return Number.isFinite(number) && number > 0 ? new Date(number * 1000).toISOString() : '';
 }
 
 function sanitizeText(value, maxLength) {
@@ -302,7 +317,9 @@ function recordFromPayloadHex(payloadHex) {
 }
 
 function recordCacheKey(record) {
-	return record.txid || record.op_return_hex || record.op_return_payload || record.word || '';
+	const txid = String(record && record.txid || '').trim();
+	const payload = String(record && (record.op_return_hex || record.op_return_payload || record.word) || '').trim();
+	return txid && payload ? txid + ':' + payload : (txid || payload);
 }
 
 function mergeWorkerWordCache(records, summary) {
@@ -655,21 +672,35 @@ async function handleGenerateWord(request, env, forcedGenerationMode) {
 
 async function fetchSugarJson(path, timeoutMs = 8000) {
 	let lastError = null;
-	for (const base of SUGAR_API_BASES) {
-		const controller = new AbortController();
-		const timeout = setTimeout(() => controller.abort(), timeoutMs);
-		try {
-			const response = await fetch(base + path, { signal: controller.signal });
-			const json = await response.json().catch(() => null);
-			if (!response.ok || !json || json.error) {
-				const message = json && json.error && json.error.message ? json.error.message : 'Sugarchain API request failed.';
-				throw new Error(message);
+	for (let attempt = 0; attempt < SUGAR_API_RETRIES; attempt++) {
+		for (const base of SUGAR_API_BASES) {
+			const controller = new AbortController();
+			const timeout = setTimeout(() => controller.abort(), timeoutMs);
+			try {
+				const response = await fetch(base + path, { signal: controller.signal });
+				const text = await response.text().catch(() => '');
+				let json = null;
+				try {
+					json = text ? JSON.parse(text) : null;
+				} catch (error) {
+					json = null;
+				}
+				if (!response.ok || !json || json.error) {
+					const apiMessage = json && json.error && json.error.message ? json.error.message : '';
+					const bodyMessage = !apiMessage && text ? text.replace(/\s+/g, ' ').trim().slice(0, 120) : '';
+					const statusMessage = response.status ? 'HTTP ' + response.status : '';
+					const detail = [statusMessage, apiMessage || bodyMessage || 'Sugarchain API request failed.'].filter(Boolean).join(': ');
+					throw new Error(detail + ' [' + base + path + ']');
+				}
+				return json.result;
+			} catch (error) {
+				lastError = error && error.name === 'AbortError' ? new Error('Sugarchain API request timed out. [' + base + path + ']') : error;
+			} finally {
+				clearTimeout(timeout);
 			}
-			return json.result;
-		} catch (error) {
-			lastError = error && error.name === 'AbortError' ? new Error('Sugarchain API request timed out.') : error;
-		} finally {
-			clearTimeout(timeout);
+		}
+		if (attempt < SUGAR_API_RETRIES - 1) {
+			await delay(250 * (attempt + 1));
 		}
 	}
 	throw lastError || new Error('Sugarchain API request failed.');
@@ -878,7 +909,7 @@ async function indexSugarTxid(txid, knownBlock = null) {
 			txid: tx.txid || txid,
 			block_height: tx.height != null ? tx.height : (knownBlock && knownBlock.height),
 			block_hash: tx.blockhash || (knownBlock && knownBlock.hash) || '',
-			tx_time: '',
+			tx_time: isoFromUnix(tx.blocktime || tx.time || (knownBlock && knownBlock.time)),
 			indexed_at: new Date().toISOString(),
 			source: 'blockchain',
 			verified_status: 'verified_on_chain',
@@ -888,13 +919,100 @@ async function indexSugarTxid(txid, knownBlock = null) {
 	return records;
 }
 
+function uniqueTxids(txids) {
+	const seen = new Set();
+	const unique = [];
+	for (const txid of txids || []) {
+		const normalized = String(txid || '').trim();
+		if (normalized && !seen.has(normalized)) {
+			seen.add(normalized);
+			unique.push(normalized);
+		}
+	}
+	return unique;
+}
+
+async function mapWithConcurrency(items, limit, mapper) {
+	const results = new Array(items.length);
+	let nextIndex = 0;
+	const workerCount = Math.max(1, Math.min(limit, items.length));
+	async function runWorker() {
+		while (nextIndex < items.length) {
+			const index = nextIndex;
+			nextIndex += 1;
+			results[index] = await mapper(items[index], index);
+		}
+	}
+	await Promise.all(Array.from({ length: workerCount }, runWorker));
+	return results;
+}
+
+async function fetchSugarBlockByHeight(height) {
+	const block = await fetchSugarJson('/height/' + height + '?offset=0', 10000);
+	const txids = Array.isArray(block.tx) ? block.tx.slice() : [];
+	const txcount = Math.max(txids.length, Number(block.txcount || block.nTx || 0));
+	for (let offset = txids.length; offset < txcount; offset += SUGAR_API_TX_PAGE_SIZE) {
+		const page = await fetchSugarJson('/height/' + height + '?offset=' + offset, 10000);
+		if (Array.isArray(page.tx)) {
+			txids.push(...page.tx);
+		}
+	}
+	return {
+		...block,
+		height: block.height != null ? block.height : height,
+		tx: uniqueTxids(txids)
+	};
+}
+
+async function fetchSugarBlockBatch(startHeight, endHeight, allowHeightFallback = false) {
+	const count = Math.max(0, endHeight - startHeight + 1);
+	if (!count) {
+		return { blocks: [], rangeError: null };
+	}
+
+	try {
+		const range = await fetchSugarJson('/range/' + endHeight + '?offset=' + count, 20000);
+		if (Array.isArray(range) && range.length) {
+			const blocks = range
+				.filter(block => block && Number(block.height) >= startHeight && Number(block.height) <= endHeight)
+				.map(block => ({
+					height: Number(block.height),
+					block: {
+						...block,
+						tx: uniqueTxids(Array.isArray(block.tx) ? block.tx : [])
+					}
+				}))
+				.sort((a, b) => a.height - b.height);
+			return { blocks, rangeError: null };
+		}
+		throw new Error('Sugarchain range returned no blocks.');
+	} catch (rangeError) {
+		if (!allowHeightFallback) {
+			return { blocks: [], rangeError };
+		}
+		const heights = [];
+		for (let current = startHeight; current <= endHeight; current++) {
+			heights.push(current);
+		}
+		const blocks = await Promise.all(heights.map(async height => {
+			try {
+				const block = await fetchSugarBlockByHeight(height);
+				return { height, block };
+			} catch (error) {
+				return { height, error };
+			}
+		}));
+		return { blocks, rangeError };
+	}
+}
+
 async function scanLatestSugarBlocks(startHeight, blockCount, word = '', offsetBlocks = 0) {
 	const normalizedWord = normalizeWord(word);
 	const height = Number(await fetchSugarJson('/info').then(info => info.blocks || info.headers || 0));
 	const floor = Math.max(0, Number(startHeight) || 0);
 	const requestedCount = Math.max(1, Number(blockCount) || 80);
 	const offset = Math.max(0, Number(offsetBlocks) || 0);
-	const safeCount = Math.max(1, Math.min(requestedCount, 32));
+	const safeCount = Math.max(1, Math.min(requestedCount, WORKER_LIVE_SCAN_LIMIT));
 	const end = Math.max(floor, height - offset);
 	const start = Math.max(floor + 1, end - safeCount + 1);
 	const summary = {
@@ -915,28 +1033,22 @@ async function scanLatestSugarBlocks(startHeight, blockCount, word = '', offsetB
 	const matches = [];
 
 	if (requestedCount > safeCount) {
-		summary.errors.push({ error: 'Cloudflare live scan capped at ' + safeCount + ' latest blocks for responsiveness.' });
+		summary.errors.push({ error: 'Cloudflare live scan chunk capped at ' + safeCount + ' latest blocks. The browser continues with additional chunks when needed.' });
 	}
 	if (start > end) {
 		return { records: matches, summary };
 	}
 
-	const batchSize = 32;
+	const batchSize = WORKER_RANGE_BATCH_SIZE;
 	for (let batchStart = start; batchStart <= end; batchStart += batchSize) {
 		const batchEnd = Math.min(end, batchStart + batchSize - 1);
-		const heights = [];
-		for (let current = batchStart; current <= batchEnd; current++) {
-			heights.push(current);
+		const batch = await fetchSugarBlockBatch(batchStart, batchEnd, safeCount <= 25);
+		const blocks = batch.blocks;
+		if (batch.rangeError) {
+			summary.errors.push({ start_height: batchStart, end_height: batchEnd, error: 'Range lookup failed; fell back to individual blocks: ' + (batch.rangeError.message || 'Sugarchain range failed.') });
 		}
-		const blocks = await Promise.all(heights.map(async currentHeight => {
-			try {
-				const block = await fetchSugarJson('/height/' + currentHeight);
-				return { height: currentHeight, block };
-			} catch (error) {
-				return { height: currentHeight, error };
-			}
-		}));
 
+		const txJobs = [];
 		for (const item of blocks) {
 			if (item.error) {
 				summary.errors.push({ height: item.height, error: item.error.message || 'Block lookup failed.' });
@@ -946,31 +1058,50 @@ async function scanLatestSugarBlocks(startHeight, blockCount, word = '', offsetB
 			const txids = Array.isArray(block.tx) ? block.tx.slice(1) : [];
 			summary.scanned_blocks += 1;
 			for (const txid of txids) {
-				try {
-					const records = await indexSugarTxid(txid, block);
-					summary.scanned_transactions += 1;
-					summary.checked_txids += 1;
-					summary.indexed_records += records.length;
-					if (records.length) {
-						summary.verified_txids += 1;
-					}
-					for (const record of records) {
-						if (!normalizedWord || record.word === normalizedWord) {
-							matches.push(record);
-							summary.matched_word = record.word;
-						}
-					}
-				} catch (error) {
-					summary.errors.push({ height: item.height, txid, error: error.message || 'Transaction lookup failed.' });
+				txJobs.push({ height: item.height, txid, block });
+			}
+		}
+
+		const txResults = await mapWithConcurrency(txJobs, WORKER_TX_LOOKUP_CONCURRENCY, async job => {
+			try {
+				return {
+					job,
+					records: await indexSugarTxid(job.txid, job.block)
+				};
+			} catch (error) {
+				return { job, error };
+			}
+		});
+
+		for (const result of txResults) {
+			if (!result) {
+				continue;
+			}
+			const job = result.job || {};
+			summary.scanned_transactions += 1;
+			summary.checked_txids += 1;
+			if (result.error) {
+				summary.errors.push({ height: job.height, txid: job.txid, error: result.error.message || 'Transaction lookup failed.' });
+				continue;
+			}
+			const records = result.records || [];
+			summary.indexed_records += records.length;
+			if (records.length) {
+				summary.verified_txids += 1;
+			}
+			for (const record of records) {
+				if (!normalizedWord || record.word === normalizedWord) {
+					matches.push(record);
+					summary.matched_word = record.word;
 				}
 			}
 		}
-		if (matches.length) {
+		if (normalizedWord && matches.length) {
 			break;
 		}
 	}
 
-	summary.errors = summary.errors.slice(0, 10);
+	summary.errors = summary.errors.slice(0, 20);
 	return { records: matches, summary };
 }
 
@@ -980,12 +1111,12 @@ async function handleWordLatest(request) {
 	const filter = url.searchParams.get('filter') || '';
 	if (!workerWordCache.records.length || Date.now() - workerWordCache.scannedAt > 5 * 60 * 1000) {
 		try {
-			const scan = await scanLatestSugarBlocks(42900000, 32);
+			const scan = await scanLatestSugarBlocks(42900000, WORKER_DEFAULT_CACHE_SCAN_BLOCKS);
 			mergeWorkerWordCache(scan.records, scan.summary);
 		} catch (error) {
 			workerWordCache.summary = {
 				enabled: true,
-				requested_blocks: 32,
+				requested_blocks: WORKER_DEFAULT_CACHE_SCAN_BLOCKS,
 				effective_blocks: 0,
 				start_height: 42900000,
 				end_height: 0,
@@ -1024,6 +1155,7 @@ async function handleWordScan(request) {
 			records: result.records
 		});
 	} catch (error) {
+		const cachedRecords = filteredWorkerRecords('all').slice(0, 100);
 		return jsonResponse({
 			enabled: true,
 			requested_blocks: blocks,
@@ -1038,7 +1170,7 @@ async function handleWordScan(request) {
 			scanned_transactions: 0,
 			indexed_records: 0,
 			errors: [{ error: error.message || 'Sugarchain scan unavailable.' }],
-			records: []
+			records: cachedRecords
 		});
 	}
 }
@@ -1070,13 +1202,34 @@ async function handleWordSearch(request) {
 		});
 	}
 
-	const result = await scanLatestSugarBlocks(startHeight, blocks, word);
-	mergeWorkerWordCache(result.records, result.summary);
-	return jsonResponse({
-		records: result.records,
-		decoded_record: null,
-		direct_summary: result.summary
-	});
+	try {
+		const result = await scanLatestSugarBlocks(startHeight, blocks, word);
+		mergeWorkerWordCache(result.records, result.summary);
+		return jsonResponse({
+			records: result.records,
+			decoded_record: null,
+			direct_summary: result.summary
+		});
+	} catch (error) {
+		const cachedMatches = filteredWorkerRecords('all').filter(record => normalizeWord(record.word) === word).slice(0, 50);
+		return jsonResponse({
+			records: cachedMatches,
+			decoded_record: null,
+			direct_summary: {
+				enabled: true,
+				requested_blocks: blocks,
+				effective_blocks: 0,
+				start_height: startHeight,
+				scan_mode: 'latest_after',
+				checked_txids: 0,
+				verified_txids: cachedMatches.length ? cachedMatches.length : 0,
+				scanned_blocks: 0,
+				scanned_transactions: 0,
+				indexed_records: cachedMatches.length,
+				errors: [{ error: error.message || 'Sugarchain scan unavailable.' }]
+			}
+		});
+	}
 }
 
 async function handleWordDetail(request, word) {
@@ -1086,12 +1239,12 @@ async function handleWordDetail(request, word) {
 	}
 	if (!workerWordCache.records.length || Date.now() - workerWordCache.scannedAt > 5 * 60 * 1000) {
 		try {
-			const scan = await scanLatestSugarBlocks(42900000, 32);
+			const scan = await scanLatestSugarBlocks(42900000, WORKER_DEFAULT_CACHE_SCAN_BLOCKS);
 			mergeWorkerWordCache(scan.records, scan.summary);
 		} catch (error) {
 			workerWordCache.summary = {
 				enabled: true,
-				requested_blocks: 32,
+				requested_blocks: WORKER_DEFAULT_CACHE_SCAN_BLOCKS,
 				effective_blocks: 0,
 				start_height: 42900000,
 				end_height: 0,
