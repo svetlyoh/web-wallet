@@ -675,13 +675,7 @@
 				line-height: 1.04;
 				font-weight: 800;
 				margin-bottom: 8px;
-				padding-right: 128px;
 				white-space: nowrap;
-			}
-			.lingry-wallet-open #sugarwords-prompt .ai-ledger-title {
-				font-size: 23px;
-				white-space: normal;
-				max-width: 230px;
 			}
 			.lingry-wallet-open #sugarwords .ai-ledger-subtitle,
 			.lingry-wallet-open #sugarwords-prompt .ai-ledger-subtitle,
@@ -707,9 +701,6 @@
 				flex-wrap: wrap;
 			}
 			.lingry-tool-topline {
-				position: absolute;
-				top: 16px;
-				right: 16px;
 				justify-content: flex-end;
 			}
 			.lingry-tool-tabs {
@@ -882,20 +873,16 @@
 				font-weight: 900;
 				text-transform: lowercase;
 			}
-			.sugarwords-prompt-entry {
-				margin: 12px 14px;
-				border: 1px solid rgba(10, 99, 61, 0.13);
-				border-radius: 18px;
-				background: rgba(255, 255, 255, 0.82);
-				box-shadow: 0 10px 24px rgba(7, 75, 48, 0.08);
-				padding: 12px;
-			}
-			.sugarwords-prompt-hint {
+			.sugarwords-inline-hint {
 				color: #c26b00;
-				font-size: 15px;
+				font-size: 11px;
 				font-weight: 850;
-				line-height: 1.35;
-				margin-bottom: 8px;
+				line-height: 1.3;
+				margin: 8px 0 7px;
+			}
+			.sugarwords-prompt-entry {
+				margin: 12px 14px 8px;
+				padding: 0;
 			}
 			.sugarwords-prompt-entry .sugarwords-editable-label {
 				color: #0b6f46;
@@ -1386,7 +1373,7 @@
 					min-width: 0;
 				}
 				.lingry-tool-topline {
-					justify-content: flex-start;
+					justify-content: flex-end;
 				}
 				.lingry-tool-tabs {
 					display: grid;
@@ -1682,7 +1669,7 @@
 										</div>
 									</div>
 
-									<div id="sugarwords-status" class="alert alert-secondary ai-ledger-status" role="alert">Tap Invent New Word to begin.</div>
+									<div id="sugarwords-status" class="alert alert-secondary ai-ledger-status d-none" role="alert">Tap Invent New Word to begin.</div>
 
 									<div class="ai-ledger-actions">
 										<button id="sugarwords-generate" type="button" class="btn btn-outline-dark">Invent New Word</button>
@@ -1708,6 +1695,7 @@
 											</select>
 											<div class="sugarwords-editable-label">Etymology meaning</div>
 											<textarea id="sugarwords-etymology" class="form-control sugarwords-editor-text" rows="3" maxlength="40"></textarea>
+											<div class="sugarwords-inline-hint">Tap Invent New Word to begin.</div>
 											<div class="ai-ledger-kv sugarwords-status-strip">
 												<div class="label">confidence</div>
 												<div id="sugarwords-confidence" class="value">-</div>
@@ -1792,7 +1780,6 @@
 									<div id="sugarwords-prompt-status" class="alert alert-secondary ai-ledger-status d-none" role="alert">Type a concept and invent a new word from your prompt.</div>
 
 									<div class="sugarwords-prompt-entry">
-										<div class="sugarwords-prompt-hint">Type a concept and invent a new word from your prompt.</div>
 										<div class="sugarwords-editable-label">Prompt for New Word</div>
 										<textarea id="sugarwords-prompt-concept-prompt" class="form-control sugarwords-editor-text mb-2" rows="3" maxlength="500" placeholder="Type a concept and invent a new word from your prompt." onkeydown="event.stopPropagation()" onkeypress="event.stopPropagation()" onkeyup="event.stopPropagation()"></textarea>
 									</div>
@@ -1821,6 +1808,7 @@
 											</select>
 											<div class="sugarwords-editable-label">Etymology meaning</div>
 											<textarea id="sugarwords-prompt-etymology" class="form-control sugarwords-editor-text" rows="3" maxlength="40"></textarea>
+											<div class="sugarwords-inline-hint">Type a concept and invent a new word from your prompt.</div>
 											<div class="ai-ledger-kv sugarwords-status-strip">
 												<div class="label">confidence</div>
 												<div id="sugarwords-prompt-confidence" class="value">-</div>
