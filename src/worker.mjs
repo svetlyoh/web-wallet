@@ -449,8 +449,9 @@ function languageInstructionLines(languageInstruction) {
 }
 
 function buildConceptWordPrompt(concept, languageInstruction = '') {
+	const targetLanguage = languageInstruction ? 'the selected Lingry language' : 'American English';
 	const taskLine = languageInstruction ?
-		'Your job is to create one new word in the requested language for the concept provided below.' :
+		'Your job is to create one new word in the selected Lingry language for the concept provided below.' :
 		'Your job is to create one new English word for the concept provided below.';
 	return [
 		'You are an expert etymologist, lexicographer, and wordsmith.',
@@ -465,18 +466,20 @@ function buildConceptWordPrompt(concept, languageInstruction = '') {
 		'',
 		'* First, understand the concept.',
 		'* Silently generate 5 possible new words.',
-		'* Use plausible roots or sounds from English, Latin, Greek, Germanic, Romance, French, German, Old English, or Old Norse.',
-		'* Silently check whether each word already exists as a common English word, known term, or obvious trademark.',
+		'* Use plausible roots, sounds, word-building patterns, and cultural tone from ' + targetLanguage + '.',
+		'* Silently check whether each word already exists as a common word, known term, or obvious trademark in ' + targetLanguage + '.',
 		'* Reject words that already exist or strongly conflict with existing words.',
-		'* Pick the best word based on clarity, memorability, natural English sound, etymological consistency, and likelihood of adoption.',
+		'* Pick the best word based on clarity, memorability, natural sound in ' + targetLanguage + ', etymological consistency, and likelihood of adoption.',
 		'* Return only the winning word and its dictionary entry.',
+		'* The Generated Word, Meaning, and Etymology Meaning values must all be written in ' + targetLanguage + '.',
+		'* Keep the section headings in English exactly as shown below.',
 		'* Do not show the 5 candidate words.',
 		'* Do not explain your selection process.',
 		'* Do not include examples.',
 		'* Do not include notes.',
 		'* Be succinct in both Meaning and Etymology Meaning.',
-		'* Keep Meaning to 65 ASCII characters or fewer, counting spaces and punctuation.',
-		'* Keep Etymology Meaning to 40 ASCII characters or fewer.',
+		'* Keep Meaning to 65 characters or fewer, counting spaces and punctuation.',
+		'* Keep Etymology Meaning to 40 characters or fewer.',
 		'* Both Meaning and Etymology Meaning must fit within their character limits before you return the answer.',
 		'* If either field is too long, rewrite it shorter instead of exceeding the limit.',
 		'',
@@ -492,19 +495,20 @@ function buildConceptWordPrompt(concept, languageInstruction = '') {
 		'',
 		'Meaning',
 		'',
-		'[succinct dictionary definition, 65 ASCII characters or fewer including spaces and punctuation]',
+		'[succinct dictionary definition in ' + targetLanguage + ', 65 characters or fewer including spaces and punctuation]',
 		'',
 		'Etymology Meaning',
 		'',
-		'[succinct origin/construction explanation, 40 ASCII characters or fewer]'
+		'[succinct origin/construction explanation in ' + targetLanguage + ', 40 characters or fewer]'
 	].join('\n');
 }
 
 function buildRandomWordPrompt(usedWords, usedMeanings, languageInstruction = '') {
 	const usedList = Array.from(usedWords).join(', ') || 'none';
 	const recentMeanings = usedMeanings.length ? usedMeanings.join(' | ') : 'none';
+	const targetLanguage = languageInstruction ? 'the selected Lingry language' : 'American English';
 	const taskLine = languageInstruction ?
-		'Randomly identify a useful concept, action, feeling, object, situation, or phenomenon that the requested language lacks a concise word for. Then create one new word in that language for it.' :
+		'Randomly identify a useful concept, action, feeling, object, situation, or phenomenon that the selected Lingry language lacks a concise word for. Then create one new word in that language for it.' :
 		'Randomly identify a useful concept, action, feeling, object, situation, or phenomenon that English lacks a concise word for. Then create one new English word for it.';
 	return [
 		'You are an expert etymologist, lexicographer, and wordsmith.',
@@ -521,12 +525,12 @@ function buildRandomWordPrompt(usedWords, usedMeanings, languageInstruction = ''
 		'',
 		'Process silently:',
 		'',
-		'1. Choose a concept that feels useful, vivid, and genuinely missing from ordinary English.',
+		'1. Choose a concept that feels useful, vivid, and genuinely missing from ' + targetLanguage + '.',
 		'2. Generate 5 candidate words for that concept.',
-		'3. Use roots, sounds, or word-building patterns from English, Latin, German, French, Old Norse, Old English, Greek, or other related European languages.',
-		'4. Check from your knowledge whether each candidate already exists as a common English word, known term, or obvious trademark. Reject conflicts.',
+		'3. Use roots, sounds, word-building patterns, and cultural tone from ' + targetLanguage + '.',
+		'4. Check from your knowledge whether each candidate already exists as a common word, known term, or obvious trademark in ' + targetLanguage + '. Reject conflicts.',
 		'5. Estimate a newness confidence score from 0.00 to 1.00, where 1.00 means you are highly confident the word is not already an established English word.',
-		'6. Pick the best candidate based on clarity, memorability, natural English sound, etymological consistency, usefulness, likelihood of adoption, and newness confidence.',
+		'6. Pick the best candidate based on clarity, memorability, natural sound in ' + targetLanguage + ', etymological consistency, usefulness, likelihood of adoption, and newness confidence.',
 		'7. Output only the winning word.',
 		'',
 		'Return exactly this format:',
@@ -541,11 +545,11 @@ function buildRandomWordPrompt(usedWords, usedMeanings, languageInstruction = ''
 		'',
 		'Meaning',
 		'',
-		'[succinct dictionary definition, 65 ASCII characters or fewer including spaces and punctuation]',
+		'[succinct dictionary definition in ' + targetLanguage + ', 65 characters or fewer including spaces and punctuation]',
 		'',
 		'Etymology Meaning',
 		'',
-		'[succinct origin/construction explanation, 40 ASCII characters or fewer]',
+		'[succinct origin/construction explanation in ' + targetLanguage + ', 40 characters or fewer]',
 		'',
 		'Newness Confidence',
 		'',
@@ -560,13 +564,15 @@ function buildRandomWordPrompt(usedWords, usedMeanings, languageInstruction = ''
 		'* Do not include literal meaning.',
 		'* Do not ask the user for a concept.',
 		'* Invent the concept yourself each time.',
+		'* The Generated Word, Meaning, and Etymology Meaning values must all be written in ' + targetLanguage + '.',
+		'* Keep the section headings in English exactly as shown above.',
 		'* Be succinct in both Meaning and Etymology Meaning.',
-		'* Keep Meaning to 65 ASCII characters or fewer, counting spaces and punctuation.',
-		'* Keep Etymology Meaning to 40 ASCII characters or fewer.',
+		'* Keep Meaning to 65 characters or fewer, counting spaces and punctuation.',
+		'* Keep Etymology Meaning to 40 characters or fewer.',
 		'* Both Meaning and Etymology Meaning must fit within their character limits before you return the answer.',
 		'* If either field is too long, rewrite it shorter instead of exceeding the limit.',
-		'* Prefer compact, memorable words that sound natural in English.',
-		'* Avoid existing common English words and obvious trademarks.',
+		'* Prefer compact, memorable words that sound natural in ' + targetLanguage + '.',
+		'* Avoid existing common words and obvious trademarks in ' + targetLanguage + '.',
 		'* If the best candidate conflicts with an existing common word, discard it and choose another.',
 		'* Use confidence format like 0.92, meaning 92% confidence.'
 	].join('\n');

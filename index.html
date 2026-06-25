@@ -3116,10 +3116,7 @@
 
 			function lingryLanguageInstruction(language) {
 				language = language || getLingrySelectedLanguage()
-				if (language.code == 'W') {
-					return ''
-				}
-				return 'Return the generated word, meaning, and etymology in ' + language.prompt + '. Keep the output lowercase ASCII where a word is required, and avoid accents or non-Latin scripts so the word can be coined.'
+				return 'The selected Lingry language is ' + language.prompt + '. Return the Generated Word, Meaning, and Etymology Meaning in ' + language.prompt + '. The section headings must stay exactly as requested. The Generated Word must be a coined word that belongs naturally to ' + language.prompt + '; use lowercase ASCII letters for the coined word so it can be coined. Meaning and Etymology Meaning must be written in ' + language.prompt + ' too.'
 			}
 
 			function lingryLanguageFlagHtml(record) {
