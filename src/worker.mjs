@@ -2,13 +2,18 @@ import bitcoin from 'bitcoinjs-lib';
 import { Buffer } from 'node:buffer';
 
 const MINI_MAX_MODEL = 'MiniMax-M3';
-const SUGAR_API_BASE = 'https://api.sugar.wtf';
+const SUGAR_API_BASES = ['https://api.sugar.wtf', 'https://api.sugarchain.org'];
 const SUGAR_DECIMALS = 8;
 const FAUCET_AMOUNT_SATOSHIS = 2500000;
 const FAUCET_MINIMUM_BALANCE_SATOSHIS = 1000000;
 const FAUCET_FEE_SATOSHIS = 1000;
 const FAUCET_DEFAULT_ADDRESS = 'sugar1q39n666w687nxm9x98tx5kgw2uvk780gtmd6yyu';
 const faucetAttempts = new Map();
+const workerWordCache = {
+	records: [],
+	scannedAt: 0,
+	summary: null
+};
 const sugarNetwork = {
 	messagePrefix: '\x19Sugarchain Signed Message:\n',
 	bip32: {
@@ -292,6 +297,45 @@ function recordFromPayloadHex(payloadHex) {
 		...parsed,
 		op_return_hex: normalized
 	};
+}
+
+function recordCacheKey(record) {
+	return record.txid || record.op_return_hex || record.op_return_payload || record.word || '';
+}
+
+function mergeWorkerWordCache(records, summary) {
+	const merged = new Map();
+	for (const record of workerWordCache.records || []) {
+		merged.set(recordCacheKey(record), record);
+	}
+	for (const record of records || []) {
+		merged.set(recordCacheKey(record), record);
+	}
+	workerWordCache.records = Array.from(merged.values())
+		.sort((a, b) => Number(b.block_height || 0) - Number(a.block_height || 0))
+		.slice(0, 250);
+	workerWordCache.scannedAt = Date.now();
+	workerWordCache.summary = summary || workerWordCache.summary;
+	return workerWordCache.records;
+}
+
+function filteredWorkerRecords(filter) {
+	let records = (workerWordCache.records || []).slice();
+	if (filter === 'verified') {
+		records = records.filter(record => record.verified_status === 'verified_on_chain');
+	}
+	if (filter === 'duplicates') {
+		const seen = new Set();
+		records = records.filter(record => {
+			const word = normalizeWord(record.word);
+			if (!word || !seen.has(word)) {
+				seen.add(word);
+				return false;
+			}
+			return true;
+		});
+	}
+	return records;
 }
 
 function validateGeneratedWord(candidate, usedWords) {
@@ -590,51 +634,53 @@ async function handleGenerateWord(request, env, forcedGenerationMode) {
 }
 
 async function fetchSugarJson(path, timeoutMs = 8000) {
-	const controller = new AbortController();
-	const timeout = setTimeout(() => controller.abort(), timeoutMs);
-	try {
-		const response = await fetch(SUGAR_API_BASE + path, { signal: controller.signal });
-		const json = await response.json().catch(() => null);
-		if (!response.ok || !json || json.error) {
-			const message = json && json.error && json.error.message ? json.error.message : 'Sugarchain API request failed.';
-			throw new Error(message);
+	let lastError = null;
+	for (const base of SUGAR_API_BASES) {
+		const controller = new AbortController();
+		const timeout = setTimeout(() => controller.abort(), timeoutMs);
+		try {
+			const response = await fetch(base + path, { signal: controller.signal });
+			const json = await response.json().catch(() => null);
+			if (!response.ok || !json || json.error) {
+				const message = json && json.error && json.error.message ? json.error.message : 'Sugarchain API request failed.';
+				throw new Error(message);
+			}
+			return json.result;
+		} catch (error) {
+			lastError = error && error.name === 'AbortError' ? new Error('Sugarchain API request timed out.') : error;
+		} finally {
+			clearTimeout(timeout);
 		}
-		return json.result;
-	} catch (error) {
-		if (error && error.name === 'AbortError') {
-			throw new Error('Sugarchain API request timed out.');
-		}
-		throw error;
-	} finally {
-		clearTimeout(timeout);
 	}
+	throw lastError || new Error('Sugarchain API request failed.');
 }
 
 async function postSugarForm(path, body, timeoutMs = 15000) {
-	const controller = new AbortController();
-	const timeout = setTimeout(() => controller.abort(), timeoutMs);
-	try {
-		const response = await fetch(SUGAR_API_BASE + path, {
-			method: 'POST',
-			headers: {
-				'content-type': 'application/x-www-form-urlencoded'
-			},
-			body: new URLSearchParams(body),
-			signal: controller.signal
-		});
-		const json = await response.json().catch(() => null);
-		if (!response.ok || !json) {
-			throw new Error('Sugarchain API request failed.');
+	let lastError = null;
+	for (const base of SUGAR_API_BASES) {
+		const controller = new AbortController();
+		const timeout = setTimeout(() => controller.abort(), timeoutMs);
+		try {
+			const response = await fetch(base + path, {
+				method: 'POST',
+				headers: {
+					'content-type': 'application/x-www-form-urlencoded'
+				},
+				body: new URLSearchParams(body),
+				signal: controller.signal
+			});
+			const json = await response.json().catch(() => null);
+			if (!response.ok || !json) {
+				throw new Error('Sugarchain API request failed.');
+			}
+			return json;
+		} catch (error) {
+			lastError = error && error.name === 'AbortError' ? new Error('Sugarchain API request timed out.') : error;
+		} finally {
+			clearTimeout(timeout);
 		}
-		return json;
-	} catch (error) {
-		if (error && error.name === 'AbortError') {
-			throw new Error('Sugarchain API request timed out.');
-		}
-		throw error;
-	} finally {
-		clearTimeout(timeout);
 	}
+	throw lastError || new Error('Sugarchain API request failed.');
 }
 
 async function getAddressBalanceSatoshis(address) {
@@ -822,15 +868,17 @@ async function indexSugarTxid(txid, knownBlock = null) {
 	return records;
 }
 
-async function scanLatestSugarBlocksForWord(word, startHeight, blockCount) {
+async function scanLatestSugarBlocks(startHeight, blockCount, word = '') {
 	const normalizedWord = normalizeWord(word);
 	const height = Number(await fetchSugarJson('/info').then(info => info.blocks || info.headers || 0));
 	const floor = Math.max(0, Number(startHeight) || 0);
-	const safeCount = Math.max(1, Math.min(Number(blockCount) || 40, 40));
+	const requestedCount = Math.max(1, Number(blockCount) || 80);
+	const safeCount = Math.max(1, Math.min(requestedCount, 32));
 	const start = Math.max(floor + 1, height - safeCount + 1);
 	const summary = {
 		enabled: true,
-		requested_blocks: safeCount,
+		requested_blocks: requestedCount,
+		effective_blocks: safeCount,
 		start_height: floor,
 		end_height: height,
 		scan_mode: 'latest_after',
@@ -843,7 +891,10 @@ async function scanLatestSugarBlocksForWord(word, startHeight, blockCount) {
 	};
 	const matches = [];
 
-	if (!normalizedWord || start > height) {
+	if (requestedCount > safeCount) {
+		summary.errors.push({ error: 'Cloudflare live scan capped at ' + safeCount + ' latest blocks for responsiveness.' });
+	}
+	if (start > height) {
 		return { records: matches, summary };
 	}
 
@@ -881,7 +932,7 @@ async function scanLatestSugarBlocksForWord(word, startHeight, blockCount) {
 						summary.verified_txids += 1;
 					}
 					for (const record of records) {
-						if (record.word === normalizedWord) {
+						if (!normalizedWord || record.word === normalizedWord) {
 							matches.push(record);
 							summary.matched_word = record.word;
 						}
@@ -898,6 +949,72 @@ async function scanLatestSugarBlocksForWord(word, startHeight, blockCount) {
 
 	summary.errors = summary.errors.slice(0, 10);
 	return { records: matches, summary };
+}
+
+async function handleWordLatest(request) {
+	const url = new URL(request.url);
+	const limit = Math.max(1, Math.min(Number(url.searchParams.get('limit')) || 50, 100));
+	const filter = url.searchParams.get('filter') || '';
+	if (!workerWordCache.records.length || Date.now() - workerWordCache.scannedAt > 5 * 60 * 1000) {
+		try {
+			const scan = await scanLatestSugarBlocks(42900000, 32);
+			mergeWorkerWordCache(scan.records, scan.summary);
+		} catch (error) {
+			workerWordCache.summary = {
+				enabled: true,
+				requested_blocks: 32,
+				effective_blocks: 0,
+				start_height: 42900000,
+				end_height: 0,
+				scan_mode: 'latest_after',
+				checked_txids: 0,
+				verified_txids: 0,
+				scanned_blocks: 0,
+				scanned_transactions: 0,
+				indexed_records: 0,
+				errors: [{ error: error.message || 'Sugarchain scan unavailable.' }]
+			};
+		}
+	}
+	return jsonResponse({
+		records: filteredWorkerRecords(filter).slice(0, limit),
+		scan_summary: workerWordCache.summary
+	});
+}
+
+async function handleWordScan(request) {
+	if (request.method !== 'POST') {
+		return jsonResponse({ error: 'Method not allowed.' }, 405);
+	}
+	let startHeight = 42900000;
+	let blocks = 120;
+	try {
+		const body = await request.json().catch(() => ({}));
+		startHeight = Number(body.start_height) || startHeight;
+		blocks = Number(body.blocks) || blocks;
+		const result = await scanLatestSugarBlocks(startHeight, blocks);
+		mergeWorkerWordCache(result.records, result.summary);
+		return jsonResponse({
+			...result.summary,
+			records: result.records
+		});
+	} catch (error) {
+		return jsonResponse({
+			enabled: true,
+			requested_blocks: blocks,
+			effective_blocks: 0,
+			start_height: startHeight,
+			end_height: 0,
+			scan_mode: 'latest_after',
+			checked_txids: 0,
+			verified_txids: 0,
+			scanned_blocks: 0,
+			scanned_transactions: 0,
+			indexed_records: 0,
+			errors: [{ error: error.message || 'Sugarchain scan unavailable.' }],
+			records: []
+		});
+	}
 }
 
 async function handleWordSearch(request) {
@@ -927,12 +1044,84 @@ async function handleWordSearch(request) {
 		});
 	}
 
-	const result = await scanLatestSugarBlocksForWord(word, startHeight, blocks);
+	const result = await scanLatestSugarBlocks(startHeight, blocks, word);
+	mergeWorkerWordCache(result.records, result.summary);
 	return jsonResponse({
 		records: result.records,
 		decoded_record: null,
 		direct_summary: result.summary
 	});
+}
+
+async function handleWordDetail(request, word) {
+	const normalizedWord = normalizeWord(word);
+	if (!normalizedWord) {
+		return jsonResponse({ error: 'Word is required.' }, 400);
+	}
+	if (!workerWordCache.records.length || Date.now() - workerWordCache.scannedAt > 5 * 60 * 1000) {
+		try {
+			const scan = await scanLatestSugarBlocks(42900000, 32);
+			mergeWorkerWordCache(scan.records, scan.summary);
+		} catch (error) {
+			workerWordCache.summary = {
+				enabled: true,
+				requested_blocks: 32,
+				effective_blocks: 0,
+				start_height: 42900000,
+				end_height: 0,
+				scan_mode: 'latest_after',
+				checked_txids: 0,
+				verified_txids: 0,
+				scanned_blocks: 0,
+				scanned_transactions: 0,
+				indexed_records: 0,
+				errors: [{ error: error.message || 'Sugarchain scan unavailable.' }]
+			};
+		}
+	}
+	const claims = workerWordCache.records.filter(record => normalizeWord(record.word) === normalizedWord);
+	const first = claims[0] || null;
+	if (!first) {
+		return jsonResponse({
+			word: normalizedWord,
+			first_seen: null,
+			claims: [],
+			related: []
+		}, 404);
+	}
+	const related = workerWordCache.records
+		.filter(record => normalizeWord(record.word) !== normalizedWord)
+		.filter(record => normalizeWord(record.part_of_speech) === normalizeWord(first.part_of_speech))
+		.slice(0, 8);
+	return jsonResponse({
+		word: normalizedWord,
+		first_seen: first,
+		claims,
+		related
+	});
+}
+
+async function handleTxWord(request, txid) {
+	try {
+		const records = await indexSugarTxid(txid);
+		if (records.length) {
+			mergeWorkerWordCache(records, {
+				enabled: true,
+				requested_blocks: 0,
+				start_height: null,
+				scan_mode: 'txid',
+				checked_txids: 1,
+				verified_txids: 1,
+				scanned_blocks: 0,
+				scanned_transactions: 1,
+				indexed_records: records.length,
+				errors: []
+			});
+		}
+		return jsonResponse({ records });
+	} catch (error) {
+		return jsonResponse({ error: error.message || 'Transaction lookup failed.' }, 400);
+	}
 }
 
 export default {
@@ -947,8 +1136,22 @@ export default {
 		if (url.pathname === '/api/faucet/fund') {
 			return handleFaucetFund(request, env);
 		}
+		if (url.pathname === '/api/words/latest') {
+			return handleWordLatest(request);
+		}
+		if (url.pathname === '/api/words/scan') {
+			return handleWordScan(request);
+		}
 		if (url.pathname === '/api/words/search') {
 			return handleWordSearch(request);
+		}
+		if (url.pathname.startsWith('/api/words/')) {
+			const word = decodeURIComponent(url.pathname.slice('/api/words/'.length));
+			return handleWordDetail(request, word);
+		}
+		if (url.pathname.startsWith('/api/tx/') && url.pathname.endsWith('/word')) {
+			const txid = decodeURIComponent(url.pathname.slice('/api/tx/'.length, -'/word'.length));
+			return handleTxWord(request, txid);
 		}
 		return env.ASSETS.fetch(request);
 	}
