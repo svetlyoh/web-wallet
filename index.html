@@ -355,24 +355,6 @@
 				padding-right: 78px;
 				margin-bottom: 16px;
 			}
-			.lingry-stream-account {
-				position: relative;
-				z-index: 1;
-				display: inline-flex;
-				align-items: center;
-				max-width: 100%;
-				margin: -4px 0 12px;
-				border: 1px solid rgba(255, 253, 244, 0.22);
-				border-radius: 999px;
-				background: rgba(255, 253, 244, 0.13);
-				color: rgba(255, 253, 244, 0.9);
-				font-size: 12px;
-				font-weight: 800;
-				padding: 6px 10px;
-				overflow: hidden;
-				text-overflow: ellipsis;
-				white-space: nowrap;
-			}
 			.lingry-identity-chip {
 				min-width: 72px;
 				justify-content: center;
@@ -617,9 +599,7 @@
 			}
 			.lingry-public-tool:not(.lingry-signed-in) #lingry-stream-balance,
 			.lingry-public-tool:not(.lingry-signed-in) #lingry-logout,
-			.lingry-public-tool:not(.lingry-signed-in) #lingry-stream-account,
 			.lingry-public-tool:not(.lingry-signed-in) .lingry-tool-logout,
-			.lingry-public-tool:not(.lingry-signed-in) .lingry-tool-topline .lingry-identity-chip,
 			.lingry-public-tool:not(.lingry-signed-in) [data-lingry-tab="wallet-send"],
 			.lingry-public-tool:not(.lingry-signed-in) [data-lingry-tab="wallet-keys"],
 			.lingry-public-tool:not(.lingry-signed-in) [data-lingry-history] {
@@ -691,6 +671,13 @@
 				gap: 9px;
 				min-width: 0;
 				width: 100%;
+				order: 0;
+			}
+			.lingry-tool-heading {
+				order: 1;
+			}
+			.lingry-tool-tabs {
+				order: 2;
 			}
 			.lingry-tool-topline,
 			.lingry-tool-tabs {
@@ -707,7 +694,7 @@
 				display: grid;
 				grid-template-columns: repeat(2, minmax(0, 1fr));
 				width: 100%;
-				margin-top: 4px;
+				margin-top: 0;
 			}
 			.lingry-wallet-open #sugarwords .ai-ledger-badge,
 			.lingry-wallet-open #sugarwords-prompt .ai-ledger-badge,
@@ -1513,12 +1500,11 @@
 												</div>
 											</div>
 											<button type="button" id="lingry-stream-balance" class="lingry-stream-balance lingry-identity-chip" aria-label="Refresh account">
-												<span id="lingry-stream-balance-amount" class="lingry-balance-amount">--------</span>
+												<span id="lingry-stream-balance-amount" class="lingry-balance-amount">Guest</span>
 												<span id="lingry-stream-balance-ticker" class="lingry-balance-ticker d-none">SUGAR</span>
 											</button>
 											<button type="button" id="lingry-menu-toggle" class="lingry-menu-toggle lingry-stream-menu-icon" aria-label="Menu" title="Menu" aria-expanded="false" aria-controls="lingry-stream-menu">&#9776;</button>
 											<button type="button" id="lingry-logout" class="lingry-logout-button" data-lingry-logout="true" aria-label="Logout" title="Logout"><span aria-hidden="true">&#8618;</span></button>
-											<div id="lingry-stream-account" class="lingry-stream-account d-none"></div>
 											<div class="lingry-stream-title">New words in the stream</div>
 											<div class="lingry-stream-subtitle">Read coined words, meanings, and recent word activity.</div>
 											<div class="lingry-stream-actions">
@@ -1652,20 +1638,20 @@
 							<div class="tab-item d-none" data-tab="wallet-sugarwords">
 								<div id="sugarwords" class="ai-ledger">
 									<div class="ai-ledger-header">
-										<div>
-											<div class="ai-ledger-title">AI Generate</div>
-											<div id="sugarwords-wisdom" class="ai-ledger-subtitle">Tiny words can carry suspiciously large ladders.</div>
-										</div>
 										<div class="lingry-tool-nav">
 											<div class="lingry-tool-topline">
-												<div id="sugarwords-network" class="ai-ledger-badge lingry-identity-chip"><span class="lingry-tool-balance-amount">--------</span><span class="lingry-tool-balance-ticker d-none">SUGAR</span></div>
+												<div id="sugarwords-network" class="ai-ledger-badge lingry-identity-chip"><span class="lingry-tool-balance-amount">Guest</span><span class="lingry-tool-balance-ticker d-none">SUGAR</span></div>
 												<button type="button" class="lingry-tool-stream lingry-tool-icon" data-lingry-open-menu="true" aria-label="Menu" title="Menu">&#9776;</button>
 												<button type="button" class="lingry-tool-logout" data-lingry-logout="true" aria-label="Logout" title="Logout"><span aria-hidden="true">&#8618;</span></button>
 											</div>
-											<div class="lingry-tool-tabs">
-												<button type="button" class="lingry-tool-stream" data-lingry-tab="wallet-balance">Stream</button>
-												<button type="button" class="lingry-tool-stream" data-lingry-tab="wallet-sugarwords-prompt">Prompt for New Word</button>
-											</div>
+										</div>
+										<div class="lingry-tool-heading">
+											<div class="ai-ledger-title">AI Generate</div>
+											<div id="sugarwords-wisdom" class="ai-ledger-subtitle">Tiny words can carry suspiciously large ladders.</div>
+										</div>
+										<div class="lingry-tool-tabs">
+											<button type="button" class="lingry-tool-stream" data-lingry-tab="wallet-balance">Stream</button>
+											<button type="button" class="lingry-tool-stream" data-lingry-tab="wallet-sugarwords-prompt">Prompt for New Word</button>
 										</div>
 									</div>
 
@@ -1760,20 +1746,20 @@
 							<div class="tab-item d-none" data-tab="wallet-sugarwords-prompt">
 								<div id="sugarwords-prompt" class="ai-ledger">
 									<div class="ai-ledger-header">
-										<div>
-											<div class="ai-ledger-title">Prompt for New Word</div>
-											<div id="sugarwords-prompt-wisdom" class="ai-ledger-subtitle">A good word is a tiny handle on a slippery thought.</div>
-										</div>
 										<div class="lingry-tool-nav">
 											<div class="lingry-tool-topline">
-												<div id="sugarwords-prompt-network" class="ai-ledger-badge lingry-identity-chip"><span class="lingry-tool-balance-amount">--------</span><span class="lingry-tool-balance-ticker d-none">SUGAR</span></div>
+												<div id="sugarwords-prompt-network" class="ai-ledger-badge lingry-identity-chip"><span class="lingry-tool-balance-amount">Guest</span><span class="lingry-tool-balance-ticker d-none">SUGAR</span></div>
 												<button type="button" class="lingry-tool-stream lingry-tool-icon" data-lingry-open-menu="true" aria-label="Menu" title="Menu">&#9776;</button>
 												<button type="button" class="lingry-tool-logout" data-lingry-logout="true" aria-label="Logout" title="Logout"><span aria-hidden="true">&#8618;</span></button>
 											</div>
-											<div class="lingry-tool-tabs">
-												<button type="button" class="lingry-tool-stream" data-lingry-tab="wallet-balance">Stream</button>
-												<button type="button" class="lingry-tool-stream" data-lingry-tab="wallet-sugarwords">AI Generate</button>
-											</div>
+										</div>
+										<div class="lingry-tool-heading">
+											<div class="ai-ledger-title">Prompt for New Word</div>
+											<div id="sugarwords-prompt-wisdom" class="ai-ledger-subtitle">A good word is a tiny handle on a slippery thought.</div>
+										</div>
+										<div class="lingry-tool-tabs">
+											<button type="button" class="lingry-tool-stream" data-lingry-tab="wallet-balance">Stream</button>
+											<button type="button" class="lingry-tool-stream" data-lingry-tab="wallet-sugarwords">AI Generate</button>
 										</div>
 									</div>
 
@@ -2308,10 +2294,6 @@
 				var address = globalData.address || ''
 				var shortAddress = address ? address.slice(-8) : ''
 				$('body').toggleClass('lingry-signed-in', !!address)
-				$('#lingry-stream-account')
-					.toggleClass('d-none', !address)
-					.attr('title', address)
-					.text(shortAddress)
 			}
 
 			function openLingryWalletTab(tabName) {
@@ -2990,7 +2972,7 @@
 			}
 
 			function updateLingryBalanceLabels(balanceText, tickerText) {
-				var shortAddress = globalData.address ? globalData.address.slice(-8) : '--------'
+				var shortAddress = globalData.address ? globalData.address.slice(-8) : 'Guest'
 				$('#lingry-stream-balance-amount').text(shortAddress)
 				$('#lingry-stream-balance-ticker').text('')
 				$('.lingry-tool-balance-amount').text(shortAddress)
