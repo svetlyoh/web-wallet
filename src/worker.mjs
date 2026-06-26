@@ -14,10 +14,19 @@ const WORKER_LIVE_SCAN_LIMIT = 500;
 const WORKER_DEFAULT_CACHE_SCAN_BLOCKS = 500;
 const WORKER_RANGE_BATCH_SIZE = 100;
 const WORKER_TX_LOOKUP_CONCURRENCY = 8;
+const LINGRY_WORD_START_HEIGHT = 42900000;
+const LINGRY_LEADERBOARD_REFRESH_MS = 3 * 60 * 60 * 1000;
+const LINGRY_LEADERBOARD_RECENT_BLOCKS = 2500;
+const LINGRY_LEADERBOARD_SCAN_CHUNK_BLOCKS = 500;
 const faucetAttempts = new Map();
 const workerWordCache = {
 	records: [],
 	scannedAt: 0,
+	summary: null
+};
+const lingryLeaderboardRefreshState = {
+	lastRefresh: 0,
+	running: null,
 	summary: null
 };
 let lingrySocialDbReady = false;
@@ -646,6 +655,206 @@ async function handleLingrySocialTip(request, env) {
 	return jsonResponse({
 		enabled: true,
 		items: await lingrySocialSummaryForTxids(env, [wordTxid], fromAddress)
+	});
+}
+
+function emptyLingryLeaderboardSummary(error = '') {
+	return {
+		enabled: true,
+		start_height: LINGRY_WORD_START_HEIGHT,
+		refresh_blocks: LINGRY_LEADERBOARD_RECENT_BLOCKS,
+		block_seconds: 5,
+		expected_three_hour_blocks: Math.ceil((3 * 60 * 60) / 5),
+		refreshed_at: lingryLeaderboardRefreshState.lastRefresh ? new Date(lingryLeaderboardRefreshState.lastRefresh).toISOString() : '',
+		refreshing: Boolean(lingryLeaderboardRefreshState.running),
+		scanned_blocks: 0,
+		scanned_transactions: 0,
+		indexed_records: 0,
+		errors: error ? [{ error }] : []
+	};
+}
+
+async function refreshLingryLeaderboardIndex(env) {
+	if (!(await ensureLingrySocialDb(env))) {
+		lingryLeaderboardRefreshState.summary = emptyLingryLeaderboardSummary('Lingry social database is not configured.');
+		return lingryLeaderboardRefreshState.summary;
+	}
+	if (lingryLeaderboardRefreshState.running) {
+		return lingryLeaderboardRefreshState.running;
+	}
+	lingryLeaderboardRefreshState.running = (async () => {
+		const summary = emptyLingryLeaderboardSummary();
+		summary.started_at = new Date().toISOString();
+		for (let offset = 0; offset < LINGRY_LEADERBOARD_RECENT_BLOCKS; offset += LINGRY_LEADERBOARD_SCAN_CHUNK_BLOCKS) {
+			const blocks = Math.min(LINGRY_LEADERBOARD_SCAN_CHUNK_BLOCKS, LINGRY_LEADERBOARD_RECENT_BLOCKS - offset);
+			try {
+				const result = await scanLatestSugarBlocks(LINGRY_WORD_START_HEIGHT, blocks, '', offset);
+				const scan = result.summary || {};
+				mergeWorkerWordCache(result.records, scan);
+				await persistLingrySocialWords(env, result.records);
+				summary.scanned_blocks += Number(scan.scanned_blocks || scan.effective_blocks || 0);
+				summary.scanned_transactions += Number(scan.scanned_transactions || 0);
+				summary.indexed_records += Number(scan.indexed_records || (result.records || []).length || 0);
+				summary.end_height = Math.max(Number(summary.end_height || 0), Number(scan.end_height || 0));
+				if (Array.isArray(scan.errors) && scan.errors.length) {
+					summary.errors.push(...scan.errors.slice(0, 4));
+				}
+			} catch (error) {
+				summary.errors.push({ offset_blocks: offset, error: error.message || 'Recent leaderboard scan failed.' });
+			}
+		}
+		summary.errors = summary.errors.slice(0, 20);
+		summary.refreshed_at = new Date().toISOString();
+		summary.refreshing = false;
+		lingryLeaderboardRefreshState.lastRefresh = Date.now();
+		lingryLeaderboardRefreshState.summary = summary;
+		return summary;
+	})();
+	try {
+		return await lingryLeaderboardRefreshState.running;
+	} finally {
+		lingryLeaderboardRefreshState.running = null;
+	}
+}
+
+function mapLeaderboardWordRow(row) {
+	const tipsSatoshis = Number(row.tips_satoshis || 0);
+	return {
+		txid: row.txid || '',
+		word: row.word || '',
+		meaning: row.meaning || '',
+		etymology_meaning: row.etymology_meaning || '',
+		language_code: row.language_code || 'W',
+		part_of_speech: row.part_of_speech || '',
+		creator_address: row.creator_address || '',
+		block_height: row.block_height,
+		tx_time: row.tx_time || '',
+		op_return_payload: row.op_return_payload || '',
+		likes: Number(row.likes || 0),
+		tips_count: Number(row.tips_count || 0),
+		tips_satoshis: tipsSatoshis,
+		tips_amount: sugarAmount(tipsSatoshis),
+		popularity_score: Number(row.popularity_score || 0)
+	};
+}
+
+function mapLeaderboardAddressRow(row) {
+	const tipsSatoshis = Number(row.tips_satoshis || 0);
+	return {
+		address: row.address || '',
+		words_count: Number(row.words_count || 0),
+		likes_received: Number(row.likes_received || 0),
+		tips_count: Number(row.tips_count || 0),
+		tips_satoshis: tipsSatoshis,
+		tips_amount: sugarAmount(tipsSatoshis),
+		popularity_score: Number(row.popularity_score || 0)
+	};
+}
+
+async function readLingryLeaderboard(env, limit = 25) {
+	if (!(await ensureLingrySocialDb(env))) {
+		return {
+			enabled: false,
+			words: [],
+			addresses_by_likes: [],
+			addresses_by_tips: [],
+			addresses_by_words: []
+		};
+	}
+	const safeLimit = Math.max(5, Math.min(Number(limit) || 25, 50));
+	const wordRows = await env.LINGRY_DB.prepare(`
+		WITH likes AS (
+			SELECT word_txid, COUNT(*) AS likes
+			FROM lingry_likes
+			GROUP BY word_txid
+		),
+		tips AS (
+			SELECT word_txid, COUNT(*) AS tips_count, COALESCE(SUM(amount_satoshis), 0) AS tips_satoshis
+			FROM lingry_tips
+			GROUP BY word_txid
+		)
+		SELECT w.txid, w.word, w.meaning, w.etymology_meaning, w.language_code, w.part_of_speech,
+			w.creator_address, w.block_height, w.tx_time, w.op_return_payload,
+			COALESCE(l.likes, 0) AS likes,
+			COALESCE(t.tips_count, 0) AS tips_count,
+			COALESCE(t.tips_satoshis, 0) AS tips_satoshis,
+			(COALESCE(l.likes, 0) + COALESCE(t.tips_count, 0)) AS popularity_score
+		FROM lingry_words w
+		LEFT JOIN likes l ON l.word_txid = w.txid
+		LEFT JOIN tips t ON t.word_txid = w.txid
+		WHERE COALESCE(w.block_height, 0) >= ?
+		ORDER BY popularity_score DESC, COALESCE(t.tips_satoshis, 0) DESC, COALESCE(w.tx_time, w.indexed_at) DESC, COALESCE(w.block_height, 0) DESC
+		LIMIT ?
+	`).bind(LINGRY_WORD_START_HEIGHT, safeLimit).all();
+
+	const addressSql = `
+		WITH likes AS (
+			SELECT word_txid, COUNT(*) AS likes
+			FROM lingry_likes
+			GROUP BY word_txid
+		),
+		tips AS (
+			SELECT word_txid, COUNT(*) AS tips_count, COALESCE(SUM(amount_satoshis), 0) AS tips_satoshis
+			FROM lingry_tips
+			GROUP BY word_txid
+		)
+		SELECT w.creator_address AS address,
+			COUNT(DISTINCT w.txid) AS words_count,
+			COALESCE(SUM(l.likes), 0) AS likes_received,
+			COALESCE(SUM(t.tips_count), 0) AS tips_count,
+			COALESCE(SUM(t.tips_satoshis), 0) AS tips_satoshis,
+			(COALESCE(SUM(l.likes), 0) + COALESCE(SUM(t.tips_count), 0) + COUNT(DISTINCT w.txid)) AS popularity_score
+		FROM lingry_words w
+		LEFT JOIN likes l ON l.word_txid = w.txid
+		LEFT JOIN tips t ON t.word_txid = w.txid
+		WHERE COALESCE(w.block_height, 0) >= ? AND w.creator_address != ''
+		GROUP BY w.creator_address
+	`;
+	const addressLikes = await env.LINGRY_DB.prepare(addressSql + ' ORDER BY likes_received DESC, tips_count DESC, words_count DESC LIMIT ?').bind(LINGRY_WORD_START_HEIGHT, safeLimit).all();
+	const addressTips = await env.LINGRY_DB.prepare(addressSql + ' ORDER BY tips_count DESC, tips_satoshis DESC, likes_received DESC, words_count DESC LIMIT ?').bind(LINGRY_WORD_START_HEIGHT, safeLimit).all();
+	const addressWords = await env.LINGRY_DB.prepare(addressSql + ' ORDER BY words_count DESC, likes_received DESC, tips_count DESC LIMIT ?').bind(LINGRY_WORD_START_HEIGHT, safeLimit).all();
+
+	return {
+		enabled: true,
+		words: (wordRows.results || []).map(mapLeaderboardWordRow),
+		addresses_by_likes: (addressLikes.results || []).map(mapLeaderboardAddressRow),
+		addresses_by_tips: (addressTips.results || []).map(mapLeaderboardAddressRow),
+		addresses_by_words: (addressWords.results || []).map(mapLeaderboardAddressRow)
+	};
+}
+
+async function handleLingryLeaderboard(request, env, ctx) {
+	const url = new URL(request.url);
+	const limit = Math.max(5, Math.min(Number(url.searchParams.get('limit')) || 25, 50));
+	const forceRefresh = ['1', 'true', 'yes', 'on'].includes(String(url.searchParams.get('refresh') || '').toLowerCase());
+	const waitForRefresh = ['1', 'true', 'yes', 'on'].includes(String(url.searchParams.get('wait') || '').toLowerCase());
+	const stale = !lingryLeaderboardRefreshState.lastRefresh || Date.now() - lingryLeaderboardRefreshState.lastRefresh >= LINGRY_LEADERBOARD_REFRESH_MS;
+
+	if ((forceRefresh || stale) && !lingryLeaderboardRefreshState.running) {
+		const refreshPromise = refreshLingryLeaderboardIndex(env).catch(error => {
+			lingryLeaderboardRefreshState.summary = emptyLingryLeaderboardSummary(error.message || 'Leaderboard refresh failed.');
+			return lingryLeaderboardRefreshState.summary;
+		});
+		if (waitForRefresh) {
+			await refreshPromise;
+		} else if (ctx && typeof ctx.waitUntil === 'function') {
+			ctx.waitUntil(refreshPromise);
+		}
+	} else if (waitForRefresh && lingryLeaderboardRefreshState.running) {
+		await lingryLeaderboardRefreshState.running;
+	}
+
+	const leaderboard = await readLingryLeaderboard(env, limit);
+	return jsonResponse({
+		...leaderboard,
+		since_block: LINGRY_WORD_START_HEIGHT,
+		refresh_policy: {
+			every_hours: 3,
+			block_seconds: 5,
+			expected_blocks: Math.ceil((3 * 60 * 60) / 5),
+			scan_blocks_with_slack: LINGRY_LEADERBOARD_RECENT_BLOCKS
+		},
+		refresh_summary: lingryLeaderboardRefreshState.summary || emptyLingryLeaderboardSummary()
 	});
 }
 
@@ -1411,7 +1620,7 @@ async function handleWordLatest(request, env) {
 	const viewerAddress = url.searchParams.get('address') || '';
 	if (!workerWordCache.records.length || Date.now() - workerWordCache.scannedAt > 5 * 60 * 1000) {
 		try {
-			const scan = await scanLatestSugarBlocks(42900000, WORKER_DEFAULT_CACHE_SCAN_BLOCKS);
+			const scan = await scanLatestSugarBlocks(LINGRY_WORD_START_HEIGHT, WORKER_DEFAULT_CACHE_SCAN_BLOCKS);
 			mergeWorkerWordCache(scan.records, scan.summary);
 			await persistLingrySocialWords(env, scan.records);
 		} catch (error) {
@@ -1419,7 +1628,7 @@ async function handleWordLatest(request, env) {
 				enabled: true,
 				requested_blocks: WORKER_DEFAULT_CACHE_SCAN_BLOCKS,
 				effective_blocks: 0,
-				start_height: 42900000,
+				start_height: LINGRY_WORD_START_HEIGHT,
 				end_height: 0,
 				scan_mode: 'latest_after',
 				checked_txids: 0,
@@ -1449,7 +1658,7 @@ async function handleWordScan(request, env) {
 	if (request.method !== 'POST') {
 		return jsonResponse({ error: 'Method not allowed.' }, 405);
 	}
-	let startHeight = 42900000;
+	let startHeight = LINGRY_WORD_START_HEIGHT;
 	let blocks = 120;
 	let offset = 0;
 	try {
@@ -1490,7 +1699,7 @@ async function handleWordSearch(request, env) {
 	const direct = ['1', 'true', 'yes', 'on'].includes(String(url.searchParams.get('direct') || '').toLowerCase());
 	const mode = url.searchParams.get('mode') || 'all';
 	const word = normalizeWord(url.searchParams.get('q') || '');
-	const startHeight = Number(url.searchParams.get('start_height')) || 42900000;
+	const startHeight = Number(url.searchParams.get('start_height')) || LINGRY_WORD_START_HEIGHT;
 	const blocks = Number(url.searchParams.get('blocks')) || 500;
 	const viewerAddress = url.searchParams.get('address') || '';
 
@@ -1553,7 +1762,7 @@ async function handleWordDetail(request, env, word) {
 	}
 	if (!workerWordCache.records.length || Date.now() - workerWordCache.scannedAt > 5 * 60 * 1000) {
 		try {
-			const scan = await scanLatestSugarBlocks(42900000, WORKER_DEFAULT_CACHE_SCAN_BLOCKS);
+			const scan = await scanLatestSugarBlocks(LINGRY_WORD_START_HEIGHT, WORKER_DEFAULT_CACHE_SCAN_BLOCKS);
 			mergeWorkerWordCache(scan.records, scan.summary);
 			await persistLingrySocialWords(env, scan.records);
 		} catch (error) {
@@ -1561,7 +1770,7 @@ async function handleWordDetail(request, env, word) {
 				enabled: true,
 				requested_blocks: WORKER_DEFAULT_CACHE_SCAN_BLOCKS,
 				effective_blocks: 0,
-				start_height: 42900000,
+				start_height: LINGRY_WORD_START_HEIGHT,
 				end_height: 0,
 				scan_mode: 'latest_after',
 				checked_txids: 0,
@@ -1622,7 +1831,14 @@ async function handleTxWord(request, env, txid) {
 }
 
 export default {
-	async fetch(request, env) {
+	async scheduled(controller, env, ctx) {
+		if (ctx && typeof ctx.waitUntil === 'function') {
+			ctx.waitUntil(refreshLingryLeaderboardIndex(env));
+			return;
+		}
+		await refreshLingryLeaderboardIndex(env);
+	},
+	async fetch(request, env, ctx) {
 		const url = new URL(request.url);
 		if (url.pathname === '/api/invent-word-from-prompt') {
 			return handleGenerateWord(request, env, 'prompt');
@@ -1641,6 +1857,9 @@ export default {
 		}
 		if (url.pathname === '/api/social/tip') {
 			return handleLingrySocialTip(request, env);
+		}
+		if (url.pathname === '/api/leaderboard') {
+			return handleLingryLeaderboard(request, env, ctx);
 		}
 		if (url.pathname === '/api/words/latest') {
 			return handleWordLatest(request, env);

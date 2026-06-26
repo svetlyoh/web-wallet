@@ -1234,6 +1234,149 @@
 				background: #effcf3;
 				color: #075339;
 			}
+			.lingry-rank-link {
+				display: inline-flex;
+				align-items: center;
+				justify-content: center;
+				min-height: 30px;
+				padding: 5px 10px;
+				border: 1px solid rgba(8, 129, 76, 0.18);
+				border-radius: 999px;
+				background: #e5f9ec;
+				color: #075339;
+				font-size: 12px;
+				font-weight: 900;
+				text-decoration: none !important;
+			}
+			.lingry-leaderboard-shell {
+				min-height: 100vh;
+				border: 0;
+				border-radius: 0;
+				box-shadow: none;
+			}
+			.lingry-leaderboard-meta {
+				position: relative;
+				z-index: 1;
+				display: flex;
+				flex-wrap: wrap;
+				gap: 7px;
+				margin-top: 14px;
+			}
+			.lingry-leaderboard-pill {
+				border: 1px solid rgba(255, 253, 244, 0.22);
+				border-radius: 999px;
+				background: rgba(255, 253, 244, 0.14);
+				color: #fffdf4;
+				font-size: 12px;
+				font-weight: 850;
+				padding: 6px 9px;
+			}
+			.lingry-leaderboard-actions {
+				position: relative;
+				z-index: 1;
+				display: grid;
+				grid-template-columns: repeat(2, minmax(0, 1fr));
+				gap: 8px;
+				margin-top: 12px;
+			}
+			.lingry-leaderboard-actions .lingry-menu-toggle {
+				width: 100%;
+			}
+			.lingry-leaderboard-section {
+				margin-bottom: 16px;
+			}
+			.lingry-leaderboard-heading {
+				display: flex;
+				align-items: flex-end;
+				justify-content: space-between;
+				gap: 10px;
+				margin: 2px 2px 9px;
+			}
+			.lingry-leaderboard-heading h2 {
+				margin: 0;
+				color: #073d2d;
+				font-size: 17px;
+				font-weight: 900;
+			}
+			.lingry-leaderboard-heading span {
+				color: #4a7a62;
+				font-size: 11px;
+				font-weight: 850;
+				text-align: right;
+			}
+			.lingry-leaderboard-list {
+				display: grid;
+				gap: 9px;
+			}
+			.lingry-rank-card {
+				display: grid;
+				grid-template-columns: 34px minmax(0, 1fr);
+				gap: 10px;
+				padding: 11px;
+				border: 1px solid rgba(10, 99, 61, 0.13);
+				border-radius: 16px;
+				background: rgba(255, 255, 255, 0.88);
+				box-shadow: 0 8px 18px rgba(7, 75, 48, 0.08);
+			}
+			.lingry-rank-number {
+				width: 32px;
+				height: 32px;
+				border-radius: 50%;
+				background: #dff8e8;
+				color: #064432;
+				display: inline-flex;
+				align-items: center;
+				justify-content: center;
+				font-size: 12px;
+				font-weight: 900;
+			}
+			.lingry-rank-word {
+				color: #043b2c;
+				font-size: 22px;
+				line-height: 1.08;
+				font-weight: 900;
+				word-break: break-word;
+			}
+			.lingry-rank-address {
+				color: #043b2c;
+				font-size: 16px;
+				line-height: 1.2;
+				font-weight: 900;
+				word-break: break-all;
+			}
+			.lingry-rank-meaning {
+				color: #1d4b39;
+				font-size: 13px;
+				line-height: 1.35;
+				margin: 4px 0 8px;
+			}
+			.lingry-rank-meta,
+			.lingry-rank-stats {
+				display: flex;
+				align-items: center;
+				flex-wrap: wrap;
+				gap: 7px;
+			}
+			.lingry-rank-meta {
+				margin-bottom: 7px;
+			}
+			.lingry-rank-chip {
+				border-radius: 999px;
+				background: #effcf3;
+				color: #075339;
+				font-size: 11px;
+				font-weight: 900;
+				padding: 5px 8px;
+			}
+			.lingry-rank-empty {
+				padding: 14px;
+				border: 1px solid rgba(10, 99, 61, 0.13);
+				border-radius: 16px;
+				background: rgba(255, 255, 255, 0.78);
+				color: #4a7a62;
+				font-size: 13px;
+				font-weight: 800;
+			}
 			[class*="entypo"]:before {
 				font-family: 'EntypoRegular', sans-serif;
 				font-size: 16px;
@@ -1712,7 +1855,7 @@
 							<div id="lingry-public-share-card" class="lingry-share-card d-none"></div>
 							<div class="lingry-stream-section-title">
 								<span>Word Stream</span>
-								<span id="lingry-public-stream-count">Loading</span>
+								<span><a class="lingry-rank-link" href="#/leaderboard" aria-label="Open Lingry rankings" title="Lingry rankings">Top</a> <span id="lingry-public-stream-count">Loading</span></span>
 							</div>
 							<div id="lingry-public-stream-feed" class="lingry-stream-feed"></div>
 						</div>
@@ -1802,7 +1945,7 @@
 											<div id="lingry-share-card" class="lingry-share-card d-none"></div>
 											<div class="lingry-stream-section-title">
 												<span>Word Stream</span>
-												<span id="lingry-stream-count">1 post</span>
+												<span><a class="lingry-rank-link" href="#/leaderboard" aria-label="Open Lingry rankings" title="Lingry rankings">Top</a> <span id="lingry-stream-count">1 post</span></span>
 											</div>
 											<div id="lingry-stream-feed" class="lingry-stream-feed"></div>
 										</div>
@@ -2212,6 +2355,38 @@
 								</div>
 							</div>
 					</div>
+				</div>
+			</div>
+		</div>
+
+
+		<!-- Lingry rankings -->
+		<div id="leaderboard" class="router-page">
+			<div class="lingry-stream-shell lingry-leaderboard-shell">
+				<div class="lingry-stream-hero">
+					<div class="lingry-stream-top">
+						<div class="lingry-stream-brand">
+							<img class="lingry-stream-logo" src="images/ChatGPT Image Jun 22, 2026, 10_07_56 PM (1).png" alt="Lingry">
+							<div class="lingry-stream-brand-text">Lingry</div>
+						</div>
+					</div>
+					<div class="lingry-stream-title">Lingry Rankings</div>
+					<div class="lingry-stream-subtitle">Most liked, tipped, and prolific word makers since block 42900000.</div>
+					<div class="lingry-leaderboard-meta">
+						<span class="lingry-leaderboard-pill">Refresh: every 3 hours</span>
+						<span class="lingry-leaderboard-pill">Scan: 2,500 recent blocks</span>
+					</div>
+					<div class="lingry-leaderboard-actions">
+						<a class="lingry-menu-toggle" href="#/">Stream</a>
+						<button type="button" id="lingry-leaderboard-refresh" class="lingry-menu-toggle">Refresh</button>
+					</div>
+				</div>
+				<div class="lingry-stream-body">
+					<div class="lingry-stream-section-title">
+						<span>Rank Order</span>
+						<span id="lingry-leaderboard-status">Loading</span>
+					</div>
+					<div id="lingry-leaderboard-root"></div>
 				</div>
 			</div>
 		</div>
@@ -2763,6 +2938,10 @@
 						case 'share':
 							openLingrySharedWord(urlParams[2] || '')
 							setTitle('Lingry shared word')
+							break
+
+						case 'leaderboard':
+							openLingryLeaderboard()
 							break
 
 						// Swith network
@@ -4007,6 +4186,124 @@
 					return 'Tip'
 				}
 				return count + ' tip' + (count == 1 ? '' : 's')
+			}
+
+			var lingryLeaderboardTimer = null
+			var LINGRY_LEADERBOARD_REFRESH_INTERVAL_MS = 3 * 60 * 60 * 1000
+
+			function lingryLeaderboardShortAddress(address) {
+				address = String(address || '').trim()
+				return address ? address.slice(-8) : 'unknown'
+			}
+
+			function lingryLeaderboardTipAmount(satoshis) {
+				return amountFormatDecimals(Number(satoshis || 0), getConfig()['decimals']).toFixed(5)
+			}
+
+			function lingryLeaderboardStatusText(data) {
+				var summary = data && data.refresh_summary ? data.refresh_summary : {}
+				if (summary.refreshing) {
+					return 'Refreshing'
+				}
+				if (summary.refreshed_at) {
+					return 'Updated ' + lingryStreamTimeLabel(summary.refreshed_at)
+				}
+				return 'Indexed words'
+			}
+
+			function lingryLeaderboardWordCard(item, index) {
+				item = item || {}
+				var stats = [
+					'<span class="lingry-rank-chip">' + Number(item.likes || 0) + ' like' + (Number(item.likes || 0) == 1 ? '' : 's') + '</span>',
+					'<span class="lingry-rank-chip">' + Number(item.tips_count || 0) + ' tip' + (Number(item.tips_count || 0) == 1 ? '' : 's') + '</span>',
+					'<span class="lingry-rank-chip">' + lingryLeaderboardTipAmount(item.tips_satoshis) + ' SUGAR</span>'
+				]
+				return '<article class="lingry-rank-card">' +
+					'<div class="lingry-rank-number">' + (index + 1) + '</div>' +
+					'<div>' +
+						'<div class="lingry-rank-meta">' +
+							lingryLanguageFlagHtml(item) +
+							'<span class="lingry-rank-chip">' + escapeHtml(lingryLeaderboardShortAddress(item.creator_address)) + '</span>' +
+						'</div>' +
+						'<div class="lingry-rank-word">' + escapeHtml(item.word || 'word') + '</div>' +
+						'<p class="lingry-rank-meaning">' + escapeHtml(item.meaning || 'meaning pending') + '</p>' +
+						'<div class="lingry-rank-stats">' + stats.join('') + '</div>' +
+					'</div>' +
+				'</article>'
+			}
+
+			function lingryLeaderboardAddressCard(item, index, mode) {
+				item = item || {}
+				var stats = [
+					'<span class="lingry-rank-chip">' + Number(item.likes_received || 0) + ' likes</span>',
+					'<span class="lingry-rank-chip">' + Number(item.tips_count || 0) + ' tips</span>',
+					'<span class="lingry-rank-chip">' + Number(item.words_count || 0) + ' words</span>'
+				]
+				if (mode == 'tips') {
+					stats.splice(1, 1, '<span class="lingry-rank-chip">' + Number(item.tips_count || 0) + ' tips / ' + lingryLeaderboardTipAmount(item.tips_satoshis) + ' SUGAR</span>')
+				}
+				return '<article class="lingry-rank-card">' +
+					'<div class="lingry-rank-number">' + (index + 1) + '</div>' +
+					'<div>' +
+						'<div class="lingry-rank-address">' + escapeHtml(lingryLeaderboardShortAddress(item.address)) + '</div>' +
+						'<div class="lingry-rank-meaning">' + escapeHtml(item.address || 'unknown address') + '</div>' +
+						'<div class="lingry-rank-stats">' + stats.join('') + '</div>' +
+					'</div>' +
+				'</article>'
+			}
+
+			function lingryLeaderboardSection(title, detail, items, renderer, emptyText) {
+				var cards = (Array.isArray(items) ? items : []).map(renderer).join('')
+				if (!cards) {
+					cards = '<div class="lingry-rank-empty">' + escapeHtml(emptyText || 'No ranked records yet.') + '</div>'
+				}
+				return '<section class="lingry-leaderboard-section">' +
+					'<div class="lingry-leaderboard-heading"><h2>' + escapeHtml(title) + '</h2><span>' + escapeHtml(detail || '') + '</span></div>' +
+					'<div class="lingry-leaderboard-list">' + cards + '</div>' +
+				'</section>'
+			}
+
+			function renderLingryLeaderboard(data) {
+				data = data || {}
+				var html = [
+					lingryLeaderboardSection('Popular Words', 'likes + tips, descending', data.words, lingryLeaderboardWordCard, 'No liked or tipped words yet.'),
+					lingryLeaderboardSection('Top Liked Addresses', 'likes received', data.addresses_by_likes, function(item, index) {
+						return lingryLeaderboardAddressCard(item, index, 'likes')
+					}, 'No address likes yet.'),
+					lingryLeaderboardSection('Top Tipped Addresses', 'tips received', data.addresses_by_tips, function(item, index) {
+						return lingryLeaderboardAddressCard(item, index, 'tips')
+					}, 'No tips yet.'),
+					lingryLeaderboardSection('Most Words Contributed', 'word count', data.addresses_by_words, function(item, index) {
+						return lingryLeaderboardAddressCard(item, index, 'words')
+					}, 'No contributed words indexed yet.')
+				]
+				$('#lingry-leaderboard-root').html(html.join(''))
+				$('#lingry-leaderboard-status').text(lingryLeaderboardStatusText(data))
+			}
+
+			function loadLingryLeaderboard(force) {
+				$('#lingry-leaderboard-status').text(force ? 'Refreshing' : 'Loading')
+				var url = '/api/leaderboard?limit=25' + (force ? '&refresh=1' : '')
+				return wordExplorerApiGet(url, { 'timeout': 60000 }).then(function(data) {
+					renderLingryLeaderboard(data)
+				}).catch(function(error) {
+					$('#lingry-leaderboard-status').text('Unavailable')
+					$('#lingry-leaderboard-root').html('<div class="lingry-rank-empty">Rankings are not available right now. The stream still works while the index catches up.</div>')
+					console.warn('Lingry leaderboard unavailable', error)
+				})
+			}
+
+			function openLingryLeaderboard() {
+				$('body').removeClass('lingry-wallet-open lingry-public-tool')
+				setTitle('Lingry rankings')
+				loadLingryLeaderboard(false)
+				if (!lingryLeaderboardTimer) {
+					lingryLeaderboardTimer = setInterval(function() {
+						if ($('#leaderboard').is(':visible')) {
+							loadLingryLeaderboard(true)
+						}
+					}, LINGRY_LEADERBOARD_REFRESH_INTERVAL_MS)
+				}
 			}
 
 			function refreshLingrySocialForRecords(records, force) {
@@ -5993,6 +6290,11 @@
 						maybeFundLingryWallet(balanceSatoshis, false)
 					})
 					ensureLingryStreamScan(true)
+					e.preventDefault()
+				})
+
+				$('#lingry-leaderboard-refresh').click(function(e) {
+					loadLingryLeaderboard(true)
 					e.preventDefault()
 				})
 
