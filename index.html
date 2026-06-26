@@ -3504,6 +3504,7 @@
 			var LINGRY_STREAM_REFRESH_LOOKBACK_BLOCKS = 5000
 			var LINGRY_STREAM_REFRESH_INTERVAL_MS = 5 * 60 * 1000
 			var LINGRY_STREAM_SPARSE_REFRESH_INTERVAL_MS = 2 * 60 * 1000
+			var LINGRY_TIP_AMOUNT_SATOSHIS = 1000
 			var lingryStreamScanState = {
 				'running': false,
 				'complete': false,
@@ -3994,7 +3995,17 @@
 			}
 
 			function lingryTipAmountLabel(satoshis) {
-				return amountFormatDecimals(Number(satoshis || 0), getConfig()['decimals']).toFixed(3)
+				return amountFormatDecimals(Number(satoshis || 0), getConfig()['decimals']).toFixed(5)
+			}
+
+			function lingryTipSummaryLabel(social) {
+				social = social || {}
+				var count = Number(social.tips_count || 0)
+				var total = Number(social.tips_satoshis || 0)
+				if (!count && !total) {
+					return 'Tip ' + lingryTipAmountLabel(LINGRY_TIP_AMOUNT_SATOSHIS)
+				}
+				return count + ' tip' + (count == 1 ? '' : 's') + ' · ' + lingryTipAmountLabel(total)
 			}
 
 			function refreshLingrySocialForRecords(records, force) {
@@ -4058,9 +4069,8 @@
 				})
 			}
 
-			function buildAndBroadcastLingryTip(record, amountText) {
+			function buildAndBroadcastLingryTip(record) {
 				var recipient = lingryRecordCreatorAddress(record)
-				var amount = Number(amountText)
 				if (!globalData.keys || !globalData.address) {
 					showMessage('Login to tip words.')
 					return Promise.resolve()
@@ -4073,12 +4083,8 @@
 					showMessage('That word is already yours.')
 					return Promise.resolve()
 				}
-				if (!Number.isFinite(amount) || amount <= 0) {
-					showMessage('Enter a valid SUGAR tip amount.')
-					return Promise.resolve()
-				}
 				var fee = Number(globalData.rfee || getConfig()['fee'])
-				var amountSatoshis = amountFormat(amount, true)
+				var amountSatoshis = LINGRY_TIP_AMOUNT_SATOSHIS
 				var feeSatoshis = amountFormat(fee, true)
 				var totalSatoshis = amountSatoshis + feeSatoshis
 				var network = getConfig()['network']
@@ -4088,7 +4094,7 @@
 				var value = 0
 				txb.setVersion(2)
 				txb.addOutput(recipient, amountSatoshis)
-				showMessage('Sending tip...')
+				showMessage('Sending ' + lingryTipAmountLabel(amountSatoshis) + ' SUGAR tip...')
 				return getUnspent(globalData.address, totalSatoshis).then(function(data) {
 					var utxos = data && data.result ? data.result : []
 					for (var i = 0; i < utxos.length; i++) {
@@ -4147,7 +4153,7 @@
 					}).then(function(socialData) {
 						syncLingrySocialResponse(socialData)
 						walletBalance()
-						showMessage('Tip sent: ' + amount.toFixed(3) + ' SUGAR')
+						showMessage('Tip sent: ' + lingryTipAmountLabel(amountSatoshis) + ' SUGAR')
 					})
 				}).catch(function(error) {
 					showMessage(error && error.message ? error.message : 'Tip failed.')
@@ -4155,11 +4161,7 @@
 			}
 
 			function promptLingryTip(record) {
-				var value = window.prompt('Tip amount in SUGAR', '0.001')
-				if (value == null) {
-					return
-				}
-				buildAndBroadcastLingryTip(record, value)
+				buildAndBroadcastLingryTip(record)
 			}
 
 			function lingryStreamRecords() {
@@ -4213,7 +4215,7 @@
 					var creatorAddress = lingryRecordCreatorAddress(record)
 					var likedClass = social.liked ? ' is-liked' : ''
 					var likeText = (social.liked ? 'Liked' : 'Like') + (social.likes ? ' ' + social.likes : '')
-					var tipText = social.tips_satoshis ? ('Tips ' + lingryTipAmountLabel(social.tips_satoshis)) : 'Tip'
+					var tipText = lingryTipSummaryLabel(social)
 					var canTip = Boolean(txid && creatorAddress && creatorAddress != globalData.address)
 					return '<article class="lingry-feed-card">' +
 						'<div class="lingry-feed-row">' +
