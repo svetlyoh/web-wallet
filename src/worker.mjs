@@ -54,6 +54,23 @@ function jsonResponse(payload, status = 200) {
 	});
 }
 
+async function assetResponse(request, env) {
+	const response = await env.ASSETS.fetch(request);
+	const url = new URL(request.url);
+	if (url.pathname === '/' || url.pathname.endsWith('.html')) {
+		const headers = new Headers(response.headers);
+		headers.set('cache-control', 'no-store, no-cache, must-revalidate');
+		headers.set('pragma', 'no-cache');
+		headers.set('expires', '0');
+		return new Response(response.body, {
+			status: response.status,
+			statusText: response.statusText,
+			headers
+		});
+	}
+	return response;
+}
+
 function normalizeWord(word) {
 	return String(word || '').trim().toLowerCase();
 }
@@ -1958,6 +1975,6 @@ export default {
 			const txid = decodeURIComponent(url.pathname.slice('/api/tx/'.length, -'/word'.length));
 			return handleTxWord(request, env, txid);
 		}
-		return env.ASSETS.fetch(request);
+		return assetResponse(request, env);
 	}
 };
