@@ -1148,6 +1148,39 @@
 				outline: 3px solid rgba(84, 238, 149, 0.42);
 				outline-offset: 2px;
 			}
+			.lingry-feed-social {
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				flex-wrap: wrap;
+				gap: 8px;
+				margin-top: 10px;
+				padding-top: 9px;
+				border-top: 1px solid rgba(8, 129, 76, 0.1);
+			}
+			.lingry-social-button {
+				border: 1px solid rgba(8, 129, 76, 0.18);
+				border-radius: 999px;
+				background: #effcf3;
+				color: #075339;
+				font: inherit;
+				font-size: 12px;
+				font-weight: 900;
+				min-height: 32px;
+				padding: 6px 10px;
+			}
+			.lingry-social-button.is-liked {
+				background: #07864c;
+				color: #fffdf4;
+			}
+			.lingry-social-button:disabled {
+				opacity: 0.56;
+			}
+			.lingry-social-stats {
+				color: #4a7a62;
+				font-size: 12px;
+				font-weight: 800;
+			}
 			.lingry-share-card {
 				border: 1px solid rgba(8, 129, 76, 0.16);
 				border-radius: 18px;
@@ -3450,6 +3483,8 @@
 			var lingryFaucetRequests = {}
 			var lingryShareRecords = []
 			var lingrySharedWordState = null
+			var lingrySocialSummaries = {}
+			var lingrySocialLoadingKey = ''
 			var LINGRY_WISDOM_LINES = [
 				'Coin carefully; tiny words have long shadows.',
 				'A new word is just a thought wearing shoes.',
@@ -3524,7 +3559,9 @@
 					'txid': record.txid || '',
 					'op_return_payload': record.op_return_payload || '',
 					'language_code': record.language_code || lingryLanguageFromPayload(record.op_return_payload).code,
-					'address': record.address || record.sender || ''
+					'address': record.creator_address || record.address || record.sender || '',
+					'creator_address': record.creator_address || record.address || record.sender || '',
+					'social': record.social || null
 				}
 			}
 
@@ -3587,7 +3624,7 @@
 			}
 
 			function lingryStreamLatestProtocolRecords(blocks) {
-				return wordExplorerApiGet('/api/words/latest?limit=100&filter=all', { 'timeout': 60000 }).then(function(data) {
+				return wordExplorerApiGet('/api/words/latest?limit=100&filter=all&address=' + encodeURIComponent(globalData.address || ''), { 'timeout': 60000 }).then(function(data) {
 					return (data.records || [])
 						.filter(lingryStreamIsProtocolRecord)
 						.map(lingryStreamNormalizeOnChainRecord)
@@ -3604,7 +3641,8 @@
 					'mode': 'latest_after',
 					'start_height': WORD_EXPLORER_START_HEIGHT,
 					'blocks': blocks,
-					'offset': offset
+					'offset': offset,
+					'viewer_address': globalData.address || ''
 				}).then(function(scan) {
 					var scanned = Number(scan.effective_blocks || scan.scanned_blocks || 0)
 					lingryStreamScanState.coveredBlocks = Math.max(lingryStreamScanState.coveredBlocks || 0, offset + scanned)
@@ -3794,7 +3832,8 @@
 					'part_of_speech': sugarWordsNormalizePartOfSpeech(record.part_of_speech || record.pos || ''),
 					'etymology_meaning': String(record.etymology_meaning || ''),
 					'txid': String(record.txid || ''),
-					'timestamp': String(record.timestamp || '')
+					'timestamp': String(record.timestamp || ''),
+					'creator_address': String(record.creator_address || record.address || record.sender || '')
 				}
 			}
 
@@ -3934,6 +3973,195 @@
 				shareLingryContent('Lingry word: ' + (record.word || 'word'), text, url, onStatus || showMessage)
 			}
 
+			function lingryRecordTxid(record) {
+				var txid = String(record && record.txid || '').trim().toLowerCase()
+				return /^[0-9a-f]{64}$/.test(txid) ? txid : ''
+			}
+
+			function lingryRecordCreatorAddress(record) {
+				return String(record && (record.creator_address || record.address || record.sender) || '').trim()
+			}
+
+			function lingryRecordSocial(record) {
+				var txid = lingryRecordTxid(record)
+				return (txid && lingrySocialSummaries[txid]) || record.social || {
+					'likes': 0,
+					'liked': false,
+					'tips_count': 0,
+					'tips_satoshis': 0,
+					'tips_amount': 0
+				}
+			}
+
+			function lingryTipAmountLabel(satoshis) {
+				return amountFormatDecimals(Number(satoshis || 0), getConfig()['decimals']).toFixed(3)
+			}
+
+			function refreshLingrySocialForRecords(records, force) {
+				var txids = []
+				records = Array.isArray(records) ? records : []
+				records.forEach(function(record) {
+					var txid = lingryRecordTxid(record)
+					if (txid && (force || !lingrySocialSummaries[txid])) {
+						txids.push(txid)
+					}
+				})
+				txids = Array.from(new Set(txids)).slice(0, 80)
+				if (!txids.length) {
+					return
+				}
+				var key = txids.join(',') + '|' + (globalData.address || '')
+				if (!force && lingrySocialLoadingKey == key) {
+					return
+				}
+				lingrySocialLoadingKey = key
+				wordExplorerApiGet('/api/social/summary?txids=' + encodeURIComponent(txids.join(',')) + '&address=' + encodeURIComponent(globalData.address || ''), { 'timeout': 15000 }).then(function(data) {
+					var items = data && data.items ? data.items : {}
+					Object.keys(items).forEach(function(txid) {
+						lingrySocialSummaries[txid] = items[txid]
+					})
+					lingrySocialLoadingKey = ''
+					renderLingryStream(true)
+				}).catch(function(error) {
+					lingrySocialLoadingKey = ''
+					console.warn('Lingry social summary unavailable', error)
+				})
+			}
+
+			function syncLingrySocialResponse(data) {
+				var items = data && data.items ? data.items : {}
+				Object.keys(items).forEach(function(txid) {
+					lingrySocialSummaries[txid] = items[txid]
+				})
+				renderLingryStream(true)
+			}
+
+			function postLingrySocialLike(record, liked) {
+				if (!globalData.address) {
+					showMessage('Login to like words.')
+					return
+				}
+				var txid = lingryRecordTxid(record)
+				if (!txid) {
+					showMessage('This word needs a transaction id before it can be liked.')
+					return
+				}
+				wordExplorerApiPost('/api/social/like', {
+					'word_txid': txid,
+					'liker_address': globalData.address,
+					'liked': liked,
+					'record': lingryShareRecordPayload(record)
+				}).then(function(data) {
+					syncLingrySocialResponse(data)
+				}).catch(function(error) {
+					showMessage(error && error.responseJSON && error.responseJSON.error ? error.responseJSON.error : 'Like unavailable.')
+				})
+			}
+
+			function buildAndBroadcastLingryTip(record, amountText) {
+				var recipient = lingryRecordCreatorAddress(record)
+				var amount = Number(amountText)
+				if (!globalData.keys || !globalData.address) {
+					showMessage('Login to tip words.')
+					return Promise.resolve()
+				}
+				if (!recipient || validateAddress(recipient) == false) {
+					showMessage('This word does not have a tip address yet.')
+					return Promise.resolve()
+				}
+				if (recipient == globalData.address) {
+					showMessage('That word is already yours.')
+					return Promise.resolve()
+				}
+				if (!Number.isFinite(amount) || amount <= 0) {
+					showMessage('Enter a valid SUGAR tip amount.')
+					return Promise.resolve()
+				}
+				var fee = Number(globalData.rfee || getConfig()['fee'])
+				var amountSatoshis = amountFormat(amount, true)
+				var feeSatoshis = amountFormat(fee, true)
+				var totalSatoshis = amountSatoshis + feeSatoshis
+				var network = getConfig()['network']
+				var keys = globalData.keys
+				var txb = new bitcoin.TransactionBuilder(network)
+				var scripts = []
+				var value = 0
+				txb.setVersion(2)
+				txb.addOutput(recipient, amountSatoshis)
+				showMessage('Sending tip...')
+				return getUnspent(globalData.address, totalSatoshis).then(function(data) {
+					var utxos = data && data.result ? data.result : []
+					for (var i = 0; i < utxos.length; i++) {
+						var utxo = utxos[i]
+						value += Number(utxo.value || 0)
+						var script = bitcoin.Buffer(utxo.script, 'hex')
+						var type = getScriptType(script)
+						if (type == 'bech32') {
+							var p2wpkh = getP2WPKHScript(keys.publicKey)
+							txb.addInput(utxo.txid, utxo.index, null, p2wpkh.output)
+						} else {
+							txb.addInput(utxo.txid, utxo.index)
+						}
+						scripts.push({
+							'script': script,
+							'type': type,
+							'value': Number(utxo.value || 0)
+						})
+						if (value >= totalSatoshis) {
+							break
+						}
+					}
+					if (value < totalSatoshis) {
+						throw new Error('Not enough SUGAR for this tip.')
+					}
+					var change = value - totalSatoshis
+					if (change > 0) {
+						txb.addOutput(globalData.address, change)
+					}
+					for (var j = 0; j < scripts.length; j++) {
+						if (scripts[j].type == 'bech32') {
+							txb.sign(j, keys, null, null, scripts[j].value, null)
+						} else if (scripts[j].type == 'segwit') {
+							var redeem = getP2WPKHScript(keys.publicKey)
+							var p2sh = getP2SHScript(redeem)
+							txb.sign(j, keys, p2sh.redeem.output, null, scripts[j].value, null)
+						} else if (scripts[j].type == 'legacy') {
+							txb.sign(j, keys)
+						} else {
+							throw new Error(messages.error['bad-utxo'])
+						}
+					}
+					return transactionBroadcast(txb.build().toHex())
+				}).then(function(data) {
+					if (data.error != undefined) {
+						throw new Error(data.error.message || messages.error['broadcast-failed'])
+					}
+					var txid = data.result
+					return wordExplorerApiPost('/api/social/tip', {
+						'word_txid': lingryRecordTxid(record),
+						'tip_txid': txid,
+						'from_address': globalData.address,
+						'to_address': recipient,
+						'amount_satoshis': amountSatoshis,
+						'record': lingryShareRecordPayload($.extend({}, record, { 'creator_address': recipient }))
+					}).then(function(socialData) {
+						syncLingrySocialResponse(socialData)
+						walletBalance()
+						showMessage('Tip sent: ' + amount.toFixed(3) + ' SUGAR')
+					})
+				}).catch(function(error) {
+					showMessage(error && error.message ? error.message : 'Tip failed.')
+				})
+			}
+
+			function promptLingryTip(record) {
+				var value = window.prompt('Tip amount in SUGAR', '0.001')
+				if (value == null) {
+					return
+				}
+				buildAndBroadcastLingryTip(record, value)
+			}
+
 			function lingryStreamRecords() {
 				var records = lingryStreamScanState.records.slice()
 				var seen = {}
@@ -3968,7 +4196,7 @@
 				}]
 			}
 
-			function renderLingryStream() {
+			function renderLingryStream(skipSocialRefresh) {
 				var feeds = $('#lingry-stream-feed, #lingry-public-stream-feed')
 				if (!feeds.length) {
 					return
@@ -3978,8 +4206,15 @@
 				var cards = records.map(function(record, index) {
 					var word = record.word || 'aaa'
 					var meaning = record.meaning || 'meaning pending'
-					var source = record.address || record.sender || globalData.address || record.txid || ''
+					var source = record.creator_address || record.address || record.sender || globalData.address || record.txid || ''
 					var label = lingryStreamAddressLabel(source)
+					var txid = lingryRecordTxid(record)
+					var social = lingryRecordSocial(record)
+					var creatorAddress = lingryRecordCreatorAddress(record)
+					var likedClass = social.liked ? ' is-liked' : ''
+					var likeText = (social.liked ? 'Liked' : 'Like') + (social.likes ? ' ' + social.likes : '')
+					var tipText = social.tips_satoshis ? ('Tips ' + lingryTipAmountLabel(social.tips_satoshis)) : 'Tip'
+					var canTip = Boolean(txid && creatorAddress && creatorAddress != globalData.address)
 					return '<article class="lingry-feed-card">' +
 						'<div class="lingry-feed-row">' +
 							'<button type="button" class="lingry-address-chip" data-full-address="' + escapeHtml(source) + '" aria-label="Show full source">' + escapeHtml(label) + '</button>' +
@@ -3990,10 +4225,17 @@
 						'</div>' +
 						'<div class="lingry-feed-word">' + escapeHtml(word) + '</div>' +
 						'<p class="lingry-feed-meaning">' + escapeHtml(meaning) + '</p>' +
+						(txid ? '<div class="lingry-feed-social">' +
+							'<button type="button" class="lingry-social-button' + likedClass + '" data-lingry-like-record="' + index + '">' + escapeHtml(likeText) + '</button>' +
+							(canTip ? '<button type="button" class="lingry-social-button" data-lingry-tip-record="' + index + '">' + escapeHtml(tipText) + '</button>' : '<span class="lingry-social-stats">' + escapeHtml(tipText) + '</span>') +
+						'</div>' : '') +
 					'</article>'
 				})
 				feeds.html(cards.join(''))
 				$('#lingry-stream-count, #lingry-public-stream-count').text(lingryStreamScanState.status || (records.length + ' post' + (records.length == 1 ? '' : 's')))
+				if (!skipSocialRefresh) {
+					refreshLingrySocialForRecords(records, false)
+				}
 			}
 
 			function renderSugarWordsLog() {
@@ -4594,6 +4836,8 @@
 					record.txid = txid
 					record.status = 'posted'
 					record.timestamp = new Date().toISOString()
+					record.address = globalData.address
+					record.creator_address = globalData.address
 					sugarWordsState.postedWords.add(record.word)
 					renderSugarWords()
 					walletBalance()
@@ -5328,6 +5572,8 @@
 				clearLingryKeyError()
 				globalData.address = getAddress(keys)
 				lingryStreamAddressExpanded = false
+				lingrySocialSummaries = {}
+				lingrySocialLoadingKey = ''
 				var pubkey = keys.publicKey.toString('hex')
 				var wif = keys.toWIF()
 				var redeem = '0014' + getP2WPKHScript(keys.publicKey).hash.toString('hex')
@@ -5510,6 +5756,8 @@
 				$('body').removeClass('lingry-wallet-open lingry-public-tool lingry-signed-in')
 				globalData.clear()
 				lingryStreamAddressExpanded = false
+				lingrySocialSummaries = {}
+				lingrySocialLoadingKey = ''
 				sugarWordsState.transaction = null
 				sugarWordsState.utxos = []
 				$('#lingry-session-key-card').addClass('d-none')
@@ -5754,6 +6002,25 @@
 					var record = lingryShareRecords[index]
 					if (record) {
 						shareLingryRecord(record, showMessage)
+					}
+					e.preventDefault()
+				})
+
+				$(document).on('click', '[data-lingry-like-record]', function(e) {
+					var index = parseInt($(this).data('lingry-like-record'), 10)
+					var record = lingryShareRecords[index]
+					if (record) {
+						var social = lingryRecordSocial(record)
+						postLingrySocialLike(record, !social.liked)
+					}
+					e.preventDefault()
+				})
+
+				$(document).on('click', '[data-lingry-tip-record]', function(e) {
+					var index = parseInt($(this).data('lingry-tip-record'), 10)
+					var record = lingryShareRecords[index]
+					if (record) {
+						promptLingryTip(record)
 					}
 					e.preventDefault()
 				})

@@ -20,6 +20,8 @@ const workerWordCache = {
 	scannedAt: 0,
 	summary: null
 };
+let lingrySocialDbReady = false;
+let lingrySocialDbReadyPromise = null;
 const sugarNetwork = {
 	messagePrefix: '\x19Sugarchain Signed Message:\n',
 	bip32: {
@@ -355,6 +357,302 @@ function filteredWorkerRecords(filter) {
 		});
 	}
 	return records;
+}
+
+function hasLingrySocialDb(env) {
+	return Boolean(env && env.LINGRY_DB && typeof env.LINGRY_DB.prepare === 'function');
+}
+
+async function ensureLingrySocialDb(env) {
+	if (!hasLingrySocialDb(env)) {
+		return false;
+	}
+	if (lingrySocialDbReady) {
+		return true;
+	}
+	if (!lingrySocialDbReadyPromise) {
+		lingrySocialDbReadyPromise = env.LINGRY_DB.exec(`
+			CREATE TABLE IF NOT EXISTS lingry_words (
+				txid TEXT PRIMARY KEY,
+				word TEXT NOT NULL DEFAULT '',
+				meaning TEXT NOT NULL DEFAULT '',
+				etymology_meaning TEXT NOT NULL DEFAULT '',
+				language_code TEXT NOT NULL DEFAULT 'W',
+				part_of_speech TEXT NOT NULL DEFAULT '',
+				creator_address TEXT NOT NULL DEFAULT '',
+				block_height INTEGER,
+				block_hash TEXT NOT NULL DEFAULT '',
+				tx_time TEXT NOT NULL DEFAULT '',
+				op_return_payload TEXT NOT NULL DEFAULT '',
+				op_return_hex TEXT NOT NULL DEFAULT '',
+				indexed_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+			);
+			CREATE INDEX IF NOT EXISTS idx_lingry_words_time ON lingry_words(tx_time DESC, block_height DESC);
+			CREATE INDEX IF NOT EXISTS idx_lingry_words_creator ON lingry_words(creator_address);
+			CREATE TABLE IF NOT EXISTS lingry_likes (
+				word_txid TEXT NOT NULL,
+				liker_address TEXT NOT NULL,
+				created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+				PRIMARY KEY (word_txid, liker_address)
+			);
+			CREATE INDEX IF NOT EXISTS idx_lingry_likes_word ON lingry_likes(word_txid);
+			CREATE TABLE IF NOT EXISTS lingry_tips (
+				tip_txid TEXT PRIMARY KEY,
+				word_txid TEXT NOT NULL,
+				from_address TEXT NOT NULL,
+				to_address TEXT NOT NULL,
+				amount_satoshis INTEGER NOT NULL,
+				created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+			);
+			CREATE INDEX IF NOT EXISTS idx_lingry_tips_word ON lingry_tips(word_txid);
+		`).then(() => {
+			lingrySocialDbReady = true;
+			return true;
+		}).catch(error => {
+			lingrySocialDbReadyPromise = null;
+			console.warn('Lingry social D1 unavailable:', error && error.message ? error.message : error);
+			return false;
+		});
+	}
+	return lingrySocialDbReadyPromise;
+}
+
+function normalizeSocialTxid(value) {
+	const txid = String(value || '').trim().toLowerCase();
+	return /^[0-9a-f]{64}$/.test(txid) ? txid : '';
+}
+
+function normalizeSocialAddress(value) {
+	const address = normalizeAddress(value);
+	return validateSugarAddress(address) ? address : '';
+}
+
+function collectSugarAddresses(value, output = []) {
+	if (value == null) {
+		return output;
+	}
+	if (typeof value === 'string') {
+		const text = value.trim();
+		if (validateSugarAddress(text) && !output.includes(text)) {
+			output.push(text);
+		}
+		return output;
+	}
+	if (Array.isArray(value)) {
+		for (const item of value) {
+			collectSugarAddresses(item, output);
+		}
+		return output;
+	}
+	if (typeof value === 'object') {
+		for (const key of Object.keys(value)) {
+			collectSugarAddresses(value[key], output);
+		}
+	}
+	return output;
+}
+
+function extractTxSourceAddress(tx) {
+	const inputCandidates = []
+		.concat(Array.isArray(tx && tx.vin) ? tx.vin : [])
+		.concat(Array.isArray(tx && tx.inputs) ? tx.inputs : []);
+	for (const input of inputCandidates) {
+		const addresses = collectSugarAddresses(input, []);
+		if (addresses.length) {
+			return addresses[0];
+		}
+	}
+	return '';
+}
+
+function normalizeSocialWordRecord(record) {
+	const txid = normalizeSocialTxid(record && record.txid);
+	if (!txid) {
+		return null;
+	}
+	return {
+		txid,
+		word: normalizeWord(record.word),
+		meaning: sanitizeText(record.meaning, 140),
+		etymology_meaning: sanitizeText(record.etymology_meaning || record.roots_compact, 80),
+		language_code: String(record.language_code || 'W').slice(0, 1).toUpperCase(),
+		part_of_speech: normalizeSugarWordPartOfSpeech(record.part_of_speech),
+		creator_address: normalizeSocialAddress(record.creator_address || record.address || record.sender),
+		block_height: record.block_height == null ? null : Number(record.block_height),
+		block_hash: String(record.block_hash || ''),
+		tx_time: String(record.tx_time || record.timestamp || ''),
+		op_return_payload: String(record.op_return_payload || ''),
+		op_return_hex: normalizeHex(record.op_return_hex),
+		indexed_at: String(record.indexed_at || new Date().toISOString())
+	};
+}
+
+async function persistLingrySocialWords(env, records) {
+	if (!records || !records.length || !(await ensureLingrySocialDb(env))) {
+		return;
+	}
+	const statements = [];
+	for (const record of records) {
+		const normalized = normalizeSocialWordRecord(record);
+		if (!normalized) {
+			continue;
+		}
+		statements.push(env.LINGRY_DB.prepare(`
+			INSERT INTO lingry_words (
+				txid, word, meaning, etymology_meaning, language_code, part_of_speech,
+				creator_address, block_height, block_hash, tx_time, op_return_payload, op_return_hex, indexed_at
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			ON CONFLICT(txid) DO UPDATE SET
+				word = excluded.word,
+				meaning = excluded.meaning,
+				etymology_meaning = CASE WHEN excluded.etymology_meaning != '' THEN excluded.etymology_meaning ELSE lingry_words.etymology_meaning END,
+				language_code = excluded.language_code,
+				part_of_speech = excluded.part_of_speech,
+				creator_address = CASE WHEN excluded.creator_address != '' THEN excluded.creator_address ELSE lingry_words.creator_address END,
+				block_height = COALESCE(excluded.block_height, lingry_words.block_height),
+				block_hash = CASE WHEN excluded.block_hash != '' THEN excluded.block_hash ELSE lingry_words.block_hash END,
+				tx_time = CASE WHEN excluded.tx_time != '' THEN excluded.tx_time ELSE lingry_words.tx_time END,
+				op_return_payload = excluded.op_return_payload,
+				op_return_hex = excluded.op_return_hex,
+				indexed_at = excluded.indexed_at
+		`).bind(
+			normalized.txid,
+			normalized.word,
+			normalized.meaning,
+			normalized.etymology_meaning,
+			normalized.language_code,
+			normalized.part_of_speech,
+			normalized.creator_address,
+			normalized.block_height,
+			normalized.block_hash,
+			normalized.tx_time,
+			normalized.op_return_payload,
+			normalized.op_return_hex,
+			normalized.indexed_at
+		));
+	}
+	if (statements.length) {
+		await env.LINGRY_DB.batch(statements);
+	}
+}
+
+async function lingrySocialSummaryForTxids(env, txids, viewerAddress = '') {
+	txids = Array.from(new Set((txids || []).map(normalizeSocialTxid).filter(Boolean))).slice(0, 100);
+	const fallback = {};
+	for (const txid of txids) {
+		fallback[txid] = {
+			txid,
+			likes: 0,
+			liked: false,
+			tips_count: 0,
+			tips_satoshis: 0,
+			tips_amount: 0
+		};
+	}
+	if (!txids.length || !(await ensureLingrySocialDb(env))) {
+		return fallback;
+	}
+	const placeholders = txids.map(() => '?').join(',');
+	const likeRows = await env.LINGRY_DB.prepare(`SELECT word_txid, COUNT(*) AS likes FROM lingry_likes WHERE word_txid IN (${placeholders}) GROUP BY word_txid`).bind(...txids).all();
+	for (const row of likeRows.results || []) {
+		if (fallback[row.word_txid]) {
+			fallback[row.word_txid].likes = Number(row.likes || 0);
+		}
+	}
+	const tipRows = await env.LINGRY_DB.prepare(`SELECT word_txid, COUNT(*) AS tips_count, COALESCE(SUM(amount_satoshis), 0) AS tips_satoshis FROM lingry_tips WHERE word_txid IN (${placeholders}) GROUP BY word_txid`).bind(...txids).all();
+	for (const row of tipRows.results || []) {
+		if (fallback[row.word_txid]) {
+			fallback[row.word_txid].tips_count = Number(row.tips_count || 0);
+			fallback[row.word_txid].tips_satoshis = Number(row.tips_satoshis || 0);
+			fallback[row.word_txid].tips_amount = sugarAmount(row.tips_satoshis || 0);
+		}
+	}
+	const normalizedViewer = normalizeSocialAddress(viewerAddress);
+	if (normalizedViewer) {
+		const likedRows = await env.LINGRY_DB.prepare(`SELECT word_txid FROM lingry_likes WHERE liker_address = ? AND word_txid IN (${placeholders})`).bind(normalizedViewer, ...txids).all();
+		for (const row of likedRows.results || []) {
+			if (fallback[row.word_txid]) {
+				fallback[row.word_txid].liked = true;
+			}
+		}
+	}
+	return fallback;
+}
+
+async function enrichLingryRecordsWithSocial(env, records, viewerAddress = '') {
+	records = Array.isArray(records) ? records : [];
+	const summary = await lingrySocialSummaryForTxids(env, records.map(record => record && record.txid), viewerAddress);
+	return records.map(record => {
+		const txid = normalizeSocialTxid(record && record.txid);
+		return txid && summary[txid] ? { ...record, social: summary[txid] } : record;
+	});
+}
+
+async function handleLingrySocialSummary(request, env) {
+	const url = new URL(request.url);
+	const txids = String(url.searchParams.get('txids') || '').split(',').map(item => item.trim());
+	const viewerAddress = url.searchParams.get('address') || '';
+	return jsonResponse({
+		enabled: await ensureLingrySocialDb(env),
+		items: await lingrySocialSummaryForTxids(env, txids, viewerAddress)
+	});
+}
+
+async function handleLingrySocialLike(request, env) {
+	if (request.method !== 'POST') {
+		return jsonResponse({ error: 'Method not allowed.' }, 405);
+	}
+	const body = await request.json().catch(() => ({}));
+	const wordTxid = normalizeSocialTxid(body.word_txid);
+	const likerAddress = normalizeSocialAddress(body.liker_address);
+	const liked = body.liked !== false;
+	if (!wordTxid || !likerAddress) {
+		return jsonResponse({ error: 'Valid word txid and Lingry address are required.' }, 400);
+	}
+	if (!(await ensureLingrySocialDb(env))) {
+		return jsonResponse({ error: 'Lingry social database is not configured.' }, 503);
+	}
+	if (body.record) {
+		await persistLingrySocialWords(env, [{ ...body.record, txid: wordTxid }]);
+	}
+	if (liked) {
+		await env.LINGRY_DB.prepare('INSERT OR IGNORE INTO lingry_likes (word_txid, liker_address, created_at) VALUES (?, ?, ?)').bind(wordTxid, likerAddress, new Date().toISOString()).run();
+	} else {
+		await env.LINGRY_DB.prepare('DELETE FROM lingry_likes WHERE word_txid = ? AND liker_address = ?').bind(wordTxid, likerAddress).run();
+	}
+	return jsonResponse({
+		enabled: true,
+		items: await lingrySocialSummaryForTxids(env, [wordTxid], likerAddress)
+	});
+}
+
+async function handleLingrySocialTip(request, env) {
+	if (request.method !== 'POST') {
+		return jsonResponse({ error: 'Method not allowed.' }, 405);
+	}
+	const body = await request.json().catch(() => ({}));
+	const wordTxid = normalizeSocialTxid(body.word_txid);
+	const tipTxid = normalizeSocialTxid(body.tip_txid);
+	const fromAddress = normalizeSocialAddress(body.from_address);
+	const toAddress = normalizeSocialAddress(body.to_address);
+	const amountSatoshis = Math.max(0, Math.floor(Number(body.amount_satoshis || 0)));
+	if (!wordTxid || !tipTxid || !fromAddress || !toAddress || amountSatoshis <= 0) {
+		return jsonResponse({ error: 'Valid tip transaction, word txid, addresses, and amount are required.' }, 400);
+	}
+	if (!(await ensureLingrySocialDb(env))) {
+		return jsonResponse({ error: 'Lingry social database is not configured.' }, 503);
+	}
+	if (body.record) {
+		await persistLingrySocialWords(env, [{ ...body.record, txid: wordTxid, creator_address: toAddress }]);
+	}
+	await env.LINGRY_DB.prepare(`
+		INSERT OR IGNORE INTO lingry_tips (tip_txid, word_txid, from_address, to_address, amount_satoshis, created_at)
+		VALUES (?, ?, ?, ?, ?, ?)
+	`).bind(tipTxid, wordTxid, fromAddress, toAddress, amountSatoshis, new Date().toISOString()).run();
+	return jsonResponse({
+		enabled: true,
+		items: await lingrySocialSummaryForTxids(env, [wordTxid], fromAddress)
+	});
 }
 
 function validateGeneratedWord(candidate, usedWords) {
@@ -919,7 +1217,8 @@ async function indexSugarTxid(txid, knownBlock = null) {
 			indexed_at: new Date().toISOString(),
 			source: 'blockchain',
 			verified_status: 'verified_on_chain',
-			duplicate_status: 'first_seen'
+			duplicate_status: 'first_seen',
+			creator_address: extractTxSourceAddress(tx)
 		});
 	}
 	return records;
@@ -1111,14 +1410,16 @@ async function scanLatestSugarBlocks(startHeight, blockCount, word = '', offsetB
 	return { records: matches, summary };
 }
 
-async function handleWordLatest(request) {
+async function handleWordLatest(request, env) {
 	const url = new URL(request.url);
 	const limit = Math.max(1, Math.min(Number(url.searchParams.get('limit')) || 50, 100));
 	const filter = url.searchParams.get('filter') || '';
+	const viewerAddress = url.searchParams.get('address') || '';
 	if (!workerWordCache.records.length || Date.now() - workerWordCache.scannedAt > 5 * 60 * 1000) {
 		try {
 			const scan = await scanLatestSugarBlocks(42900000, WORKER_DEFAULT_CACHE_SCAN_BLOCKS);
 			mergeWorkerWordCache(scan.records, scan.summary);
+			await persistLingrySocialWords(env, scan.records);
 		} catch (error) {
 			workerWordCache.summary = {
 				enabled: true,
@@ -1137,12 +1438,12 @@ async function handleWordLatest(request) {
 		}
 	}
 	return jsonResponse({
-		records: filteredWorkerRecords(filter).slice(0, limit),
+		records: await enrichLingryRecordsWithSocial(env, filteredWorkerRecords(filter).slice(0, limit), viewerAddress),
 		scan_summary: workerWordCache.summary
 	});
 }
 
-async function handleWordScan(request) {
+async function handleWordScan(request, env) {
 	if (request.method !== 'POST') {
 		return jsonResponse({ error: 'Method not allowed.' }, 405);
 	}
@@ -1156,9 +1457,10 @@ async function handleWordScan(request) {
 		offset = Number(body.offset) || 0;
 		const result = await scanLatestSugarBlocks(startHeight, blocks, '', offset);
 		mergeWorkerWordCache(result.records, result.summary);
+		await persistLingrySocialWords(env, result.records);
 		return jsonResponse({
 			...result.summary,
-			records: result.records
+			records: await enrichLingryRecordsWithSocial(env, result.records, body.viewer_address || '')
 		});
 	} catch (error) {
 		const cachedRecords = filteredWorkerRecords('all').slice(0, 100);
@@ -1176,18 +1478,19 @@ async function handleWordScan(request) {
 			scanned_transactions: 0,
 			indexed_records: 0,
 			errors: [{ error: error.message || 'Sugarchain scan unavailable.' }],
-			records: cachedRecords
+			records: await enrichLingryRecordsWithSocial(env, cachedRecords)
 		});
 	}
 }
 
-async function handleWordSearch(request) {
+async function handleWordSearch(request, env) {
 	const url = new URL(request.url);
 	const direct = ['1', 'true', 'yes', 'on'].includes(String(url.searchParams.get('direct') || '').toLowerCase());
 	const mode = url.searchParams.get('mode') || 'all';
 	const word = normalizeWord(url.searchParams.get('q') || '');
 	const startHeight = Number(url.searchParams.get('start_height')) || 42900000;
 	const blocks = Number(url.searchParams.get('blocks')) || 500;
+	const viewerAddress = url.searchParams.get('address') || '';
 
 	if (!direct || mode !== 'word' || !/^[a-z-]{2,32}$/.test(word)) {
 		return jsonResponse({
@@ -1211,15 +1514,16 @@ async function handleWordSearch(request) {
 	try {
 		const result = await scanLatestSugarBlocks(startHeight, blocks, word);
 		mergeWorkerWordCache(result.records, result.summary);
+		await persistLingrySocialWords(env, result.records);
 		return jsonResponse({
-			records: result.records,
+			records: await enrichLingryRecordsWithSocial(env, result.records, viewerAddress),
 			decoded_record: null,
 			direct_summary: result.summary
 		});
 	} catch (error) {
 		const cachedMatches = filteredWorkerRecords('all').filter(record => normalizeWord(record.word) === word).slice(0, 50);
 		return jsonResponse({
-			records: cachedMatches,
+			records: await enrichLingryRecordsWithSocial(env, cachedMatches, viewerAddress),
 			decoded_record: null,
 			direct_summary: {
 				enabled: true,
@@ -1238,7 +1542,9 @@ async function handleWordSearch(request) {
 	}
 }
 
-async function handleWordDetail(request, word) {
+async function handleWordDetail(request, env, word) {
+	const url = new URL(request.url);
+	const viewerAddress = url.searchParams.get('address') || '';
 	const normalizedWord = normalizeWord(word);
 	if (!normalizedWord) {
 		return jsonResponse({ error: 'Word is required.' }, 400);
@@ -1247,6 +1553,7 @@ async function handleWordDetail(request, word) {
 		try {
 			const scan = await scanLatestSugarBlocks(42900000, WORKER_DEFAULT_CACHE_SCAN_BLOCKS);
 			mergeWorkerWordCache(scan.records, scan.summary);
+			await persistLingrySocialWords(env, scan.records);
 		} catch (error) {
 			workerWordCache.summary = {
 				enabled: true,
@@ -1280,13 +1587,15 @@ async function handleWordDetail(request, word) {
 		.slice(0, 8);
 	return jsonResponse({
 		word: normalizedWord,
-		first_seen: first,
-		claims,
-		related
+		first_seen: (await enrichLingryRecordsWithSocial(env, [first], viewerAddress))[0],
+		claims: await enrichLingryRecordsWithSocial(env, claims, viewerAddress),
+		related: await enrichLingryRecordsWithSocial(env, related, viewerAddress)
 	});
 }
 
-async function handleTxWord(request, txid) {
+async function handleTxWord(request, env, txid) {
+	const url = new URL(request.url);
+	const viewerAddress = url.searchParams.get('address') || '';
 	try {
 		const records = await indexSugarTxid(txid);
 		if (records.length) {
@@ -1302,8 +1611,9 @@ async function handleTxWord(request, txid) {
 				indexed_records: records.length,
 				errors: []
 			});
+			await persistLingrySocialWords(env, records);
 		}
-		return jsonResponse({ records });
+		return jsonResponse({ records: await enrichLingryRecordsWithSocial(env, records, viewerAddress) });
 	} catch (error) {
 		return jsonResponse({ error: error.message || 'Transaction lookup failed.' }, 400);
 	}
@@ -1321,22 +1631,31 @@ export default {
 		if (url.pathname === '/api/faucet/fund') {
 			return handleFaucetFund(request, env);
 		}
+		if (url.pathname === '/api/social/summary') {
+			return handleLingrySocialSummary(request, env);
+		}
+		if (url.pathname === '/api/social/like') {
+			return handleLingrySocialLike(request, env);
+		}
+		if (url.pathname === '/api/social/tip') {
+			return handleLingrySocialTip(request, env);
+		}
 		if (url.pathname === '/api/words/latest') {
-			return handleWordLatest(request);
+			return handleWordLatest(request, env);
 		}
 		if (url.pathname === '/api/words/scan') {
-			return handleWordScan(request);
+			return handleWordScan(request, env);
 		}
 		if (url.pathname === '/api/words/search') {
-			return handleWordSearch(request);
+			return handleWordSearch(request, env);
 		}
 		if (url.pathname.startsWith('/api/words/')) {
 			const word = decodeURIComponent(url.pathname.slice('/api/words/'.length));
-			return handleWordDetail(request, word);
+			return handleWordDetail(request, env, word);
 		}
 		if (url.pathname.startsWith('/api/tx/') && url.pathname.endsWith('/word')) {
 			const txid = decodeURIComponent(url.pathname.slice('/api/tx/'.length, -'/word'.length));
-			return handleTxWord(request, txid);
+			return handleTxWord(request, env, txid);
 		}
 		return env.ASSETS.fetch(request);
 	}

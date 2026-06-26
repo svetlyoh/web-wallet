@@ -58,6 +58,11 @@ const faucetFeeSatoshis = 1000;
 const faucetExpectedAddress = process.env.LINGRY_FUNDING_ADDRESS || process.env.LINGRY_FAUCET_ADDRESS || 'sugar1q39n666w687nxm9x98tx5kgw2uvk780gtmd6yyu';
 const sugarGrantsEnabled = String(process.env.LINGRY_SUGAR_GRANTS_ENABLED || 'true').toLowerCase() !== 'false';
 const faucetAttempts = new Map();
+const lingrySocialState = {
+	words: new Map(),
+	likes: new Map(),
+	tips: new Map()
+};
 let bundledBitcoin = null;
 
 const mimeTypes = {
@@ -165,6 +170,160 @@ function validateSugarAddress(bitcoin, address) {
 			return false;
 		}
 	}
+}
+
+function normalizeSocialTxid(value) {
+	const txid = String(value || '').trim().toLowerCase();
+	return /^[0-9a-f]{64}$/.test(txid) ? txid : '';
+}
+
+function normalizeSocialAddress(value) {
+	const address = normalizeAddress(value);
+	return validateSugarAddress(loadBundledBitcoin(), address) ? address : '';
+}
+
+function normalizeSocialWordRecord(record) {
+	const txid = normalizeSocialTxid(record && record.txid);
+	if (!txid) {
+		return null;
+	}
+	return {
+		txid,
+		word: String(record.word || '').trim().toLowerCase(),
+		meaning: String(record.meaning || '').trim().slice(0, 140),
+		etymology_meaning: String(record.etymology_meaning || record.roots_compact || '').trim().slice(0, 80),
+		language_code: String(record.language_code || 'W').slice(0, 1).toUpperCase(),
+		part_of_speech: String(record.part_of_speech || '').trim().toLowerCase(),
+		creator_address: normalizeSocialAddress(record.creator_address || record.address || record.sender),
+		block_height: record.block_height == null ? null : Number(record.block_height),
+		block_hash: String(record.block_hash || ''),
+		tx_time: String(record.tx_time || record.timestamp || ''),
+		op_return_payload: String(record.op_return_payload || ''),
+		op_return_hex: String(record.op_return_hex || '').trim().toLowerCase(),
+		indexed_at: String(record.indexed_at || new Date().toISOString())
+	};
+}
+
+function persistLocalSocialWords(records) {
+	for (const record of records || []) {
+		const normalized = normalizeSocialWordRecord(record);
+		if (!normalized) {
+			continue;
+		}
+		const existing = lingrySocialState.words.get(normalized.txid) || {};
+		lingrySocialState.words.set(normalized.txid, {
+			...existing,
+			...normalized,
+			creator_address: normalized.creator_address || existing.creator_address || '',
+			etymology_meaning: normalized.etymology_meaning || existing.etymology_meaning || '',
+			tx_time: normalized.tx_time || existing.tx_time || '',
+			block_height: normalized.block_height == null ? existing.block_height : normalized.block_height
+		});
+	}
+}
+
+function localSocialSummaryForTxids(txids, viewerAddress = '') {
+	const normalizedViewer = normalizeSocialAddress(viewerAddress);
+	const output = {};
+	for (const txid of Array.from(new Set((txids || []).map(normalizeSocialTxid).filter(Boolean))).slice(0, 100)) {
+		let likes = 0;
+		let liked = false;
+		for (const key of lingrySocialState.likes.keys()) {
+			const parts = key.split(':');
+			if (parts[0] === txid) {
+				likes += 1;
+				if (normalizedViewer && parts.slice(1).join(':') === normalizedViewer) {
+					liked = true;
+				}
+			}
+		}
+		let tipsCount = 0;
+		let tipsSatoshis = 0;
+		for (const tip of lingrySocialState.tips.values()) {
+			if (tip.word_txid === txid) {
+				tipsCount += 1;
+				tipsSatoshis += Number(tip.amount_satoshis || 0);
+			}
+		}
+		output[txid] = {
+			txid,
+			likes,
+			liked,
+			tips_count: tipsCount,
+			tips_satoshis: tipsSatoshis,
+			tips_amount: sugarAmount(tipsSatoshis)
+		};
+	}
+	return output;
+}
+
+async function handleLingrySocial(req, res) {
+	const url = new URL(req.url, 'http://localhost');
+	if (req.method === 'GET' && url.pathname === '/api/social/summary') {
+		const txids = String(url.searchParams.get('txids') || '').split(',').map(item => item.trim());
+		sendJson(res, 200, {
+			enabled: true,
+			local: true,
+			items: localSocialSummaryForTxids(txids, url.searchParams.get('address') || '')
+		});
+		return true;
+	}
+	if (req.method === 'POST' && url.pathname === '/api/social/like') {
+		const body = JSON.parse(await readBody(req) || '{}');
+		const wordTxid = normalizeSocialTxid(body.word_txid);
+		const likerAddress = normalizeSocialAddress(body.liker_address);
+		if (!wordTxid || !likerAddress) {
+			sendJson(res, 400, { error: 'Valid word txid and Lingry address are required.' });
+			return true;
+		}
+		if (body.record) {
+			persistLocalSocialWords([{ ...body.record, txid: wordTxid }]);
+		}
+		const key = wordTxid + ':' + likerAddress;
+		if (body.liked === false) {
+			lingrySocialState.likes.delete(key);
+		} else {
+			lingrySocialState.likes.set(key, { word_txid: wordTxid, liker_address: likerAddress, created_at: new Date().toISOString() });
+		}
+		sendJson(res, 200, {
+			enabled: true,
+			local: true,
+			items: localSocialSummaryForTxids([wordTxid], likerAddress)
+		});
+		return true;
+	}
+	if (req.method === 'POST' && url.pathname === '/api/social/tip') {
+		const body = JSON.parse(await readBody(req) || '{}');
+		const wordTxid = normalizeSocialTxid(body.word_txid);
+		const tipTxid = normalizeSocialTxid(body.tip_txid);
+		const fromAddress = normalizeSocialAddress(body.from_address);
+		const toAddress = normalizeSocialAddress(body.to_address);
+		const amountSatoshis = Math.max(0, Math.floor(Number(body.amount_satoshis || 0)));
+		if (!wordTxid || !tipTxid || !fromAddress || !toAddress || amountSatoshis <= 0) {
+			sendJson(res, 400, { error: 'Valid tip transaction, word txid, addresses, and amount are required.' });
+			return true;
+		}
+		if (body.record) {
+			persistLocalSocialWords([{ ...body.record, txid: wordTxid, creator_address: toAddress }]);
+		}
+		if (!lingrySocialState.tips.has(tipTxid)) {
+			lingrySocialState.tips.set(tipTxid, {
+				tip_txid: tipTxid,
+				word_txid: wordTxid,
+				from_address: fromAddress,
+				to_address: toAddress,
+				amount_satoshis: amountSatoshis,
+				created_at: new Date().toISOString()
+			});
+		}
+		sendJson(res, 200, {
+			enabled: true,
+			local: true,
+			items: localSocialSummaryForTxids([wordTxid], fromAddress)
+		});
+		return true;
+	}
+	return false;
 }
 
 function getScriptType(bitcoin, script) {
@@ -852,6 +1011,17 @@ const server = http.createServer(async (req, res) => {
 	if (req.url && req.url.startsWith('/api/faucet/fund')) {
 		handleFaucetFund(req, res);
 		return;
+	}
+	if (req.url && req.url.startsWith('/api/social/')) {
+		try {
+			const handled = await handleLingrySocial(req, res);
+			if (handled) {
+				return;
+			}
+		} catch (error) {
+			sendJson(res, 400, { error: error.message || 'Lingry social request failed.' });
+			return;
+		}
 	}
 	if (req.url && (req.url.startsWith('/api/words') || req.url.startsWith('/api/tx/'))) {
 		try {
