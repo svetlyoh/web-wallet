@@ -16,6 +16,7 @@ const WORKER_RANGE_BATCH_SIZE = 100;
 const WORKER_TX_LOOKUP_CONCURRENCY = 8;
 const LINGRY_WORD_START_HEIGHT = 42900000;
 const LINGRY_LEADERBOARD_REFRESH_MS = 3 * 60 * 60 * 1000;
+const LINGRY_LEADERBOARD_REFRESH_LOCK_MS = 15 * 60 * 1000;
 const LINGRY_LEADERBOARD_RECENT_BLOCKS = 2500;
 const LINGRY_LEADERBOARD_SCAN_CHUNK_BLOCKS = 500;
 const faucetAttempts = new Map();
@@ -30,6 +31,7 @@ const lingryLeaderboardRefreshState = {
 	summary: null
 };
 let lingrySocialDbReady = false;
+let lingryMetaDbReady = false;
 const sugarNetwork = {
 	messagePrefix: '\x19Sugarchain Signed Message:\n',
 	bip32: {
@@ -379,6 +381,42 @@ async function ensureLingrySocialDb(env) {
 	return lingrySocialDbReady;
 }
 
+async function ensureLingryMetaDb(env) {
+	if (!(await ensureLingrySocialDb(env))) {
+		return false;
+	}
+	if (!lingryMetaDbReady) {
+		await env.LINGRY_DB.prepare(`
+			CREATE TABLE IF NOT EXISTS lingry_meta (
+				key TEXT PRIMARY KEY,
+				value TEXT NOT NULL,
+				updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+			)
+		`).run();
+		lingryMetaDbReady = true;
+	}
+	return true;
+}
+
+async function getLingryMeta(env, key) {
+	if (!(await ensureLingryMetaDb(env))) {
+		return '';
+	}
+	const row = await env.LINGRY_DB.prepare('SELECT value FROM lingry_meta WHERE key = ?').bind(String(key || '')).first();
+	return row && row.value ? String(row.value) : '';
+}
+
+async function setLingryMeta(env, key, value) {
+	if (!(await ensureLingryMetaDb(env))) {
+		return;
+	}
+	await env.LINGRY_DB.prepare(`
+		INSERT INTO lingry_meta (key, value, updated_at)
+		VALUES (?, ?, ?)
+		ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
+	`).bind(String(key || ''), String(value || ''), new Date().toISOString()).run();
+}
+
 function normalizeSocialTxid(value) {
 	const txid = String(value || '').trim().toLowerCase();
 	return /^[0-9a-f]{64}$/.test(txid) ? txid : '';
@@ -674,6 +712,37 @@ function emptyLingryLeaderboardSummary(error = '') {
 	};
 }
 
+function parseLingryMetaDate(value) {
+	const time = Date.parse(String(value || ''));
+	return Number.isFinite(time) ? time : 0;
+}
+
+async function readLingryLeaderboardRefreshSummary(env) {
+	const fallback = lingryLeaderboardRefreshState.summary || emptyLingryLeaderboardSummary();
+	if (!(await ensureLingryMetaDb(env))) {
+		return fallback;
+	}
+	const storedSummaryJson = await getLingryMeta(env, 'leaderboard_last_summary');
+	let storedSummary = null;
+	if (storedSummaryJson) {
+		try {
+			storedSummary = JSON.parse(storedSummaryJson);
+		} catch (error) {
+			storedSummary = null;
+		}
+	}
+	const lastRefresh = await getLingryMeta(env, 'leaderboard_last_refresh_at');
+	const startedAt = await getLingryMeta(env, 'leaderboard_refresh_started_at');
+	const lastRefreshMs = parseLingryMetaDate(lastRefresh);
+	const startedMs = parseLingryMetaDate(startedAt);
+	const refreshing = Boolean(lingryLeaderboardRefreshState.running) || Boolean(startedMs && startedMs > lastRefreshMs && Date.now() - startedMs < LINGRY_LEADERBOARD_REFRESH_LOCK_MS);
+	return {
+		...(storedSummary || fallback),
+		refreshed_at: lastRefresh || (storedSummary && storedSummary.refreshed_at) || '',
+		refreshing
+	};
+}
+
 async function refreshLingryLeaderboardIndex(env) {
 	if (!(await ensureLingrySocialDb(env))) {
 		lingryLeaderboardRefreshState.summary = emptyLingryLeaderboardSummary('Lingry social database is not configured.');
@@ -685,6 +754,7 @@ async function refreshLingryLeaderboardIndex(env) {
 	lingryLeaderboardRefreshState.running = (async () => {
 		const summary = emptyLingryLeaderboardSummary();
 		summary.started_at = new Date().toISOString();
+		await setLingryMeta(env, 'leaderboard_refresh_started_at', summary.started_at);
 		for (let offset = 0; offset < LINGRY_LEADERBOARD_RECENT_BLOCKS; offset += LINGRY_LEADERBOARD_SCAN_CHUNK_BLOCKS) {
 			const blocks = Math.min(LINGRY_LEADERBOARD_SCAN_CHUNK_BLOCKS, LINGRY_LEADERBOARD_RECENT_BLOCKS - offset);
 			try {
@@ -708,6 +778,9 @@ async function refreshLingryLeaderboardIndex(env) {
 		summary.refreshing = false;
 		lingryLeaderboardRefreshState.lastRefresh = Date.now();
 		lingryLeaderboardRefreshState.summary = summary;
+		await setLingryMeta(env, 'leaderboard_last_refresh_at', summary.refreshed_at);
+		await setLingryMeta(env, 'leaderboard_last_summary', JSON.stringify(summary));
+		await setLingryMeta(env, 'leaderboard_refresh_started_at', '');
 		return summary;
 	})();
 	try {
@@ -828,20 +901,26 @@ async function handleLingryLeaderboard(request, env, ctx) {
 	const limit = Math.max(5, Math.min(Number(url.searchParams.get('limit')) || 25, 50));
 	const forceRefresh = ['1', 'true', 'yes', 'on'].includes(String(url.searchParams.get('refresh') || '').toLowerCase());
 	const waitForRefresh = ['1', 'true', 'yes', 'on'].includes(String(url.searchParams.get('wait') || '').toLowerCase());
-	const stale = !lingryLeaderboardRefreshState.lastRefresh || Date.now() - lingryLeaderboardRefreshState.lastRefresh >= LINGRY_LEADERBOARD_REFRESH_MS;
+	let refreshSummary = await readLingryLeaderboardRefreshSummary(env);
+	const lastRefreshMs = parseLingryMetaDate(refreshSummary.refreshed_at);
+	const recentlyStarted = refreshSummary.refreshing;
+	const stale = !lastRefreshMs || Date.now() - lastRefreshMs >= LINGRY_LEADERBOARD_REFRESH_MS;
 
-	if ((forceRefresh || stale) && !lingryLeaderboardRefreshState.running) {
+	if ((forceRefresh || stale) && !recentlyStarted && !lingryLeaderboardRefreshState.running) {
 		const refreshPromise = refreshLingryLeaderboardIndex(env).catch(error => {
 			lingryLeaderboardRefreshState.summary = emptyLingryLeaderboardSummary(error.message || 'Leaderboard refresh failed.');
 			return lingryLeaderboardRefreshState.summary;
 		});
 		if (waitForRefresh) {
 			await refreshPromise;
+			refreshSummary = await readLingryLeaderboardRefreshSummary(env);
 		} else if (ctx && typeof ctx.waitUntil === 'function') {
 			ctx.waitUntil(refreshPromise);
+			refreshSummary = { ...refreshSummary, refreshing: true };
 		}
 	} else if (waitForRefresh && lingryLeaderboardRefreshState.running) {
 		await lingryLeaderboardRefreshState.running;
+		refreshSummary = await readLingryLeaderboardRefreshSummary(env);
 	}
 
 	const leaderboard = await readLingryLeaderboard(env, limit);
@@ -854,7 +933,7 @@ async function handleLingryLeaderboard(request, env, ctx) {
 			expected_blocks: Math.ceil((3 * 60 * 60) / 5),
 			scan_blocks_with_slack: LINGRY_LEADERBOARD_RECENT_BLOCKS
 		},
-		refresh_summary: lingryLeaderboardRefreshState.summary || emptyLingryLeaderboardSummary()
+		refresh_summary: refreshSummary
 	});
 }
 
