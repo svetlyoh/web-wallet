@@ -4080,10 +4080,6 @@
 					showMessage('This word does not have a tip address yet.')
 					return Promise.resolve()
 				}
-				if (recipient == globalData.address) {
-					showMessage('That word is already yours.')
-					return Promise.resolve()
-				}
 				var fee = Number(globalData.rfee || getConfig()['fee'])
 				var amountSatoshis = LINGRY_TIP_AMOUNT_SATOSHIS
 				var feeSatoshis = amountFormat(fee, true)
@@ -4217,7 +4213,7 @@
 					var likedClass = social.liked ? ' is-liked' : ''
 					var likeText = (social.liked ? 'Liked' : 'Like') + (social.likes ? ' ' + social.likes : '')
 					var tipText = lingryTipSummaryLabel(social)
-					var canTip = Boolean(txid && (!creatorAddress || creatorAddress != globalData.address))
+					var canTip = Boolean(txid && creatorAddress)
 					return '<article class="lingry-feed-card">' +
 						'<div class="lingry-feed-row">' +
 							'<button type="button" class="lingry-address-chip" data-full-address="' + escapeHtml(source) + '" aria-label="Show full source">' + escapeHtml(label) + '</button>' +
