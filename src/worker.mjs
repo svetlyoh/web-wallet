@@ -906,7 +906,8 @@ async function handleLingryLeaderboard(request, env, ctx) {
 	const recentlyStarted = refreshSummary.refreshing;
 	const stale = !lastRefreshMs || Date.now() - lastRefreshMs >= LINGRY_LEADERBOARD_REFRESH_MS;
 
-	if ((forceRefresh || stale) && !recentlyStarted && !lingryLeaderboardRefreshState.running) {
+	const canStartRefresh = !lingryLeaderboardRefreshState.running && (!recentlyStarted || (forceRefresh && waitForRefresh));
+	if ((forceRefresh || stale) && canStartRefresh) {
 		const refreshPromise = refreshLingryLeaderboardIndex(env).catch(error => {
 			lingryLeaderboardRefreshState.summary = emptyLingryLeaderboardSummary(error.message || 'Leaderboard refresh failed.');
 			return lingryLeaderboardRefreshState.summary;
