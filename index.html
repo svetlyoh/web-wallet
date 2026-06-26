@@ -1339,10 +1339,20 @@
 			}
 			.lingry-rank-address {
 				color: #043b2c;
-				font-size: 16px;
+				font-size: 15px;
 				line-height: 1.2;
 				font-weight: 900;
 				word-break: break-all;
+			}
+			.lingry-rank-full-address {
+				color: #3f6b58;
+				font-size: 10px;
+				line-height: 1.25;
+				font-weight: 800;
+				letter-spacing: 0;
+				margin: 4px 0 8px;
+				overflow-wrap: anywhere;
+				word-break: break-word;
 			}
 			.lingry-rank-meaning {
 				color: #1d4b39;
@@ -4251,10 +4261,26 @@
 					'<div class="lingry-rank-number">' + (index + 1) + '</div>' +
 					'<div>' +
 						'<div class="lingry-rank-address">' + escapeHtml(lingryLeaderboardShortAddress(item.address)) + '</div>' +
-						'<div class="lingry-rank-meaning">' + escapeHtml(item.address || 'unknown address') + '</div>' +
+						'<div class="lingry-rank-full-address">' + escapeHtml(item.address || 'unknown address') + '</div>' +
 						'<div class="lingry-rank-stats">' + stats.join('') + '</div>' +
 					'</div>' +
 				'</article>'
+			}
+
+			function lingryLeaderboardRankedWords(words, primaryField, secondaryField) {
+				var rankedWords = (Array.isArray(words) ? words : []).slice()
+				rankedWords.sort(function(a, b) {
+					var primaryDelta = Number((b || {})[primaryField] || 0) - Number((a || {})[primaryField] || 0)
+					if (primaryDelta) {
+						return primaryDelta
+					}
+					var secondaryDelta = Number((b || {})[secondaryField] || 0) - Number((a || {})[secondaryField] || 0)
+					if (secondaryDelta) {
+						return secondaryDelta
+					}
+					return Number((b || {}).block_height || 0) - Number((a || {}).block_height || 0)
+				})
+				return rankedWords.slice(0, 10)
 			}
 
 			function lingryLeaderboardSection(title, detail, items, renderer, emptyText) {
@@ -4270,8 +4296,11 @@
 
 			function renderLingryLeaderboard(data) {
 				data = data || {}
+				var words = Array.isArray(data.words) ? data.words : []
 				var html = [
-					lingryLeaderboardSection('Popular Words', 'likes + tips, descending', data.words, lingryLeaderboardWordCard, 'No liked or tipped words yet.'),
+					lingryLeaderboardSection('Popular Words', 'likes + tips, descending', words, lingryLeaderboardWordCard, 'No liked or tipped words yet.'),
+					lingryLeaderboardSection('Most Liked Words', 'word achievements', lingryLeaderboardRankedWords(words, 'likes', 'tips_count'), lingryLeaderboardWordCard, 'No liked words yet.'),
+					lingryLeaderboardSection('Most Tipped Words', 'word achievements', lingryLeaderboardRankedWords(words, 'tips_count', 'tips_satoshis'), lingryLeaderboardWordCard, 'No tipped words yet.'),
 					lingryLeaderboardSection('Top Liked Addresses', 'likes received', data.addresses_by_likes, function(item, index) {
 						return lingryLeaderboardAddressCard(item, index, 'likes')
 					}, 'No address likes yet.'),
