@@ -3980,7 +3980,8 @@
 			}
 
 			function lingryRecordCreatorAddress(record) {
-				return String(record && (record.creator_address || record.address || record.sender) || '').trim()
+				var social = lingryRecordSocial(record)
+				return String(record && (record.creator_address || record.address || record.sender) || social.creator_address || '').trim()
 			}
 
 			function lingryRecordSocial(record) {
@@ -4208,15 +4209,15 @@
 				var cards = records.map(function(record, index) {
 					var word = record.word || 'aaa'
 					var meaning = record.meaning || 'meaning pending'
-					var source = record.creator_address || record.address || record.sender || globalData.address || record.txid || ''
+					var social = lingryRecordSocial(record)
+					var source = record.creator_address || record.address || record.sender || social.creator_address || globalData.address || record.txid || ''
 					var label = lingryStreamAddressLabel(source)
 					var txid = lingryRecordTxid(record)
-					var social = lingryRecordSocial(record)
 					var creatorAddress = lingryRecordCreatorAddress(record)
 					var likedClass = social.liked ? ' is-liked' : ''
 					var likeText = (social.liked ? 'Liked' : 'Like') + (social.likes ? ' ' + social.likes : '')
 					var tipText = lingryTipSummaryLabel(social)
-					var canTip = Boolean(txid && creatorAddress && creatorAddress != globalData.address)
+					var canTip = Boolean(txid && (!creatorAddress || creatorAddress != globalData.address))
 					return '<article class="lingry-feed-card">' +
 						'<div class="lingry-feed-row">' +
 							'<button type="button" class="lingry-address-chip" data-full-address="' + escapeHtml(source) + '" aria-label="Show full source">' + escapeHtml(label) + '</button>' +

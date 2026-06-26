@@ -247,6 +247,7 @@ function localSocialSummaryForTxids(txids, viewerAddress = '') {
 		}
 		output[txid] = {
 			txid,
+			creator_address: lingrySocialState.words.get(txid) && lingrySocialState.words.get(txid).creator_address || '',
 			likes,
 			liked,
 			tips_count: tipsCount,

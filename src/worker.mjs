@@ -495,6 +495,7 @@ async function lingrySocialSummaryForTxids(env, txids, viewerAddress = '') {
 	for (const txid of txids) {
 		fallback[txid] = {
 			txid,
+			creator_address: '',
 			likes: 0,
 			liked: false,
 			tips_count: 0,
@@ -506,6 +507,12 @@ async function lingrySocialSummaryForTxids(env, txids, viewerAddress = '') {
 		return fallback;
 	}
 	const placeholders = txids.map(() => '?').join(',');
+	const wordRows = await env.LINGRY_DB.prepare(`SELECT txid, creator_address FROM lingry_words WHERE txid IN (${placeholders})`).bind(...txids).all();
+	for (const row of wordRows.results || []) {
+		if (fallback[row.txid]) {
+			fallback[row.txid].creator_address = row.creator_address || '';
+		}
+	}
 	const likeRows = await env.LINGRY_DB.prepare(`SELECT word_txid, COUNT(*) AS likes FROM lingry_likes WHERE word_txid IN (${placeholders}) GROUP BY word_txid`).bind(...txids).all();
 	for (const row of likeRows.results || []) {
 		if (fallback[row.word_txid]) {
@@ -539,6 +546,40 @@ async function enrichLingryRecordsWithSocial(env, records, viewerAddress = '') {
 		const txid = normalizeSocialTxid(record && record.txid);
 		return txid && summary[txid] ? { ...record, social: summary[txid] } : record;
 	});
+}
+
+async function latestLingrySocialWords(env, limit = 50, viewerAddress = '') {
+	if (!(await ensureLingrySocialDb(env))) {
+		return [];
+	}
+	const safeLimit = Math.max(1, Math.min(Number(limit) || 50, 100));
+	const rows = await env.LINGRY_DB.prepare(`
+		SELECT txid, word, meaning, etymology_meaning, language_code, part_of_speech,
+			creator_address, block_height, block_hash, tx_time, op_return_payload, op_return_hex, indexed_at
+		FROM lingry_words
+		ORDER BY COALESCE(tx_time, indexed_at) DESC, COALESCE(block_height, 0) DESC
+		LIMIT ?
+	`).bind(safeLimit).all();
+	const records = (rows.results || []).map(row => ({
+		txid: row.txid || '',
+		word: row.word || '',
+		meaning: row.meaning || '',
+		etymology_meaning: row.etymology_meaning || '',
+		language_code: row.language_code || 'W',
+		part_of_speech: row.part_of_speech || '',
+		creator_address: row.creator_address || '',
+		address: row.creator_address || '',
+		block_height: row.block_height,
+		block_hash: row.block_hash || '',
+		tx_time: row.tx_time || '',
+		timestamp: row.tx_time || row.indexed_at || '',
+		op_return_payload: row.op_return_payload || '',
+		op_return_hex: row.op_return_hex || '',
+		indexed_at: row.indexed_at || '',
+		source: 'd1_social_index',
+		verified_status: 'verified_on_chain'
+	}));
+	return enrichLingryRecordsWithSocial(env, records, viewerAddress);
 }
 
 async function handleLingrySocialSummary(request, env) {
@@ -1390,8 +1431,16 @@ async function handleWordLatest(request, env) {
 			};
 		}
 	}
+	const d1Records = await latestLingrySocialWords(env, limit, viewerAddress);
+	const merged = new Map();
+	for (const record of d1Records) {
+		merged.set(recordCacheKey(record), record);
+	}
+	for (const record of filteredWorkerRecords(filter)) {
+		merged.set(recordCacheKey(record), record);
+	}
 	return jsonResponse({
-		records: await enrichLingryRecordsWithSocial(env, filteredWorkerRecords(filter).slice(0, limit), viewerAddress),
+		records: await enrichLingryRecordsWithSocial(env, Array.from(merged.values()).slice(0, limit), viewerAddress),
 		scan_summary: workerWordCache.summary
 	});
 }
