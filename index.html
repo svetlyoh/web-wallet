@@ -4233,27 +4233,6 @@
 				return 'Indexed words'
 			}
 
-			function lingryLeaderboardWordCard(item, index) {
-				item = item || {}
-				var stats = [
-					'<span class="lingry-rank-chip">' + Number(item.likes || 0) + ' like' + (Number(item.likes || 0) == 1 ? '' : 's') + '</span>',
-					'<span class="lingry-rank-chip">' + Number(item.tips_count || 0) + ' tip' + (Number(item.tips_count || 0) == 1 ? '' : 's') + '</span>',
-					'<span class="lingry-rank-chip">' + lingryLeaderboardTipAmount(item.tips_satoshis) + ' SUGAR</span>'
-				]
-				return '<article class="lingry-rank-card">' +
-					'<div class="lingry-rank-number">' + (index + 1) + '</div>' +
-					'<div>' +
-						'<div class="lingry-rank-meta">' +
-							lingryLanguageFlagHtml(item) +
-							'<span class="lingry-rank-chip">' + escapeHtml(lingryLeaderboardShortAddress(item.creator_address)) + '</span>' +
-						'</div>' +
-						'<div class="lingry-rank-word">' + escapeHtml(item.word || 'word') + '</div>' +
-						'<p class="lingry-rank-meaning">' + escapeHtml(item.meaning || 'meaning pending') + '</p>' +
-						'<div class="lingry-rank-stats">' + stats.join('') + '</div>' +
-					'</div>' +
-				'</article>'
-			}
-
 			function lingryLeaderboardAddressCard(item, index, mode) {
 				item = item || {}
 				var stats = [
@@ -4287,9 +4266,7 @@
 
 			function renderLingryLeaderboard(data) {
 				data = data || {}
-				var words = Array.isArray(data.words) ? data.words : []
 				var html = [
-					lingryLeaderboardSection('Popular Words', 'likes + tips, descending', words, lingryLeaderboardWordCard, 'No liked or tipped words yet.'),
 					lingryLeaderboardSection('Top Liked Addresses', 'likes received', data.addresses_by_likes, function(item, index) {
 						return lingryLeaderboardAddressCard(item, index, 'likes')
 					}, 'No address likes yet.'),
