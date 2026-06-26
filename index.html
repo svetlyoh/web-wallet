@@ -4003,7 +4003,7 @@
 				var count = Number(social.tips_count || 0)
 				var total = Number(social.tips_satoshis || 0)
 				if (!count && !total) {
-					return 'Tip ' + lingryTipAmountLabel(LINGRY_TIP_AMOUNT_SATOSHIS)
+					return 'Tip'
 				}
 				return count + ' tip' + (count == 1 ? '' : 's') + ' · ' + lingryTipAmountLabel(total)
 			}
