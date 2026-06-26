@@ -2812,6 +2812,10 @@
 				ensureLingryStreamScan(false)
 			}
 
+			function normalizeRouterPages() {
+				$('.router-page .router-page').appendTo('body')
+			}
+
 			// Get current address type
 			function getAddressType() {
 				var type = readCookie('type')
@@ -6185,6 +6189,7 @@
 				loadLingryAiSettings()
 
 				displayNetworks()
+				normalizeRouterPages()
 				routePage()
 				loadSugarWordsSession()
 				loadSugarWordsPrompt()
