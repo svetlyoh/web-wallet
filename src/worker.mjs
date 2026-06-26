@@ -1,5 +1,15 @@
 import bitcoin from 'bitcoinjs-lib';
 import { Buffer } from 'node:buffer';
+import {
+	ActorDO,
+	FeedDO,
+	handleLingryV1Request,
+	LINGRY_LANGUAGE_CODES,
+	LexiconShardDO,
+	WebhookDO
+} from './lingry-api.mjs';
+
+export { ActorDO, FeedDO, LexiconShardDO, WebhookDO };
 
 const MINI_MAX_MODEL = 'MiniMax-M3';
 const SUGAR_API_BASES = ['https://api.sugar.wtf', 'https://api.sugarchain.org'];
@@ -73,6 +83,10 @@ async function assetResponse(request, env) {
 
 function normalizeWord(word) {
 	return String(word || '').trim().toLowerCase();
+}
+
+function isValidLingryWord(word) {
+	return /^[\p{L}\p{M}]{2,32}(?:-[\p{L}\p{M}]{2,32})?$/u.test(String(word || ''));
 }
 
 function normalizeAddress(value) {
@@ -150,6 +164,18 @@ function textToHex(text) {
 	return Array.from(bytes).map(byte => byte.toString(16).padStart(2, '0')).join('');
 }
 
+function byteLength(text) {
+	return new TextEncoder().encode(String(text || '')).length;
+}
+
+function trimToByteLength(text, maxBytes) {
+	let value = String(text || '');
+	while (value && byteLength(value) > maxBytes) {
+		value = value.slice(0, -1).trim();
+	}
+	return value;
+}
+
 function hexToUtf8(hex) {
 	const normalized = normalizeHex(hex);
 	if (!normalized || normalized.length % 2 !== 0 || !/^[0-9a-f]+$/.test(normalized)) {
@@ -163,6 +189,11 @@ function normalizePartOfSpeech(value) {
 	const posText = String(value || '').toLowerCase();
 	const match = posText.match(/\b(interj|conj|prep|pron|adj|adv|n|v)\.?\b/);
 	return match ? match[1] : 'n';
+}
+
+function normalizeLingryLanguageCode(value) {
+	const code = String(value || '').trim().toUpperCase().charAt(0);
+	return LINGRY_LANGUAGE_CODES.has(code) ? code : '';
 }
 
 function normalizeSugarWordPartOfSpeech(value) {
@@ -196,7 +227,7 @@ function parseSugarWordPayload(payloadText) {
 	}
 
 	const protocol = parts[0];
-	const languageCode = /^S[A-Z]$/.test(protocol) ? protocol.slice(1) : 'W';
+	const languageCode = /^S[A-Z]$/.test(protocol) ? normalizeLingryLanguageCode(protocol.slice(1)) : 'W';
 	const wordRaw = parts[1];
 	const fivePartSpeech = parts.length === 5 ? normalizeSugarWordPartOfSpeech(parts[2]) : '';
 	const fivePartType = parts.length === 5 ? parts[4] : '';
@@ -214,7 +245,10 @@ function parseSugarWordPayload(payloadText) {
 	if (!/^S[A-Z]$/.test(protocol) && protocol !== 'SGW1') {
 		return null;
 	}
-	if (!/^[a-z-]{2,32}$/.test(word)) {
+	if (!languageCode) {
+		return null;
+	}
+	if (!isValidLingryWord(word)) {
 		return null;
 	}
 	if (hasPartOfSpeech && !partOfSpeech) {
@@ -851,7 +885,7 @@ async function readLingryLeaderboard(env, limit = 25) {
 			addresses_by_words: []
 		};
 	}
-	const safeLimit = Math.max(5, Math.min(Number(limit) || 25, 50));
+	const safeLimit = Math.max(5, Math.min(Number(limit) || 25, 100));
 	const wordRows = await env.LINGRY_DB.prepare(`
 		WITH likes AS (
 			SELECT word_txid, COUNT(*) AS likes
@@ -915,7 +949,7 @@ async function readLingryLeaderboard(env, limit = 25) {
 
 async function handleLingryLeaderboard(request, env, ctx) {
 	const url = new URL(request.url);
-	const limit = Math.max(5, Math.min(Number(url.searchParams.get('limit')) || 25, 50));
+	const limit = Math.max(5, Math.min(Number(url.searchParams.get('limit')) || 25, 100));
 	const forceRefresh = ['1', 'true', 'yes', 'on'].includes(String(url.searchParams.get('refresh') || '').toLowerCase());
 	const waitForRefresh = ['1', 'true', 'yes', 'on'].includes(String(url.searchParams.get('wait') || '').toLowerCase());
 	let refreshSummary = await readLingryLeaderboardRefreshSummary(env);
@@ -955,18 +989,24 @@ async function handleLingryLeaderboard(request, env, ctx) {
 	});
 }
 
-function validateGeneratedWord(candidate, usedWords) {
+function validateGeneratedWord(candidate, usedWords, languageCode = 'W') {
 	const word = normalizeWord(candidate.word);
 	const partOfSpeech = normalizePartOfSpeech(candidate.part_of_speech);
-	const meaning = sanitizeText(candidate.meaning, 65);
+	const protocol = 'S' + String(languageCode || 'W').trim().toUpperCase().charAt(0);
+	const fixedPayloadBytes = byteLength(protocol + '|' + word + '|' + partOfSpeech + '|');
+	const maxMeaningBytes = Math.max(0, 80 - fixedPayloadBytes);
+	const meaning = trimToByteLength(sanitizeText(candidate.meaning, 65), maxMeaningBytes);
 	const etymology = sanitizeText(candidate.etymology_meaning, 40);
 	const confidence = Number(candidate.confidence_not_existing);
 
-	if (!/^[a-z]{2,32}(-[a-z]{2,32})?$/.test(word) || word.length > 32) {
+	if (!isValidLingryWord(word) || word.length > 32) {
 		throw new Error('Generated word failed validation.');
 	}
 	if (usedWords.has(word)) {
 		throw new Error('Generated word duplicated a session word.');
+	}
+	if (maxMeaningBytes < 1) {
+		throw new Error('Generated word is too long for a Lingry record.');
 	}
 	if (meaning.length < 1 || meaning.length > 65) {
 		throw new Error('Generated meaning failed validation.');
@@ -1070,6 +1110,9 @@ function buildConceptWordPrompt(concept, languageInstruction = '') {
 		'* Pick the best word based on clarity, memorability, natural sound in ' + targetLanguage + ', etymological consistency, and likelihood of adoption.',
 		'* Return only the winning word and its dictionary entry.',
 		'* The Generated Word, Meaning, and Etymology Meaning values must all be written in ' + targetLanguage + '.',
+		'* If the concept is written in another language, translate it silently and still output only in ' + targetLanguage + '.',
+		'* Use the native alphabet or writing system for ' + targetLanguage + '; do not romanize or transliterate unless that language normally uses the Latin alphabet.',
+		'* Keep the Generated Word compact enough to fit in an 80-byte Lingry record with the part of speech and meaning.',
 		'* Keep the section headings in English exactly as shown below.',
 		'* Do not show the 5 candidate words.',
 		'* Do not explain your selection process.',
@@ -1085,7 +1128,7 @@ function buildConceptWordPrompt(concept, languageInstruction = '') {
 		'',
 		'Generated Word',
 		'',
-		'[word]',
+		'[new coined word in the native alphabet or writing system of ' + targetLanguage + ']',
 		'',
 		'Part of Speech',
 		'',
@@ -1127,7 +1170,7 @@ function buildRandomWordPrompt(usedWords, usedMeanings, languageInstruction = ''
 		'2. Generate 5 candidate words for that concept.',
 		'3. Use roots, sounds, word-building patterns, and cultural tone from ' + targetLanguage + '.',
 		'4. Check from your knowledge whether each candidate already exists as a common word, known term, or obvious trademark in ' + targetLanguage + '. Reject conflicts.',
-		'5. Estimate a newness confidence score from 0.00 to 1.00, where 1.00 means you are highly confident the word is not already an established English word.',
+		'5. Estimate a newness confidence score from 0.00 to 1.00, where 1.00 means you are highly confident the word is not already an established word in ' + targetLanguage + '.',
 		'6. Pick the best candidate based on clarity, memorability, natural sound in ' + targetLanguage + ', etymological consistency, usefulness, likelihood of adoption, and newness confidence.',
 		'7. Output only the winning word.',
 		'',
@@ -1135,7 +1178,7 @@ function buildRandomWordPrompt(usedWords, usedMeanings, languageInstruction = ''
 		'',
 		'Generated Word',
 		'',
-		'[word]',
+		'[new coined word in the native alphabet or writing system of ' + targetLanguage + ']',
 		'',
 		'Part of Speech',
 		'',
@@ -1163,6 +1206,8 @@ function buildRandomWordPrompt(usedWords, usedMeanings, languageInstruction = ''
 		'* Do not ask the user for a concept.',
 		'* Invent the concept yourself each time.',
 		'* The Generated Word, Meaning, and Etymology Meaning values must all be written in ' + targetLanguage + '.',
+		'* Use the native alphabet or writing system for ' + targetLanguage + '; do not romanize or transliterate unless that language normally uses the Latin alphabet.',
+		'* Keep the Generated Word compact enough to fit in an 80-byte Lingry record with the part of speech and meaning.',
 		'* Keep the section headings in English exactly as shown above.',
 		'* Be succinct in both Meaning and Etymology Meaning.',
 		'* Keep Meaning to 65 characters or fewer, counting spaces and punctuation.',
@@ -1201,7 +1246,7 @@ async function requestMiniMaxWord(usedWords, usedMeanings, conceptPrompt, genera
 				messages: [
 					{
 						role: 'system',
-						content: 'Follow the requested section format exactly. Do not use markdown, code fences, notes, examples, or extra commentary.'
+						content: 'Follow the requested section format exactly. Use the selected language native writing system for values. Do not use markdown, code fences, notes, examples, or extra commentary.'
 					},
 					{
 						role: 'user',
@@ -1248,7 +1293,8 @@ async function handleGenerateWord(request, env, forcedGenerationMode) {
 		const usedMeanings = Array.isArray(body.used_meanings) ? body.used_meanings.map(normalizeMeaningForComparison).filter(Boolean).slice(-12) : [];
 		const generationMode = forcedGenerationMode || (body.generation_mode === 'prompt' ? 'prompt' : 'random');
 		const conceptPrompt = generationMode === 'prompt' ? sanitizeText(body.concept_prompt, 500) : '';
-		const languageInstruction = sanitizeText(body.language_instruction || '', 240);
+		const languageCode = sanitizeText(body.language_code || 'W', 1).toUpperCase() || 'W';
+		const languageInstruction = sanitizeText(body.language_instruction || '', 800);
 		if (generationMode === 'prompt' && !conceptPrompt) {
 			throw new Error('Prompt for New Word is empty.');
 		}
@@ -1256,7 +1302,7 @@ async function handleGenerateWord(request, env, forcedGenerationMode) {
 		for (let attempt = 0; attempt < 3; attempt++) {
 			try {
 				const candidate = await requestMiniMaxWord(usedWords, usedMeanings, conceptPrompt, generationMode, env, languageInstruction);
-				const validated = validateGeneratedWord(candidate, usedWords);
+				const validated = validateGeneratedWord(candidate, usedWords, languageCode);
 				if (isRepetitiveMeaning(validated.meaning)) {
 					throw new Error('Generated repetitive meaning; retrying.');
 				}
@@ -1800,7 +1846,7 @@ async function handleWordSearch(request, env) {
 	const blocks = Number(url.searchParams.get('blocks')) || 500;
 	const viewerAddress = url.searchParams.get('address') || '';
 
-	if (!direct || mode !== 'word' || !/^[a-z-]{2,32}$/.test(word)) {
+	if (!direct || mode !== 'word' || !isValidLingryWord(word)) {
 		return jsonResponse({
 			records: [],
 			decoded_record: null,
@@ -1937,6 +1983,10 @@ export default {
 	},
 	async fetch(request, env, ctx) {
 		const url = new URL(request.url);
+		const lingryApiResponse = await handleLingryV1Request(request, env, ctx);
+		if (lingryApiResponse) {
+			return lingryApiResponse;
+		}
 		if (url.pathname === '/api/invent-word-from-prompt') {
 			return handleGenerateWord(request, env, 'prompt');
 		}

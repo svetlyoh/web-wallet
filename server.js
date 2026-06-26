@@ -533,24 +533,46 @@ function sanitizeText(value, maxLength) {
 	return String(value || '').replace(/\|/g, '/').replace(/\s+/g, ' ').trim().slice(0, maxLength);
 }
 
+function byteLength(text) {
+	return Buffer.byteLength(String(text || ''), 'utf8');
+}
+
+function trimToByteLength(text, maxBytes) {
+	let value = String(text || '');
+	while (value && byteLength(value) > maxBytes) {
+		value = value.slice(0, -1).trim();
+	}
+	return value;
+}
+
+function isValidLingryWord(word) {
+	return /^[\p{L}\p{M}]{2,32}(?:-[\p{L}\p{M}]{2,32})?$/u.test(String(word || ''));
+}
+
 function normalizePartOfSpeech(value) {
 	const posText = String(value || '').toLowerCase();
 	const match = posText.match(/\b(interj|conj|prep|pron|adj|adv|n|v)\.?\b/);
 	return match ? match[1] : 'n';
 }
 
-function validateGeneratedWord(candidate, usedWords) {
+function validateGeneratedWord(candidate, usedWords, languageCode = 'W') {
 	const word = normalizeWord(candidate.word);
 	const partOfSpeech = normalizePartOfSpeech(candidate.part_of_speech);
-	const meaning = sanitizeText(candidate.meaning, 65);
+	const protocol = 'S' + String(languageCode || 'W').trim().toUpperCase().charAt(0);
+	const fixedPayloadBytes = byteLength(protocol + '|' + word + '|' + partOfSpeech + '|');
+	const maxMeaningBytes = Math.max(0, 80 - fixedPayloadBytes);
+	const meaning = trimToByteLength(sanitizeText(candidate.meaning, 65), maxMeaningBytes);
 	const etymology = sanitizeText(candidate.etymology_meaning, 40);
 	const confidence = Number(candidate.confidence_not_existing);
 
-	if (!/^[a-z]{2,32}(-[a-z]{2,32})?$/.test(word) || word.length > 32) {
+	if (!isValidLingryWord(word) || word.length > 32) {
 		throw new Error('Generated word failed validation.');
 	}
 	if (usedWords.has(word)) {
 		throw new Error('Generated word duplicated a session word.');
+	}
+	if (maxMeaningBytes < 1) {
+		throw new Error('Generated word is too long for a Lingry record.');
 	}
 	if (meaning.length < 1 || meaning.length > 65) {
 		throw new Error('Generated meaning failed validation.');
@@ -763,6 +785,9 @@ function buildConceptWordPrompt(concept, languageInstruction = '') {
 		'* Pick the best word based on clarity, memorability, natural sound in ' + targetLanguage + ', etymological consistency, and likelihood of adoption.',
 		'* Return only the winning word and its dictionary entry.',
 		'* The Generated Word, Meaning, and Etymology Meaning values must all be written in ' + targetLanguage + '.',
+		'* If the concept is written in another language, translate it silently and still output only in ' + targetLanguage + '.',
+		'* Use the native alphabet or writing system for ' + targetLanguage + '; do not romanize or transliterate unless that language normally uses the Latin alphabet.',
+		'* Keep the Generated Word compact enough to fit in an 80-byte Lingry record with the part of speech and meaning.',
 		'* Keep the section headings in English exactly as shown below.',
 		'* Do not show the 5 candidate words.',
 		'* Do not explain your selection process.',
@@ -778,7 +803,7 @@ function buildConceptWordPrompt(concept, languageInstruction = '') {
 		'',
 		'Generated Word',
 		'',
-		'[word]',
+		'[new coined word in the native alphabet or writing system of ' + targetLanguage + ']',
 		'',
 		'Part of Speech',
 		'',
@@ -790,7 +815,7 @@ function buildConceptWordPrompt(concept, languageInstruction = '') {
 		'',
 		'Etymology Meaning',
 		'',
-		"[succinct origin/construction explanation in " + targetLanguage + ", 40 characters or fewer]"
+		'[succinct origin/construction explanation in ' + targetLanguage + ', 40 characters or fewer]'
 	].join('\n');
 }
 
@@ -820,7 +845,7 @@ function buildRandomWordPrompt(usedWords, usedMeanings, languageInstruction = ''
 		'2. Generate 5 candidate words for that concept.',
 		'3. Use roots, sounds, word-building patterns, and cultural tone from ' + targetLanguage + '.',
 		'4. Check from your knowledge whether each candidate already exists as a common word, known term, or obvious trademark in ' + targetLanguage + '. Reject conflicts.',
-		'5. Estimate a newness confidence score from 0.00 to 1.00, where 1.00 means you are highly confident the word is not already an established English word.',
+		'5. Estimate a newness confidence score from 0.00 to 1.00, where 1.00 means you are highly confident the word is not already an established word in ' + targetLanguage + '.',
 		'6. Pick the best candidate based on clarity, memorability, natural sound in ' + targetLanguage + ', etymological consistency, usefulness, likelihood of adoption, and newness confidence.',
 		'7. Output only the winning word.',
 		'',
@@ -828,7 +853,7 @@ function buildRandomWordPrompt(usedWords, usedMeanings, languageInstruction = ''
 		'',
 		'Generated Word',
 		'',
-		'[word]',
+		'[new coined word in the native alphabet or writing system of ' + targetLanguage + ']',
 		'',
 		'Part of Speech',
 		'',
@@ -856,6 +881,8 @@ function buildRandomWordPrompt(usedWords, usedMeanings, languageInstruction = ''
 		'* Do not ask the user for a concept.',
 		'* Invent the concept yourself each time.',
 		'* The Generated Word, Meaning, and Etymology Meaning values must all be written in ' + targetLanguage + '.',
+		'* Use the native alphabet or writing system for ' + targetLanguage + '; do not romanize or transliterate unless that language normally uses the Latin alphabet.',
+		'* Keep the Generated Word compact enough to fit in an 80-byte Lingry record with the part of speech and meaning.',
 		'* Keep the section headings in English exactly as shown above.',
 		'* Be succinct in both Meaning and Etymology Meaning.',
 		'* Keep Meaning to 65 characters or fewer, counting spaces and punctuation.',
@@ -894,7 +921,7 @@ async function requestMiniMaxWord(usedWords, usedMeanings, conceptPrompt, genera
 				messages: [
 					{
 						role: 'system',
-						content: 'Follow the requested section format exactly. Do not use markdown, code fences, notes, examples, or extra commentary.'
+						content: 'Follow the requested section format exactly. Use the selected language native writing system for values. Do not use markdown, code fences, notes, examples, or extra commentary.'
 					},
 					{
 						role: 'user',
@@ -942,7 +969,8 @@ async function handleGenerateWord(req, res, forcedGenerationMode) {
 		const usedMeanings = Array.isArray(body.used_meanings) ? body.used_meanings.map(normalizeMeaningForComparison).filter(Boolean).slice(-12) : [];
 		const generationMode = forcedGenerationMode || (body.generation_mode === 'prompt' ? 'prompt' : 'random');
 		const conceptPrompt = generationMode === 'prompt' ? sanitizeText(body.concept_prompt, 500) : '';
-		const languageInstruction = sanitizeText(body.language_instruction || '', 240);
+		const languageCode = sanitizeText(body.language_code || 'W', 1).toUpperCase() || 'W';
+		const languageInstruction = sanitizeText(body.language_instruction || '', 800);
 		const aiProvider = sanitizeText(body.ai_provider || 'minimax', 32).toLowerCase();
 		if (aiProvider && aiProvider !== 'minimax') {
 			throw new Error('This local server currently supports MiniMax generation. Choose MiniMax in Settings.');
@@ -954,7 +982,7 @@ async function handleGenerateWord(req, res, forcedGenerationMode) {
 		for (let attempt = 0; attempt < 3; attempt++) {
 			try {
 				const candidate = await requestMiniMaxWord(usedWords, usedMeanings, conceptPrompt, generationMode, languageInstruction);
-				const validated = validateGeneratedWord(candidate, usedWords);
+				const validated = validateGeneratedWord(candidate, usedWords, languageCode);
 				if (isRepetitiveMeaning(validated.meaning)) {
 					throw new Error('Generated repetitive meaning; retrying.');
 				}
