@@ -3339,7 +3339,7 @@
 			function updateLingryBalanceLabels(balanceText, tickerText) {
 				var shortAddress = globalData.address ? globalData.address.slice(-8) : 'Guest'
 				var balanceNumber = Number(globalData.balance || 0)
-				var balanceLabel = amountFormatDecimals(balanceNumber, 2).toFixed(2) + ' ' + (tickerText || getConfig()['ticker'])
+				var balanceLabel = amountFormatDecimals(balanceNumber, getConfig()['decimals']).toFixed(3) + ' ' + (tickerText || getConfig()['ticker'])
 				$('#lingry-stream-balance-amount').text(shortAddress)
 				$('#lingry-stream-balance-ticker').text('')
 				$('.lingry-tool-balance-amount').text(shortAddress)
