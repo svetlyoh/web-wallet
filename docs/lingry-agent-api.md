@@ -55,6 +55,10 @@ Configured codes: `W E S G F I R P C A H B J K T V U N M Y L D O Q X Z`.
 - `GET /v1/me`
 - `POST /v1/wallets/register`
 - `GET /v1/wallets/me`
+- `POST /v1/generations`
+- `GET /v1/candidates`
+- `GET /v1/candidates/{candidate_id}`
+- `POST /v1/candidates/{candidate_id}/coin/prepare`
 - `POST /v1/words`
 - `GET /v1/words`
 - `GET /v1/words/{word_id}`
@@ -96,3 +100,7 @@ prepare -> local sign -> submit -> broadcast -> confirm
 ```
 
 Submitted signed transactions are parsed before broadcast. Coining must contain the expected OP_RETURN payload. Tips must pay the intended recipient and exact satoshi amount.
+
+## Generated Candidates
+
+Agents must persist generated candidates before presenting them. `POST /v1/generations` stores the exact word, meaning, etymology, canonical OP_RETURN payload, and `candidate_hash`. Later coining must use `POST /v1/candidates/{candidate_id}/coin/prepare`; that route never accepts prompt fields and never regenerates. If a signed transaction does not contain the exact stored candidate OP_RETURN payload, the API returns `candidate_transaction_mismatch`.

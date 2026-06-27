@@ -63,6 +63,7 @@ $env:LINGRY_API_BASE_URL="http://localhost:8787"
 - `daily_popular_pick`
 - `install_daily_cron`
 - `prompt_and_coin`
+- `coin_it`
 - `get_word`
 - `list_words`
 - `like_word`
@@ -107,10 +108,25 @@ Generate without coining:
 node bin/lingry-agent.mjs prompt-word "a word for calm confidence before shipping code"
 ```
 
-Generate and coin:
+`prompt-word` persists the returned candidate through `POST /v1/generations` before printing it. The agent saves the returned `candidate_id` as the active candidate.
+
+Coin the active candidate:
+
+```bash
+node bin/lingry-agent.mjs coin-it
+```
+
+Coin an exact stored candidate by term or id:
+
+```bash
+node bin/lingry-agent.mjs coin-it burgerlash
+node bin/lingry-agent.mjs coin-it cand_...
+```
+
+Generate and coin in one command:
 
 ```bash
 node bin/lingry-agent.mjs prompt-and-coin "a word for calm confidence before shipping code"
 ```
 
-`prompt-and-coin` loads the encrypted local WIF, signs locally, broadcasts a Sugarchain OP_RETURN transaction, and tells the user the generated word, OP_RETURN payload, fee, and transaction id.
+`prompt-and-coin` still persists the generated candidate first, then prepares coining from `/v1/candidates/{candidate_id}/coin/prepare`. It must never call generation a second time for the coin step.

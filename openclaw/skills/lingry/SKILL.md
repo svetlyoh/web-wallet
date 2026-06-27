@@ -18,11 +18,12 @@ Use this skill when an agent needs to create or manage Lingry word drafts, coin 
 - `import_wallet`: import an existing WIF into the encrypted local keystore.
 - `login`: request a Lingry auth challenge, sign it locally, and store only the returned session token.
 - `generate_word`: ask Lingry-compatible generation services for a candidate word.
+- `coin_it`: coin the currently active stored candidate, or a unique exact stored candidate term/id.
 - `create_word_draft`: create a `/v1/words` draft.
 - `coin_word`: prepare, locally sign, and submit a word coining transaction.
 - `daily_popular_pick`: fetch the Lingry Rankings popular words, randomly pick one `SW` or `SE` word, and tell the user.
 - `install_daily_cron`: install an 8:00 AM local-time cron job that runs `daily_popular_pick`.
-- `prompt_and_coin`: prompt for a new word, locally sign the Sugarchain OP_RETURN transaction, broadcast it, and tell the user what happened.
+- `prompt_and_coin`: prompt for a new word, persist that exact candidate, locally sign the Sugarchain OP_RETURN transaction, submit it through the matching API intent, and tell the user what happened.
 - `get_word`: read one word by `word_id`.
 - `list_words`: list words with filters.
 - `like_word`: like a word off chain.
@@ -50,3 +51,9 @@ Before a tip, show the recipient address, amount, fee estimate, and total cost. 
 Reject a signed transaction if it does not match Lingry's expected payload, recipient, amount, and network. Never retry a transaction broadcast blindly; poll its intent status first.
 
 Daily cron picks must only select words whose Lingry payload begins with `SW|` or `SE|`, or whose language code is `W` or `E`.
+
+## Generated Candidate Preservation
+
+Generation and coining are separate operations. After `generate_word` or `prompt-word`, immediately persist the generated result with `POST /v1/generations` and save the returned `candidate_id` as the active candidate. When the user says "coin it", use `POST /v1/candidates/{candidate_id}/coin/prepare`; never call MiniMax, never call a prompt endpoint, and never pick a replacement word during the coin step.
+
+If the user says "coin burgerlash", resolve exactly one available stored candidate with `GET /v1/candidates?term=burgerlash`. If zero or multiple candidates match, ask for the exact `candidate_id`. Direct custom words use `create_word_draft` and are not treated as generated candidates.

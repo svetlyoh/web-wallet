@@ -179,6 +179,58 @@ export function buildLingryPayload(input) {
 	};
 }
 
+function languageNameForCode(code) {
+	const normalized = normalizeLanguageCode(code);
+	return LINGRY_LANGUAGES.find(language => language.code === normalized)?.name || '';
+}
+
+export async function createGeneratedCandidateRecord(input, options = {}) {
+	const payload = buildLingryPayload(input);
+	const timestamp = normalizeText(options.created_at || input.created_at) || nowIso();
+	const ttlSeconds = Math.max(300, Math.floor(Number(options.ttl_seconds || input.ttl_seconds || 86400)));
+	const canonical = {
+		language_code: payload.language_code,
+		term: payload.term,
+		normalized_term: payload.normalized_term,
+		part_of_speech: payload.part_of_speech,
+		meaning: payload.meaning,
+		etymology: sanitizeField(input.etymology, 500),
+		op_return_payload: payload.op_return_payload,
+		op_return_hex: payload.op_return_hex
+	};
+	const canonicalPayload = JSON.stringify(canonical);
+	return {
+		candidate_id: normalizeText(input.candidate_id) || randomId('cand'),
+		generation_id: normalizeText(input.generation_id) || randomId('gen'),
+		actor_address: normalizeText(input.actor_address),
+		session_id: normalizeText(input.session_id),
+		source: sanitizeField(input.source || 'generation', 80),
+		status: normalizeText(input.status || 'available'),
+		language_code: payload.language_code,
+		language_name: sanitizeField(input.language_name || languageNameForCode(payload.language_code), 120),
+		term: payload.term,
+		normalized_term: payload.normalized_term,
+		part_of_speech: payload.part_of_speech,
+		meaning: payload.meaning,
+		etymology: canonical.etymology,
+		newness_confidence: Number.isFinite(Number(input.newness_confidence)) ? Number(input.newness_confidence) : null,
+		canonical_payload: canonicalPayload,
+		candidate_hash: await sha256Hex(canonicalPayload),
+		op_return_payload: payload.op_return_payload,
+		op_return_hex: payload.op_return_hex,
+		payload_bytes: payload.payload_bytes,
+		model_name: sanitizeField(input.model_name, 120),
+		concept_prompt: sanitizeField(input.concept_prompt, 500),
+		created_at: timestamp,
+		presented_at: normalizeText(input.presented_at || timestamp),
+		expires_at: normalizeText(input.expires_at) || new Date(Date.parse(timestamp) + ttlSeconds * 1000).toISOString(),
+		reserved_at: '',
+		word_id: normalizeText(input.word_id),
+		transaction_intent_id: normalizeText(input.transaction_intent_id),
+		txid: normalizeText(input.txid)
+	};
+}
+
 function apiError(code, message, status = 400, retryable = false) {
 	const error = new Error(message);
 	error.code = code;
@@ -537,10 +589,26 @@ export class LexiconShardDO extends SqlDoBase {
 				`CREATE TABLE IF NOT EXISTS words (word_id TEXT PRIMARY KEY, language_code TEXT NOT NULL, normalized_term TEXT NOT NULL, term TEXT NOT NULL, part_of_speech TEXT NOT NULL, meaning TEXT NOT NULL, creator_address TEXT NOT NULL, status TEXT NOT NULL, payload TEXT NOT NULL, payload_hex TEXT NOT NULL, metadata_key TEXT, metadata_sha256 TEXT, txid TEXT, confirmation_json TEXT, likes INTEGER NOT NULL DEFAULT 0, tip_count INTEGER NOT NULL DEFAULT 0, tip_total INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, UNIQUE(language_code, normalized_term))`,
 				`CREATE TABLE IF NOT EXISTS likes (word_id TEXT NOT NULL, liker_address TEXT NOT NULL, created_at TEXT NOT NULL, PRIMARY KEY (word_id, liker_address))`,
 				`CREATE TABLE IF NOT EXISTS intents (intent_id TEXT PRIMARY KEY, type TEXT NOT NULL, word_id TEXT, actor_address TEXT NOT NULL, expected_json TEXT NOT NULL, status TEXT NOT NULL, txid TEXT, expires_at INTEGER NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`,
+				`CREATE TABLE IF NOT EXISTS generated_candidates (candidate_id TEXT PRIMARY KEY, generation_id TEXT NOT NULL, actor_address TEXT NOT NULL, session_id TEXT, source TEXT NOT NULL, status TEXT NOT NULL, language_code TEXT NOT NULL, language_name TEXT NOT NULL, term TEXT NOT NULL, normalized_term TEXT NOT NULL, part_of_speech TEXT NOT NULL, meaning TEXT NOT NULL, etymology TEXT, newness_confidence REAL, canonical_payload TEXT NOT NULL, candidate_hash TEXT NOT NULL, op_return_payload TEXT NOT NULL, op_return_hex TEXT NOT NULL, model_name TEXT, concept_prompt TEXT, created_at TEXT NOT NULL, presented_at TEXT, expires_at TEXT, reserved_at TEXT, word_id TEXT, transaction_intent_id TEXT, txid TEXT)`,
+				`CREATE INDEX IF NOT EXISTS idx_generated_candidates_actor_status_term ON generated_candidates (actor_address, status, normalized_term, created_at)`,
 				`CREATE TABLE IF NOT EXISTS events (event_id TEXT PRIMARY KEY, type TEXT NOT NULL, body_json TEXT NOT NULL, created_at TEXT NOT NULL)`
 			]);
 			const url = new URL(request.url);
 			const body = request.method === 'GET' ? {} : await request.json().catch(() => ({}));
+			if (url.pathname === '/candidates' && request.method === 'POST') {
+				return responseData(await this.createGeneratedCandidate(body), 201);
+			}
+			if (url.pathname === '/candidates' && request.method === 'GET') {
+				return responseData(this.listCandidates(url.searchParams));
+			}
+			const candidateMatch = url.pathname.match(/^\/candidates\/([^/]+)$/);
+			if (candidateMatch && request.method === 'GET') {
+				return responseData({ candidate: this.getCandidate(candidateMatch[1], url.searchParams.get('actor_address')) });
+			}
+			const candidateCoinMatch = url.pathname.match(/^\/candidates\/([^/]+)\/coin\/prepare$/);
+			if (candidateCoinMatch && request.method === 'POST') {
+				return responseData(this.prepareCandidateCoin(candidateCoinMatch[1], body), 201);
+			}
 			if (url.pathname === '/words' && request.method === 'POST') {
 				return responseData(this.createWord(body), 201);
 			}
@@ -578,6 +646,162 @@ export class LexiconShardDO extends SqlDoBase {
 		} catch (error) {
 			return responseError(error);
 		}
+	}
+
+	async createGeneratedCandidate(body) {
+		const actorAddress = normalizeText(body.actor_address);
+		if (!actorAddress) {
+			throw apiError('validation_error', 'Authenticated wallet address is required.', 400);
+		}
+		const candidate = await createGeneratedCandidateRecord({ ...body, actor_address: actorAddress });
+		sqlRun(this.state.storage, `INSERT INTO generated_candidates (candidate_id, generation_id, actor_address, session_id, source, status, language_code, language_name, term, normalized_term, part_of_speech, meaning, etymology, newness_confidence, canonical_payload, candidate_hash, op_return_payload, op_return_hex, model_name, concept_prompt, created_at, presented_at, expires_at, reserved_at, word_id, transaction_intent_id, txid) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			candidate.candidate_id,
+			candidate.generation_id,
+			candidate.actor_address,
+			candidate.session_id,
+			candidate.source,
+			candidate.status,
+			candidate.language_code,
+			candidate.language_name,
+			candidate.term,
+			candidate.normalized_term,
+			candidate.part_of_speech,
+			candidate.meaning,
+			candidate.etymology,
+			candidate.newness_confidence,
+			candidate.canonical_payload,
+			candidate.candidate_hash,
+			candidate.op_return_payload,
+			candidate.op_return_hex,
+			candidate.model_name,
+			candidate.concept_prompt,
+			candidate.created_at,
+			candidate.presented_at,
+			candidate.expires_at,
+			candidate.reserved_at,
+			candidate.word_id,
+			candidate.transaction_intent_id,
+			candidate.txid
+		);
+		this.emit('candidate.generated', { candidate_id: candidate.candidate_id, generation_id: candidate.generation_id, actor_address: actorAddress, normalized_term: candidate.normalized_term });
+		return { candidate };
+	}
+
+	listCandidates(params) {
+		const actorAddress = normalizeText(params.get('actor_address'));
+		if (!actorAddress) {
+			throw apiError('validation_error', 'Authenticated wallet address is required.', 400);
+		}
+		const limit = Math.max(1, Math.min(Number(params.get('limit')) || 25, 100));
+		const where = ['actor_address = ?'];
+		const bindings = [actorAddress];
+		const status = normalizeText(params.get('status'));
+		if (status) {
+			where.push('status = ?');
+			bindings.push(status);
+		}
+		const term = normalizeWord(params.get('term') || params.get('q'));
+		if (term) {
+			where.push('normalized_term = ?');
+			bindings.push(term);
+		}
+		const rows = sqlAll(this.state.storage, `SELECT * FROM generated_candidates WHERE ${where.join(' AND ')} ORDER BY created_at DESC LIMIT ?`, ...bindings, limit);
+		return { candidates: rows.map(row => this.rowToCandidate(row)) };
+	}
+
+	getCandidate(candidateId, actorAddress = '') {
+		const row = sqlFirst(this.state.storage, 'SELECT * FROM generated_candidates WHERE candidate_id = ?', normalizeText(candidateId));
+		if (!row) {
+			throw apiError('not_found', 'Generated candidate was not found.', 404);
+		}
+		const normalizedActor = normalizeText(actorAddress);
+		if (normalizedActor && row.actor_address !== normalizedActor) {
+			throw apiError('forbidden', 'Generated candidate belongs to a different wallet.', 403);
+		}
+		return this.rowToCandidate(row);
+	}
+
+	prepareCandidateCoin(candidateId, body) {
+		for (const blocked of ['prompt', 'concept_prompt', 'generation_mode', 'used_words', 'used_meanings']) {
+			if (Object.prototype.hasOwnProperty.call(body, blocked)) {
+				throw apiError('candidate_required', 'Coin prepare requires a stored candidate_id and never accepts generation prompt fields.', 400);
+			}
+		}
+		const actorAddress = normalizeText(body.actor_address);
+		const candidate = this.getCandidate(candidateId, actorAddress);
+		if (!actorAddress || candidate.actor_address !== actorAddress) {
+			throw apiError('forbidden', 'Only the candidate owner can prepare coining.', 403);
+		}
+		if (candidate.expires_at && Date.parse(candidate.expires_at) < Date.now()) {
+			sqlRun(this.state.storage, 'UPDATE generated_candidates SET status = ? WHERE candidate_id = ?', 'expired', candidate.candidate_id);
+			throw apiError('candidate_expired', 'Generated candidate has expired. Generate a fresh candidate before coining.', 409);
+		}
+		if (!['available', 'reserved'].includes(candidate.status)) {
+			throw apiError('candidate_already_used', 'Generated candidate is no longer available for coining.', 409);
+		}
+		const timestamp = nowIso();
+		let wordId = candidate.word_id || randomId('word');
+		if (!candidate.word_id) {
+			try {
+				sqlRun(this.state.storage, `INSERT INTO words (word_id, language_code, normalized_term, term, part_of_speech, meaning, creator_address, status, payload, payload_hex, metadata_key, metadata_sha256, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, 'draft', ?, ?, ?, ?, ?, ?)`,
+					wordId,
+					candidate.language_code,
+					candidate.normalized_term,
+					candidate.term,
+					candidate.part_of_speech,
+					candidate.meaning,
+					actorAddress,
+					candidate.op_return_payload,
+					candidate.op_return_hex,
+					'',
+					'',
+					timestamp,
+					timestamp
+				);
+			} catch (error) {
+				if (String(error && error.message || '').toLowerCase().includes('unique')) {
+					throw apiError('conflict', 'This candidate word has already been created for this language.', 409);
+				}
+				throw error;
+			}
+		}
+		const feeSatoshis = Math.max(250, Math.floor(Number(body.fee_satoshis || 1000)));
+		const intentId = randomId('intent');
+		const expiresAt = Math.floor(Date.now() / 1000) + 900;
+		const expected = {
+			network: 'sugarchain',
+			kind: 'coin_word',
+			candidate_id: candidate.candidate_id,
+			candidate_hash: candidate.candidate_hash,
+			word_id: wordId,
+			op_return_payload: candidate.op_return_payload,
+			op_return_hex: candidate.op_return_hex,
+			change_address: actorAddress,
+			fee_satoshis: feeSatoshis,
+			unsigned_transaction: {
+				version: 2,
+				inputs: Array.isArray(body.utxos) ? body.utxos : [],
+				outputs: [
+					{ type: 'op_return', value: 0, payload: candidate.op_return_payload, payload_hex: candidate.op_return_hex },
+					{ type: 'change', address: actorAddress }
+				]
+			}
+		};
+		this.storeIntent(intentId, 'coin', wordId, actorAddress, expected, expiresAt);
+		sqlRun(this.state.storage, 'UPDATE words SET status = ?, updated_at = ? WHERE word_id = ?', 'pending', timestamp, wordId);
+		sqlRun(this.state.storage, 'UPDATE generated_candidates SET status = ?, reserved_at = ?, word_id = ?, transaction_intent_id = ? WHERE candidate_id = ?', 'reserved', timestamp, wordId, intentId, candidate.candidate_id);
+		this.emit('candidate.coinage_prepared', { candidate_id: candidate.candidate_id, word_id: wordId, intent_id: intentId });
+		return {
+			intent_id: intentId,
+			candidate_id: candidate.candidate_id,
+			candidate_hash: candidate.candidate_hash,
+			word_id: wordId,
+			status: 'pending',
+			unsigned_transaction: expected.unsigned_transaction,
+			required_outputs: expected.unsigned_transaction.outputs,
+			fee_estimate_satoshis: feeSatoshis,
+			expires_at: new Date(expiresAt * 1000).toISOString()
+		};
 	}
 
 	createWord(body) {
@@ -738,6 +962,10 @@ export class LexiconShardDO extends SqlDoBase {
 
 	async submitTransaction(intentId, body) {
 		const intent = this.getIntent(intentId);
+		const actorAddress = normalizeText(body.actor_address);
+		if (actorAddress && actorAddress !== intent.actor_address) {
+			throw apiError('forbidden', 'Transaction intent belongs to a different wallet.', 403);
+		}
 		if (intent.status === 'broadcast' || intent.status === 'pending') {
 			return { transaction: intent };
 		}
@@ -749,11 +977,20 @@ export class LexiconShardDO extends SqlDoBase {
 			throw apiError('validation_error', 'Signed transaction hex is required.', 400);
 		}
 		const expected = intent.expected;
+		if (expected.candidate_id && normalizeText(body.candidate_id) && normalizeText(body.candidate_id) !== expected.candidate_id) {
+			throw apiError('candidate_transaction_mismatch', 'Submitted candidate_id does not match the prepared transaction intent.', 409);
+		}
+		if (expected.candidate_hash && normalizeText(body.candidate_hash) && normalizeText(body.candidate_hash) !== expected.candidate_hash) {
+			throw apiError('candidate_transaction_mismatch', 'Submitted candidate_hash does not match the prepared transaction intent.', 409);
+		}
 		this.verifySignedTransaction(rawHex, expected);
 		const txid = await this.broadcastRawTransaction(rawHex);
 		sqlRun(this.state.storage, 'UPDATE intents SET status = ?, txid = ?, updated_at = ? WHERE intent_id = ?', 'pending', txid, nowIso(), intentId);
 		if (intent.type === 'coin') {
 			sqlRun(this.state.storage, 'UPDATE words SET status = ?, txid = ?, updated_at = ? WHERE word_id = ?', 'pending', txid, nowIso(), intent.word_id);
+			if (expected.candidate_id) {
+				sqlRun(this.state.storage, 'UPDATE generated_candidates SET status = ?, txid = ? WHERE candidate_id = ?', 'submitted', txid, expected.candidate_id);
+			}
 			this.emit('word.coinage_submitted', { word_id: intent.word_id, intent_id: intentId, txid });
 		}
 		if (intent.type === 'tip') {
@@ -780,7 +1017,7 @@ export class LexiconShardDO extends SqlDoBase {
 				return normalizeHex(script.toString('hex')).includes(requiredPayload);
 			});
 			if (!hasPayload) {
-				throw apiError('intent_mismatch', 'Signed transaction does not contain the expected Lingry OP_RETURN payload.', 409);
+				throw apiError(expected.candidate_id ? 'candidate_transaction_mismatch' : 'intent_mismatch', 'Signed transaction does not contain the expected Lingry OP_RETURN payload.', 409);
 			}
 		}
 		if (expected.kind === 'tip_word') {
@@ -848,6 +1085,7 @@ export class LexiconShardDO extends SqlDoBase {
 			const existing = sqlFirst(this.state.storage, 'SELECT * FROM words WHERE language_code = ? AND normalized_term = ?', parsed.language_code, parsed.normalized_word);
 			if (existing) {
 				sqlRun(this.state.storage, 'UPDATE words SET status = ?, txid = COALESCE(NULLIF(?, \'\'), txid), confirmation_json = ?, updated_at = ? WHERE word_id = ?', 'confirmed', normalizeHex(record.txid), JSON.stringify(record), nowIso(), existing.word_id);
+				sqlRun(this.state.storage, 'UPDATE generated_candidates SET status = ?, txid = COALESCE(NULLIF(?, \'\'), txid) WHERE word_id = ?', 'confirmed', normalizeHex(record.txid), existing.word_id);
 				this.emit('word.confirmed', { word_id: existing.word_id, txid: normalizeHex(record.txid) });
 				confirmed.push(existing.word_id);
 			}
@@ -901,6 +1139,38 @@ export class LexiconShardDO extends SqlDoBase {
 			tip_total: Number(row.tip_total || 0) / Math.pow(10, SUGAR_DECIMALS),
 			created_at: row.created_at,
 			updated_at: row.updated_at
+		};
+	}
+
+	rowToCandidate(row) {
+		return {
+			candidate_id: row.candidate_id,
+			generation_id: row.generation_id,
+			actor_address: row.actor_address,
+			session_id: row.session_id || '',
+			source: row.source,
+			status: row.status,
+			language_code: row.language_code,
+			language_name: row.language_name,
+			term: row.term,
+			normalized_term: row.normalized_term,
+			part_of_speech: row.part_of_speech,
+			meaning: row.meaning,
+			etymology: row.etymology || '',
+			newness_confidence: row.newness_confidence === null || row.newness_confidence === undefined ? null : Number(row.newness_confidence),
+			canonical_payload: row.canonical_payload,
+			candidate_hash: row.candidate_hash,
+			op_return_payload: row.op_return_payload,
+			op_return_hex: row.op_return_hex,
+			model_name: row.model_name || '',
+			concept_prompt: row.concept_prompt || '',
+			created_at: row.created_at,
+			presented_at: row.presented_at || '',
+			expires_at: row.expires_at || '',
+			reserved_at: row.reserved_at || '',
+			word_id: row.word_id || '',
+			transaction_intent_id: row.transaction_intent_id || '',
+			txid: row.txid || ''
 		};
 	}
 
@@ -1110,6 +1380,43 @@ async function handleApi(request, env) {
 			const data = await callDo(env.LINGRY_ACTOR, session.address, '/wallet?address=' + encodeURIComponent(session.address), { method: 'GET' });
 			return envelope(data, 200, headers, id);
 		}
+		if (url.pathname === '/v1/generations' && request.method === 'POST') {
+			session = session || await authenticate(request, env);
+			requireScopes(session, ['words:create']);
+			const body = await readJson(request);
+			assertNoPrivateKeyFields(body);
+			const payload = buildLingryPayload(body);
+			const data = await callDo(env.LINGRY_LEXICON, shardName(payload.language_code), '/candidates', {
+				method: 'POST',
+				body: JSON.stringify({ ...body, actor_address: session.address, session_id: session.sid || '', source: body.source || 'generation' })
+			});
+			return envelope(data, 201, headers, id);
+		}
+		if (url.pathname === '/v1/candidates' && request.method === 'GET') {
+			session = session || await authenticate(request, env);
+			const languageCode = normalizeLanguageCode(url.searchParams.get('language_code')) || 'W';
+			const params = new URLSearchParams(url.searchParams);
+			params.set('actor_address', session.address);
+			const data = await callDo(env.LINGRY_LEXICON, shardName(languageCode), '/candidates?' + params.toString(), { method: 'GET' });
+			return envelope(data, 200, headers, id);
+		}
+		const candidateMatch = url.pathname.match(/^\/v1\/candidates\/([^/]+)$/);
+		if (candidateMatch && request.method === 'GET') {
+			session = session || await authenticate(request, env);
+			const languageCode = normalizeLanguageCode(url.searchParams.get('language_code')) || 'W';
+			const data = await callDo(env.LINGRY_LEXICON, shardName(languageCode), '/candidates/' + encodeURIComponent(candidateMatch[1]) + '?actor_address=' + encodeURIComponent(session.address), { method: 'GET' });
+			return envelope(data, 200, headers, id);
+		}
+		const candidateCoinMatch = url.pathname.match(/^\/v1\/candidates\/([^/]+)\/coin\/prepare$/);
+		if (candidateCoinMatch && request.method === 'POST') {
+			session = session || await authenticate(request, env);
+			requireScopes(session, ['words:create']);
+			const body = await readJson(request);
+			assertNoPrivateKeyFields(body);
+			const languageCode = normalizeLanguageCode(body.language_code || url.searchParams.get('language_code')) || 'W';
+			const data = await callDo(env.LINGRY_LEXICON, shardName(languageCode), '/candidates/' + encodeURIComponent(candidateCoinMatch[1]) + '/coin/prepare', { method: 'POST', body: JSON.stringify({ ...body, actor_address: session.address }) });
+			return envelope(data, 201, headers, id);
+		}
 		if (url.pathname === '/v1/words' && request.method === 'POST') {
 			session = session || await authenticate(request, env);
 			requireScopes(session, ['words:create']);
@@ -1181,7 +1488,7 @@ async function handleApi(request, env) {
 			const body = await readJson(request, 1024 * 256);
 			assertNoPrivateKeyFields(body);
 			const languageCode = normalizeLanguageCode(body.language_code || url.searchParams.get('language_code')) || 'W';
-			const data = await callDo(env.LINGRY_LEXICON, shardName(languageCode), '/transactions/' + encodeURIComponent(submitMatch[1]) + '/submit', { method: 'POST', body: JSON.stringify(body) });
+			const data = await callDo(env.LINGRY_LEXICON, shardName(languageCode), '/transactions/' + encodeURIComponent(submitMatch[1]) + '/submit', { method: 'POST', body: JSON.stringify({ ...body, actor_address: session.address }) });
 			return envelope(data, 200, headers, id);
 		}
 		const transactionMatch = url.pathname.match(/^\/v1\/transactions\/([^/]+)$/);
@@ -1234,6 +1541,10 @@ export const OPENAPI = {
 		'/v1/me': { get: { summary: 'Return the authenticated wallet identity.' } },
 		'/v1/wallets/register': { post: { summary: 'Register public wallet metadata.' } },
 		'/v1/wallets/me': { get: { summary: 'Return registered wallet metadata.' } },
+		'/v1/generations': { post: { summary: 'Persist a generated word candidate before returning it to an agent.' } },
+		'/v1/candidates': { get: { summary: 'List generated candidates owned by the authenticated wallet.' } },
+		'/v1/candidates/{candidate_id}': { get: { summary: 'Get one generated candidate owned by the authenticated wallet.' } },
+		'/v1/candidates/{candidate_id}/coin/prepare': { post: { summary: 'Prepare coining for the exact stored candidate without regenerating.' } },
 		'/v1/words': { get: { summary: 'List coined or draft words.' }, post: { summary: 'Create a draft Lingry word.' } },
 		'/v1/words/{word_id}': { get: { summary: 'Get a word.' } },
 		'/v1/words/{word_id}/coin/prepare': { post: { summary: 'Prepare an unsigned Sugarchain OP_RETURN coining transaction.' } },

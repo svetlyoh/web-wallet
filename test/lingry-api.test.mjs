@@ -5,6 +5,7 @@ import bitcoin from 'bitcoinjs-lib';
 import {
 	assertNoPrivateKeyFields,
 	buildLingryPayload,
+	createGeneratedCandidateRecord,
 	LexiconShardDO,
 	LINGRY_LANGUAGES,
 	OPENAPI,
@@ -108,6 +109,60 @@ test('mismatched signed coining transaction is rejected before broadcast', () =>
 	assert.throws(() => checker.verifySignedTransaction(badRaw, { kind: 'coin_word', op_return_hex: payload.op_return_hex }), /expected Lingry OP_RETURN/);
 });
 
+test('generated burgerlash candidate preserves exact word and canonical hash', async () => {
+	const candidate = await createGeneratedCandidateRecord({
+		actor_address: 'sugar1qmaker',
+		language_code: 'W',
+		term: 'burgerlash',
+		part_of_speech: 'n',
+		meaning: 'A sudden craving for a burger after seeing one.',
+		etymology: 'burger + backlash',
+		concept_prompt: 'a word for a sudden burger craving'
+	}, { created_at: '2026-06-27T00:00:00.000Z' });
+	assert.equal(candidate.term, 'burgerlash');
+	assert.equal(candidate.op_return_payload, 'SW|burgerlash|n|A sudden craving for a burger after seeing one.');
+	assert.equal(candidate.canonical_payload.includes('burgerlash'), true);
+	assert.match(candidate.candidate_hash, /^[0-9a-f]{64}$/);
+});
+
+test('candidate coining mismatch uses candidate-specific error code', async () => {
+	const checker = Object.create(LexiconShardDO.prototype);
+	const payload = buildLingryPayload({ language_code: 'W', term: 'burgerlash', part_of_speech: 'n', meaning: 'Burger craving' });
+	const badRaw = fakeRawTx([{ script: opReturn('SW|otherword|n|Other meaning'), value: 0 }]);
+	assert.throws(
+		() => checker.verifySignedTransaction(badRaw, { kind: 'coin_word', candidate_id: 'cand_burgerlash', op_return_hex: payload.op_return_hex }),
+		error => error.code === 'candidate_transaction_mismatch'
+	);
+});
+
+test('candidate submit rejects wrong candidate hash before broadcast', async () => {
+	const checker = Object.create(LexiconShardDO.prototype);
+	const payload = buildLingryPayload({ language_code: 'W', term: 'burgerlash', part_of_speech: 'n', meaning: 'Burger craving' });
+	checker.getIntent = () => ({
+		intent_id: 'intent_1',
+		type: 'coin',
+		word_id: 'word_1',
+		actor_address: 'sugar1qmaker',
+		status: 'prepared',
+		expires_at_epoch: Math.floor(Date.now() / 1000) + 60,
+		expected: {
+			kind: 'coin_word',
+			candidate_id: 'cand_1',
+			candidate_hash: 'abc123',
+			op_return_hex: payload.op_return_hex
+		}
+	});
+	await assert.rejects(
+		() => checker.submitTransaction('intent_1', {
+			actor_address: 'sugar1qmaker',
+			candidate_id: 'cand_1',
+			candidate_hash: 'wrong',
+			signed_transaction_hex: fakeRawTx([{ script: opReturn(payload.op_return_payload), value: 0 }])
+		}),
+		error => error.code === 'candidate_transaction_mismatch'
+	);
+});
+
 test('tip transactions must match intended recipient and satoshi amount', () => {
 	const checker = Object.create(LexiconShardDO.prototype);
 	const key = bitcoin.ECPair.makeRandom({ network: sugarNetwork });
@@ -151,6 +206,10 @@ test('OpenAPI specification reflects implemented routes', () => {
 	const required = [
 		'/v1/auth/challenge',
 		'/v1/auth/verify',
+		'/v1/generations',
+		'/v1/candidates',
+		'/v1/candidates/{candidate_id}',
+		'/v1/candidates/{candidate_id}/coin/prepare',
 		'/v1/words',
 		'/v1/words/{word_id}/coin/prepare',
 		'/v1/transactions/{intent_id}/submit',

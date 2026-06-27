@@ -8,6 +8,7 @@ const command = process.argv[2] || 'help';
 const apiBase = (process.env.LINGRY_API_BASE_URL || 'http://localhost:8787').replace(/\/+$/, '');
 const sugarApiBase = (process.env.SUGAR_API_BASE_URL || process.env.SUGAR_API_URL || 'https://api.sugar.wtf').replace(/\/+$/, '');
 const keystorePath = process.env.LINGRY_KEYSTORE_PATH || path.join(process.cwd(), '.lingry-keystore.json');
+const statePath = process.env.LINGRY_AGENT_STATE_PATH || path.join(path.dirname(keystorePath), 'lingry-agent-state.json');
 const passphrase = process.env.LINGRY_WALLET_PASSPHRASE || '';
 const defaultLanguage = process.env.LINGRY_DEFAULT_LANGUAGE_CODE || 'W';
 const maxAutoCoinFee = Number(process.env.LINGRY_MAX_AUTO_COIN_FEE_SATOSHIS || 0);
@@ -79,6 +80,22 @@ function loadWallet() {
 	decipher.setAuthTag(Buffer.from(store.tag, 'base64'));
 	const wif = Buffer.concat([decipher.update(Buffer.from(store.ciphertext, 'base64')), decipher.final()]).toString('utf8');
 	return { ...store, wif };
+}
+
+function loadAgentState() {
+	try {
+		return JSON.parse(fs.readFileSync(statePath, 'utf8'));
+	} catch (error) {
+		return {};
+	}
+}
+
+function saveAgentState(update) {
+	const current = loadAgentState();
+	const next = { ...current, ...update, updated_at: new Date().toISOString() };
+	fs.mkdirSync(path.dirname(statePath), { recursive: true });
+	fs.writeFileSync(statePath, JSON.stringify(next, null, 2), { mode: 0o600 });
+	return next;
 }
 
 function isInteractiveTerminal() {
@@ -290,6 +307,36 @@ function lingryPayload(record, languageCode = defaultLanguage) {
 	return `S${code}|${record.word}|${record.part_of_speech}|${record.meaning}`;
 }
 
+function generatedToCandidateBody(generated, concept) {
+	return {
+		language_code: defaultLanguage,
+		language_name: generated.language_name || '',
+		term: generated.word || generated.term,
+		part_of_speech: generated.part_of_speech || generated.pos || 'n',
+		meaning: generated.meaning,
+		etymology: generated.etymology || generated.etymology_meaning || '',
+		newness_confidence: generated.newness_confidence,
+		model_name: generated.model_name || 'minimax',
+		concept_prompt: concept,
+		source: 'openclaw'
+	};
+}
+
+async function persistGeneratedCandidate(generated, concept) {
+	const response = await api('/v1/generations', {
+		method: 'POST',
+		body: JSON.stringify(generatedToCandidateBody(generated, concept))
+	});
+	const candidate = response.candidate;
+	saveAgentState({
+		active_candidate_id: candidate.candidate_id,
+		active_candidate_language_code: candidate.language_code,
+		active_generation_id: candidate.generation_id,
+		active_candidate_hash: candidate.candidate_hash
+	});
+	return candidate;
+}
+
 function getP2WPKHScript(pubkey) {
 	return bitcoin.payments.p2wpkh({ pubkey, network: sugarNetwork });
 }
@@ -410,6 +457,73 @@ async function broadcastCoin(record, languageCode) {
 		fee_satoshis: coinFeeSatoshis,
 		payload
 	};
+}
+
+async function coinStoredCandidate(candidate, languageCode = defaultLanguage) {
+	if (maxAutoCoinFee > 0 && coinFeeSatoshis > maxAutoCoinFee) {
+		throw new Error('Coin fee exceeds LINGRY_MAX_AUTO_COIN_FEE_SATOSHIS.');
+	}
+	const wallet = loadWallet();
+	const keys = keysFromWallet(wallet);
+	const utxos = await sugarApi('/unspent/' + encodeURIComponent(wallet.address) + '?amount=' + encodeURIComponent(coinFeeSatoshis + 1));
+	const selection = chooseUtxos(Array.isArray(utxos) ? utxos : [], coinFeeSatoshis);
+	const prepared = await api('/v1/candidates/' + encodeURIComponent(candidate.candidate_id) + '/coin/prepare', {
+		method: 'POST',
+		body: JSON.stringify({
+			language_code: languageCode || candidate.language_code,
+			fee_satoshis: coinFeeSatoshis,
+			utxos: selection.chosen
+		})
+	});
+	const payload = prepared.required_outputs?.find(output => output.type === 'op_return')?.payload || candidate.op_return_payload;
+	const raw = buildCoinTransaction(keys, wallet.address, payload, selection.chosen, coinFeeSatoshis);
+	const submitted = await api('/v1/transactions/' + encodeURIComponent(prepared.intent_id) + '/submit', {
+		method: 'POST',
+		body: JSON.stringify({
+			language_code: languageCode || candidate.language_code,
+			candidate_id: candidate.candidate_id,
+			candidate_hash: candidate.candidate_hash,
+			signed_transaction_hex: raw
+		})
+	});
+	saveAgentState({
+		active_candidate_id: '',
+		active_candidate_language_code: '',
+		last_coined_candidate_id: candidate.candidate_id,
+		last_transaction_intent_id: prepared.intent_id,
+		last_txid: submitted.transaction?.txid || ''
+	});
+	return {
+		txid: submitted.transaction?.txid || '',
+		address: wallet.address,
+		fee_satoshis: coinFeeSatoshis,
+		payload,
+		intent_id: prepared.intent_id,
+		word_id: prepared.word_id
+	};
+}
+
+async function resolveCandidateForCoin(termOrId = '') {
+	const value = String(termOrId || '').trim();
+	const state = loadAgentState();
+	const language = state.active_candidate_language_code || defaultLanguage;
+	if (!value) {
+		if (!state.active_candidate_id) {
+			throw new Error('No active generated candidate is saved. Run prompt-word first or pass a candidate id/term.');
+		}
+		const data = await api('/v1/candidates/' + encodeURIComponent(state.active_candidate_id) + '?language_code=' + encodeURIComponent(language), { method: 'GET' });
+		return data.candidate;
+	}
+	if (value.startsWith('cand_')) {
+		const data = await api('/v1/candidates/' + encodeURIComponent(value) + '?language_code=' + encodeURIComponent(language), { method: 'GET' });
+		return data.candidate;
+	}
+	const data = await api('/v1/candidates?language_code=' + encodeURIComponent(language) + '&status=available&term=' + encodeURIComponent(value), { method: 'GET' });
+	const candidates = Array.isArray(data.candidates) ? data.candidates : [];
+	if (candidates.length !== 1) {
+		throw new Error(candidates.length ? `Multiple available candidates matched "${value}". Use the candidate_id.` : `No available candidate matched "${value}".`);
+	}
+	return candidates[0];
 }
 
 function pickPopularWord(leaderboard) {
@@ -563,19 +677,39 @@ async function main() {
 				language_instruction: languageInstruction(defaultLanguage)
 			})
 		});
+		const candidate = await persistGeneratedCandidate(generated, concept);
 		if (command === 'prompt-word') {
 			printUserEvent('lingry.word_prompted', {
-				message: `Generated Lingry word candidate: ${generated.word} - ${generated.meaning}`,
+				message: `Generated Lingry word candidate: ${candidate.term} - ${candidate.meaning}`,
 				word: generated,
-				language_code: defaultLanguage
+				candidate,
+				language_code: candidate.language_code
 			});
 			return;
 		}
-		const coin = await broadcastCoin(generated, defaultLanguage);
+		const coin = await coinStoredCandidate(candidate, candidate.language_code);
 		printUserEvent('lingry.word_coined', {
-			message: `Coined ${generated.word} on Sugarchain as ${coin.txid}.`,
+			message: `Coined ${candidate.term} on Sugarchain as ${coin.txid}.`,
 			word: generated,
+			candidate,
 			txid: coin.txid,
+			intent_id: coin.intent_id,
+			word_id: coin.word_id,
+			address: coin.address,
+			fee_satoshis: coin.fee_satoshis,
+			op_return_payload: coin.payload
+		});
+		return;
+	}
+	if (command === 'coin-it' || command === 'coin-candidate' || command === 'coin-word-candidate') {
+		const candidate = await resolveCandidateForCoin(process.argv.slice(3).join(' ').trim());
+		const coin = await coinStoredCandidate(candidate, candidate.language_code);
+		printUserEvent('lingry.word_coined', {
+			message: `Coined ${candidate.term} on Sugarchain as ${coin.txid}.`,
+			candidate,
+			txid: coin.txid,
+			intent_id: coin.intent_id,
+			word_id: coin.word_id,
 			address: coin.address,
 			fee_satoshis: coin.fee_satoshis,
 			op_return_payload: coin.payload
@@ -591,7 +725,7 @@ async function main() {
 		}), null, 2));
 		return;
 	}
-	console.log('Usage: lingry-agent create-wallet | claim-starter-grant | export-private-key --confirm | import-wallet <wif> | address | list-words [language] | daily-popular-pick | install-daily-cron | prompt-word <prompt> | prompt-and-coin <prompt> | create-word-draft <term> <pos> <meaning>');
+	console.log('Usage: lingry-agent create-wallet | claim-starter-grant | export-private-key --confirm | import-wallet <wif> | address | list-words [language] | daily-popular-pick | install-daily-cron | prompt-word <prompt> | coin-it [candidate-id-or-term] | prompt-and-coin <prompt> | create-word-draft <term> <pos> <meaning>');
 }
 
 main().catch(error => {
