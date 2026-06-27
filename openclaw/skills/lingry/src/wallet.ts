@@ -17,10 +17,6 @@ export function createWallet() {
 	return walletFromKey(key);
 }
 
-export function importWallet(wif: string) {
-	return walletFromKey(bitcoin.ECPair.fromWIF(wif, sugarNetwork));
-}
-
 function walletFromKey(key: bitcoin.ECPairInterface) {
 	const payment = bitcoin.payments.p2wpkh({ pubkey: key.publicKey, network: sugarNetwork });
 	return {
@@ -29,4 +25,3 @@ function walletFromKey(key: bitcoin.ECPairInterface) {
 		wif: key.toWIF()
 	};
 }
-

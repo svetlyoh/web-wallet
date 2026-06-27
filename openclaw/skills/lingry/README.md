@@ -1,102 +1,77 @@
-# Lingry OpenClaw Companion
+# Lingry
 
-This companion keeps Sugarchain keys local and talks to the Lingry `/v1` API.
+Lingry lets OpenClaw users create, discover, and interact with Lingry words using a local Sugarchain wallet and explicit transaction confirmation.
 
-Install directly from GitHub:
+This directory is the standalone ClawHub skill distribution of Lingry. It is derived from the Lingry OpenClaw plugin but is packaged independently so ClawHub users can install it as a standard OpenClaw skill.
 
-```powershell
-$env:LINGRY_REPO_URL="https://github.com/svetlyoh/web-wallet.git"
-$env:LINGRY_REPO_DIR="$env:USERPROFILE\.openclaw\lingry\web-wallet"
+Source relationship: adapted from the Lingry OpenClaw plugin in this repository. Do not assume every plugin capability is available in the ClawHub skill.
 
-if (Test-Path $env:LINGRY_REPO_DIR) {
-  git -C $env:LINGRY_REPO_DIR pull
-} else {
-  git clone $env:LINGRY_REPO_URL $env:LINGRY_REPO_DIR
-}
+License: MIT-0. This ClawHub skill directory is released under MIT-0.
 
-cd "$env:LINGRY_REPO_DIR\openclaw\skills\lingry"
-npm install
+## Install From ClawHub
+
+Use the publisher handle shown in ClawHub:
+
+```bash
+openclaw skills install @<publisher-handle>/lingry
 ```
 
-Configure the runtime API and local encrypted keystore:
+Then enter the installed skill folder:
 
-```powershell
-$env:LINGRY_API_BASE_URL="https://replace-with-your-lingry-worker.workers.dev"
-$env:LINGRY_KEYSTORE_PATH="$env:USERPROFILE\.lingry\keystore.json"
-$env:LINGRY_WALLET_PASSPHRASE="replace-with-your-local-passphrase"
-$env:LINGRY_DEFAULT_LANGUAGE_CODE="W"
-$env:LINGRY_MAX_AUTO_COIN_FEE_SATOSHIS="2000"
-$env:LINGRY_MAX_AUTO_TIP_SATOSHIS="250000"
-$env:LINGRY_AUTO_CLAIM_STARTER_GRANT="true"
+```text
+<active-openclaw-workspace>/skills/lingry
 ```
 
-`LINGRY_API_BASE_URL` is the deployed Worker API URL, not the GitHub repository URL.
+Install dependencies and validate:
 
-```powershell
+```bash
+npm ci --omit=dev --ignore-scripts
+node bin/lingry-agent.mjs doctor
+```
+
+Set environment variables in your local OpenClaw environment, not in chat:
+
+```bash
+export LINGRY_API_BASE_URL="https://lingry.net"
+export LINGRY_KEYSTORE_PATH="$HOME/.lingry/keystore.json"
+export LINGRY_WALLET_PASSPHRASE="<local passphrase>"
+export LINGRY_DEFAULT_LANGUAGE_CODE="W"
+export LINGRY_MAX_AUTO_COIN_FEE_SATOSHIS="2000"
+export LINGRY_MAX_AUTO_TIP_SATOSHIS="250000"
+```
+
+## Commands
+
+```bash
+node bin/lingry-agent.mjs doctor
 node bin/lingry-agent.mjs create-wallet
 node bin/lingry-agent.mjs address
 node bin/lingry-agent.mjs claim-starter-grant
-node bin/lingry-agent.mjs list-words
+node bin/lingry-agent.mjs list-words W
+node bin/lingry-agent.mjs generate-word "a word for a tiny useful idea found while coding"
+node bin/lingry-agent.mjs coin-it --confirm-broadcast
+node bin/lingry-agent.mjs create-word-draft desknosh n "a snack eaten at a desk"
 ```
 
-`create-wallet` creates a local encrypted keystore and attempts the free 0.025 SUGAR starter grant through the Lingry API. The grant claim sends only the new public address, public key, and a signature proving wallet control. The private key and passphrase remain only on this computer.
+`coin-it --confirm-broadcast` must only be run after the user explicitly approves the exact transaction action, network, fee, wallet address, and payload summary.
 
-To recover the WIF private key for offline backup, use a private interactive terminal only:
+## Update And Removal
 
 ```bash
-lingry-openclaw export-private-key --confirm
+openclaw skills update @<publisher-handle>/lingry
+openclaw skills uninstall @<publisher-handle>/lingry
 ```
 
-The command requires typing `DISPLAY-WIF`. It is never supported through Telegram or OpenClaw chat.
+## Developer/Source Checkout Only
 
-Install the 8:00 AM local-time daily OpenClaw pick from Lingry Rankings:
+Use this only when developing the skill source:
 
 ```bash
-node bin/lingry-agent.mjs install-daily-cron
+git clone https://github.com/svetlyoh/web-wallet.git
+cd web-wallet/openclaw/skills/lingry
+npm ci --omit=dev --ignore-scripts
+node bin/lingry-agent.mjs doctor
+npm test
 ```
 
-Test it immediately:
-
-```bash
-node bin/lingry-agent.mjs daily-popular-pick
-```
-
-The cron job writes to:
-
-```text
-$HOME/.lingry/lingry-daily-popular-pick.log
-```
-
-Ask Lingry to invent a word from a prompt:
-
-```bash
-node bin/lingry-agent.mjs prompt-word "a word for a tiny useful idea found while coding"
-```
-
-Prompt and coin the generated word on Sugarchain:
-
-```bash
-node bin/lingry-agent.mjs prompt-and-coin "a word for a tiny useful idea found while coding"
-```
-
-`prompt-and-coin` signs locally from the encrypted keystore, broadcasts through Sugarchain, and prints the resulting transaction id. It refuses to coin when `LINGRY_COIN_FEE_SATOSHIS` is greater than `LINGRY_MAX_AUTO_COIN_FEE_SATOSHIS`.
-
-The keystore format is:
-
-```text
-scrypt-derived key + AES-256-GCM encrypted WIF
-```
-
-The WIF is never printed by default and is never sent to the Lingry API.
-
-## Linux Installer
-
-On Ubuntu:
-
-```bash
-cd "$HOME/lingry-openclaw/web-wallet/openclaw/skills/lingry"
-bash install-linux.sh
-lingry-openclaw create-wallet
-lingry-openclaw claim-starter-grant
-lingry-openclaw address
-```
+Normal ClawHub users should not clone the full `web-wallet` repository.

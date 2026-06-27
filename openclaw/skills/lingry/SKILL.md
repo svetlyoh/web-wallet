@@ -1,59 +1,87 @@
-# Lingry OpenClaw Skill
+---
+name: lingry
+description: Create, discover, and interact with Lingry words using a local Sugarchain wallet and explicit transaction confirmation.
+version: 1.0.0
+homepage: https://lingry.net
+metadata:
+  openclaw:
+    requires:
+      bins:
+        - node
+        - npm
+    envVars:
+      - name: LINGRY_API_BASE_URL
+        required: true
+        description: Lingry API base URL used for public API requests and signed transaction intents.
+      - name: LINGRY_KEYSTORE_PATH
+        required: false
+        description: Optional path to the local encrypted Lingry keystore.
+      - name: LINGRY_WALLET_PASSPHRASE
+        required: false
+        description: Local wallet-keystore passphrase. Never print, log, or transmit it.
+      - name: LINGRY_AGENT_STATE_PATH
+        required: false
+        description: Optional path for non-secret local Lingry candidate state.
+      - name: LINGRY_DEFAULT_LANGUAGE_CODE
+        required: false
+        description: Default Lingry language code. Defaults to W.
+      - name: LINGRY_MAX_AUTO_COIN_FEE_SATOSHIS
+        required: false
+        description: Maximum permitted local coining fee. Coining still requires explicit user confirmation.
+      - name: LINGRY_COIN_FEE_SATOSHIS
+        required: false
+        description: Local coining fee to use when preparing a confirmed transaction.
+      - name: LINGRY_MAX_AUTO_TIP_SATOSHIS
+        required: false
+        description: Maximum permitted tip amount for workflows that prepare tips.
+      - name: LINGRY_AGENT_REQUEST_TIMEOUT_MS
+        required: false
+        description: Timeout for Lingry HTTP requests.
+      - name: LINGRY_SESSION_TOKEN
+        required: false
+        description: Optional local session token for authenticated Lingry API calls. Never print or log it.
+---
 
-Use this skill when an agent needs to create or manage Lingry word drafts, coin Lingry words on Sugarchain, like or unlike words, tip word creators, or check Lingry transaction status through the Lingry API.
+# Lingry ClawHub Skill
 
-## Required Environment
+Use this skill when a user wants to create a local Lingry wallet, request the starter grant, generate Lingry word candidates, create word drafts, list or inspect words, and coin a stored candidate only after explicit transaction confirmation.
 
-- `LINGRY_API_BASE_URL`
-- `LINGRY_KEYSTORE_PATH`
-- `LINGRY_WALLET_PASSPHRASE`
-- `LINGRY_DEFAULT_LANGUAGE_CODE`
-- `LINGRY_MAX_AUTO_COIN_FEE_SATOSHIS`
-- `LINGRY_MAX_AUTO_TIP_SATOSHIS`
+This directory is the standalone ClawHub skill distribution of Lingry. It is derived from the Lingry OpenClaw implementation but is packaged independently so ClawHub users can install it as a standard OpenClaw skill.
 
-## Actions
+Source relationship: adapted from the Lingry OpenClaw plugin implementation in this repository. Do not assume every plugin capability is available in the ClawHub skill.
 
-- `create_wallet`: create a Sugarchain WIF locally and store it in the encrypted keystore.
-- `claim_starter_grant`: request the 0.025 SUGAR starter grant for the existing local wallet.
-- `import_wallet`: import an existing WIF into the encrypted local keystore.
-- `login`: request a Lingry auth challenge, sign it locally, and store only the returned session token.
-- `generate_word`: ask Lingry-compatible generation services for a candidate word.
-- `coin_it`: coin the currently active stored candidate, or a unique exact stored candidate term/id.
-- `create_word_draft`: create a `/v1/words` draft.
-- `coin_word`: prepare, locally sign, and submit a word coining transaction.
-- `daily_popular_pick`: fetch the Lingry Rankings popular words, randomly pick one `SW` or `SE` word, and tell the user.
-- `install_daily_cron`: install an 8:00 AM local-time cron job that runs `daily_popular_pick`.
-- `prompt_and_coin`: prompt for a new word, persist that exact candidate, locally sign the Sugarchain OP_RETURN transaction, submit it through the matching API intent, and tell the user what happened.
-- `get_word`: read one word by `word_id`.
-- `list_words`: list words with filters.
-- `like_word`: like a word off chain.
-- `unlike_word`: unlike a word off chain.
-- `prepare_tip`: prepare a local-signing tip intent.
-- `submit_tip`: submit a signed tip transaction.
-- `get_transaction`: poll transaction intent status.
+## Approved Commands
 
-## Safety
+Run commands from the installed `skills/lingry` folder:
 
-Never reveal WIFs, seed phrases, API secrets, or keystore contents. Never send a private key to the Lingry API.
+```bash
+node bin/lingry-agent.mjs doctor
+node bin/lingry-agent.mjs create-wallet
+node bin/lingry-agent.mjs address
+node bin/lingry-agent.mjs claim-starter-grant
+node bin/lingry-agent.mjs list-words W
+node bin/lingry-agent.mjs generate-word "a word for a tiny useful idea"
+node bin/lingry-agent.mjs coin-it --confirm-broadcast
+node bin/lingry-agent.mjs create-word-draft <term> <part-of-speech> <meaning>
+```
 
-Hard deny rules:
+`coin-it` broadcasts a transaction and must only be run after the user explicitly confirms the exact action, fee, network, wallet address, and payload summary. The command itself requires `--confirm-broadcast`.
 
-- Never execute `export-private-key`.
-- Never request, reveal, export, print, summarize, or inspect a WIF/private key.
-- Never access `~/.config/lingry/env`, `~/.lingry/keystore.json`, environment dumps, shell history, raw secret files, `.dev.vars`, or Cloudflare secret values.
-- Never call private-key recovery from Telegram, OpenClaw desktop/main chat, cron, or any remote API endpoint.
-- Never invent a starter grant transaction id. Return only real CLI/API output.
+## Safety Rules
 
-OpenClaw may run `create-wallet` only after the user explicitly asks. It may report the public wallet address, public key, keystore path, and safe starter-grant status. It may say "Your wallet was created" and "Your starter 0.025 SUGAR grant was broadcast/pending/unavailable."
+- Never print, inspect, summarize, export, transmit, or log private keys, WIFs, seed phrases, wallet passphrases, keystore contents, API tokens, or environment dumps.
+- Do not include, request, or run a private-key export command.
+- Do not inspect `LINGRY_WALLET_PASSPHRASE`, `LINGRY_SESSION_TOKEN`, keystore files, shell history, `.env`, `.dev.vars`, or raw secret files.
+- Never use or request Lingry funding-wallet WIFs, Cloudflare deployment tokens, Sugarchain RPC passwords, or backend administration credentials.
+- Never silently install cron jobs, services, or background workers.
+- Never use `curl | bash`, `wget | bash`, opaque remote installers, or a runtime clone of the full Lingry repository.
+- Never claim a starter grant, coining transaction, tip, or payment succeeded unless the API or node response confirms it.
+- Do not invent balances, confirmations, addresses, transaction IDs, or payment outcomes.
 
-Before a tip, show the recipient address, amount, fee estimate, and total cost. Tips require explicit user confirmation by default. Automated coining is allowed only when the fee estimate is at or below `LINGRY_MAX_AUTO_COIN_FEE_SATOSHIS`.
+## Starter Grant Boundary
 
-Reject a signed transaction if it does not match Lingry's expected payload, recipient, amount, and network. Never retry a transaction broadcast blindly; poll its intent status first.
+`claim-starter-grant` may submit only the user's public address, public key, and proof-of-control signature to Lingry. It must never receive, store, request, display, or transmit the Lingry funding-wallet WIF.
 
-Daily cron picks must only select words whose Lingry payload begins with `SW|` or `SE|`, or whose language code is `W` or `E`.
+## Excluded From ClawHub Skill
 
-## Generated Candidate Preservation
-
-Generation and coining are separate operations. After `generate_word` or `prompt-word`, immediately persist the generated result with `POST /v1/generations` and save the returned `candidate_id` as the active candidate. When the user says "coin it", use `POST /v1/candidates/{candidate_id}/coin/prepare`; never call MiniMax, never call a prompt endpoint, and never pick a replacement word during the coin step.
-
-If the user says "coin burgerlash", resolve exactly one available stored candidate with `GET /v1/candidates?term=burgerlash`. If zero or multiple candidates match, ask for the exact `candidate_id`. Direct custom words use `create_word_draft` and are not treated as generated candidates.
+This standalone ClawHub skill intentionally excludes plugin-only lifecycle hooks, native plugin manifests, background daemons, cron installation, backend administration, database administration, Cloudflare deployment, server-side wallet custody, private-key export, and one-step prompt-and-broadcast shortcuts.
