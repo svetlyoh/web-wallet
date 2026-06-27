@@ -17,6 +17,37 @@
 			"0 */3 * * *"
 		]
 	},
+	"durable_objects": {
+		"bindings": [
+			{
+				"name": "LINGRY_LEXICON",
+				"class_name": "LexiconShardDO"
+			},
+			{
+				"name": "LINGRY_ACTOR",
+				"class_name": "ActorDO"
+			},
+			{
+				"name": "LINGRY_FEED",
+				"class_name": "FeedDO"
+			},
+			{
+				"name": "LINGRY_WEBHOOKS",
+				"class_name": "WebhookDO"
+			}
+		]
+	},
+	"migrations": [
+		{
+			"tag": "v1-lingry-agent-api",
+			"new_sqlite_classes": [
+				"LexiconShardDO",
+				"ActorDO",
+				"FeedDO",
+				"WebhookDO"
+			]
+		}
+	],
 	"d1_databases": [
 		{
 			"binding": "LINGRY_DB",
@@ -26,7 +57,7 @@
 	],
 	"main": "src/worker.mjs",
 	"assets": {
-		"directory": ".",
+		"directory": "public",
 		"binding": "ASSETS",
 		"run_worker_first": true
 	}

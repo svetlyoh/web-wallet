@@ -40,6 +40,7 @@ const DEFAULT_CORS_ORIGINS = [
 	'http://localhost:8787',
 	'http://127.0.0.1:8787'
 ];
+const LOCAL_BINDING_TIMEOUT_MS = 8000;
 const sugarNetwork = {
 	messagePrefix: '\x19Sugarchain Signed Message:\n',
 	bip32: {
@@ -297,6 +298,12 @@ async function hmacBase64Url(secret, text) {
 	return base64Url(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(String(text || ''))));
 }
 
+function timeoutAfter(ms, message) {
+	return new Promise((resolve, reject) => {
+		setTimeout(() => reject(apiError('timeout', message, 504, true)), ms);
+	});
+}
+
 async function mintSessionToken(env, address, scopes) {
 	const secret = String(env.LINGRY_SESSION_SECRET || '');
 	if (!secret) {
@@ -345,13 +352,16 @@ async function callDo(namespace, name, path, init = {}) {
 	}
 	const id = namespace.idFromName(name);
 	const stub = namespace.get(id);
-	const response = await stub.fetch('https://lingry.internal' + path, {
-		...init,
-		headers: {
-			'content-type': 'application/json',
-			...(init.headers || {})
-		}
-	});
+	const response = await Promise.race([
+		stub.fetch('https://lingry.internal' + path, {
+			...init,
+			headers: {
+				'content-type': 'application/json',
+				...(init.headers || {})
+			}
+		}),
+		timeoutAfter(LOCAL_BINDING_TIMEOUT_MS, 'Durable Object request timed out.')
+	]);
 	const json = await response.json().catch(() => null);
 	if (!response.ok || !json || json.ok === false) {
 		throw apiError(json && json.error && json.error.code || 'durable_object_error', json && json.error && json.error.message || 'Durable Object request failed.', response.status || 500, response.status >= 500);

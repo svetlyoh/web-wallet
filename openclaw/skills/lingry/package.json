@@ -1,0 +1,16 @@
+{
+  "name": "@lingry/openclaw-skill",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "lingry-agent": "bin/lingry-agent.mjs"
+  },
+  "dependencies": {
+    "bitcoinjs-lib": "^4.0.3"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
+

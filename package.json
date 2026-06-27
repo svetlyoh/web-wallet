@@ -1,6 +1,14 @@
 {
 	"scripts": {
-		"start": "node server.js"
+		"start": "node server.js",
+		"test": "node --test",
+		"dev:lan": "npx wrangler dev --local --ip 0.0.0.0 --port 8787 --persist-to \"%TEMP%\\lingry-wrangler-state\"",
+		"smoke:lan": "node scripts/local-lan-smoke.mjs",
+		"db:migrate:local": "npx wrangler d1 migrations apply LINGRY_DB --local --persist-to \"%TEMP%\\lingry-wrangler-state\"",
+		"db:migrate:remote": "npx wrangler d1 migrations apply LINGRY_DB --remote",
+		"db:schema:local": "npx wrangler d1 execute LINGRY_DB --local --persist-to \"%TEMP%\\lingry-wrangler-state\" --command \"SELECT name, type FROM sqlite_master WHERE type IN ('table','index') ORDER BY type, name\"",
+		"db:schema:remote": "npx wrangler d1 execute LINGRY_DB --remote --command \"SELECT name, type FROM sqlite_master WHERE type IN ('table','index') ORDER BY type, name\"",
+		"deploy:cloud": "npx wrangler deploy"
 	},
 	"engines": {
 		"node": ">=18"

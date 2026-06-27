@@ -1,0 +1,34 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Lingry Agent API",
+    "version": "1.0.0-mvp"
+  },
+  "paths": {
+    "/v1/auth/challenge": { "post": { "summary": "Create a Sugarchain wallet-signature challenge." } },
+    "/v1/auth/verify": { "post": { "summary": "Verify a signed challenge and mint a scoped session." } },
+    "/v1/auth/logout": { "post": { "summary": "Logout acknowledgement." } },
+    "/v1/me": { "get": { "summary": "Return authenticated wallet identity." } },
+    "/v1/wallets/register": { "post": { "summary": "Register public wallet metadata." } },
+    "/v1/wallets/me": { "get": { "summary": "Return registered wallet metadata." } },
+    "/v1/words": {
+      "get": { "summary": "List Lingry words." },
+      "post": { "summary": "Create a draft Lingry word." }
+    },
+    "/v1/words/{word_id}": { "get": { "summary": "Get a Lingry word." } },
+    "/v1/words/{word_id}/coin/prepare": { "post": { "summary": "Prepare an unsigned OP_RETURN coining transaction." } },
+    "/v1/transactions/{intent_id}/submit": { "post": { "summary": "Submit a signed transaction." } },
+    "/v1/transactions/{intent_id}": { "get": { "summary": "Poll transaction status." } },
+    "/v1/words/{word_id}/likes": {
+      "post": { "summary": "Like a word." },
+      "delete": { "summary": "Unlike a word." }
+    },
+    "/v1/words/{word_id}/tips/prepare": { "post": { "summary": "Prepare an unsigned tip transaction." } },
+    "/v1/events": { "get": { "summary": "List public events." } },
+    "/v1/webhooks": { "post": { "summary": "Create a webhook subscription." } },
+    "/v1/webhooks/{webhook_id}": { "delete": { "summary": "Delete a webhook subscription." } },
+    "/v1/internal/indexer/ingest": { "post": { "summary": "Protected indexer ingest endpoint." } },
+    "/v1/healthz": { "get": { "summary": "Health check." } },
+    "/openapi.json": { "get": { "summary": "OpenAPI document." } }
+  }
+}

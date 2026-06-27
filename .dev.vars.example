@@ -1,0 +1,14 @@
+SUGARCHAIN_RPC_URL=https://replace-with-sugarchain-rpc.example
+SUGARCHAIN_RPC_USERNAME=replace-with-rpc-username
+SUGARCHAIN_RPC_PASSWORD=replace-with-rpc-password
+LINGRY_SESSION_SECRET=replace-with-long-random-session-secret
+LINGRY_WEBHOOK_SECRET=replace-with-long-random-webhook-secret
+MINIMAX_API_KEY=replace-with-minimax-api-key
+INTERNAL_INDEXER_SECRET=replace-with-long-random-indexer-secret
+TURNSTILE_SECRET_KEY=replace-with-turnstile-secret
+LINGRY_CORS_ORIGINS=http://localhost:8080,http://127.0.0.1:8080,http://localhost:8787
+LINGRY_PRODUCTION_ORIGIN=https://replace-with-lingry-production-origin.example
+LINGRY_MAX_TIP_SATOSHIS=100000000
+LINGRY_MIN_TIP_SATOSHIS=1
+# Development only. Keep false outside tests/local experiments.
+LINGRY_ENABLE_DEV_SIGNATURES=false

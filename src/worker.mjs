@@ -19,6 +19,7 @@ const FAUCET_MINIMUM_BALANCE_SATOSHIS = 1000000;
 const FAUCET_FEE_SATOSHIS = 1000;
 const FAUCET_DEFAULT_ADDRESS = 'sugar1q39n666w687nxm9x98tx5kgw2uvk780gtmd6yyu';
 const SUGAR_API_RETRIES = 2;
+const LOCAL_ASSET_TIMEOUT_MS = 8000;
 const SUGAR_API_TX_PAGE_SIZE = 10;
 const WORKER_LIVE_SCAN_LIMIT = 500;
 const WORKER_DEFAULT_CACHE_SCAN_BLOCKS = 500;
@@ -27,6 +28,8 @@ const WORKER_TX_LOOKUP_CONCURRENCY = 8;
 const LINGRY_WORD_START_HEIGHT = 42900000;
 const LINGRY_LEADERBOARD_REFRESH_MS = 3 * 60 * 60 * 1000;
 const LINGRY_LEADERBOARD_REFRESH_LOCK_MS = 15 * 60 * 1000;
+const LINGRY_LEADERBOARD_QUERY_TIMEOUT_MS = 5000;
+const LINGRY_LEADERBOARD_WAIT_TIMEOUT_MS = 10000;
 const LINGRY_LEADERBOARD_RECENT_BLOCKS = 2500;
 const LINGRY_LEADERBOARD_SCAN_CHUNK_BLOCKS = 500;
 const faucetAttempts = new Map();
@@ -64,8 +67,88 @@ function jsonResponse(payload, status = 200) {
 	});
 }
 
+function createRequestId() {
+	return 'req_' + crypto.randomUUID().replace(/-/g, '');
+}
+
+function traceRequest(env, requestId, stage, details = {}) {
+	if (String(env && env.LINGRY_TRACE_REQUESTS || '').toLowerCase() !== 'true') {
+		return;
+	}
+	const safeDetails = {};
+	for (const [key, value] of Object.entries(details || {})) {
+		if (/authorization|secret|token|key|wif|passphrase/i.test(key)) {
+			safeDetails[key] = '[redacted]';
+		} else {
+			safeDetails[key] = value;
+		}
+	}
+	console.log(JSON.stringify({
+		service: 'lingry-worker',
+		request_id: requestId,
+		stage,
+		...safeDetails
+	}));
+}
+
+function timeoutAfter(ms, message) {
+	return new Promise((resolve, reject) => {
+		setTimeout(() => reject(new Error(message)), ms);
+	});
+}
+
+function isD1SchemaError(error) {
+	const message = String(error && error.message || error || '').toLowerCase();
+	return message.includes('no such table') || message.includes('no such column') || message.includes('d1_');
+}
+
+function safeLeaderboardError(error, fallbackMessage = 'Leaderboard data is not available yet.') {
+	if (!error) {
+		return fallbackMessage;
+	}
+	const message = String(error.message || error || '');
+	if (isD1SchemaError(error)) {
+		return 'Lingry leaderboard database tables are not ready. Run the D1 migrations and retry.';
+	}
+	if (/timed out/i.test(message)) {
+		return message;
+	}
+	return fallbackMessage;
+}
+
+function localHealthResponse() {
+	return new Response(JSON.stringify({ ok: true, service: 'lingry', mode: 'local' }), {
+		status: 200,
+		headers: {
+			'content-type': 'application/json; charset=utf-8',
+			'cache-control': 'no-store'
+		}
+	});
+}
+
+function safeErrorResponse(error, requestId, status = 500) {
+	return new Response(JSON.stringify({
+		ok: false,
+		error: {
+			code: status === 504 ? 'timeout' : 'internal_error',
+			message: status === 504 ? 'Request timed out before a response was available.' : 'Lingry local Worker request failed.',
+			retryable: status >= 500
+		},
+		meta: { request_id: requestId }
+	}), {
+		status,
+		headers: {
+			'content-type': 'application/json; charset=utf-8',
+			'cache-control': 'no-store'
+		}
+	});
+}
+
 async function assetResponse(request, env) {
-	const response = await env.ASSETS.fetch(request);
+	const response = await Promise.race([
+		env.ASSETS.fetch(request),
+		timeoutAfter(LOCAL_ASSET_TIMEOUT_MS, 'Static asset lookup timed out.')
+	]);
 	const url = new URL(request.url);
 	if (url.pathname === '/' || url.pathname.endsWith('.html')) {
 		const headers = new Headers(response.headers);
@@ -763,6 +846,17 @@ function emptyLingryLeaderboardSummary(error = '') {
 	};
 }
 
+function emptyLingryLeaderboard(error = '') {
+	return {
+		enabled: false,
+		words: [],
+		addresses_by_likes: [],
+		addresses_by_tips: [],
+		addresses_by_words: [],
+		errors: error ? [{ error }] : []
+	};
+}
+
 function parseLingryMetaDate(value) {
 	const time = Date.parse(String(value || ''));
 	return Number.isFinite(time) ? time : 0;
@@ -770,28 +864,36 @@ function parseLingryMetaDate(value) {
 
 async function readLingryLeaderboardRefreshSummary(env) {
 	const fallback = lingryLeaderboardRefreshState.summary || emptyLingryLeaderboardSummary();
-	if (!(await ensureLingryMetaDb(env))) {
-		return fallback;
-	}
-	const storedSummaryJson = await getLingryMeta(env, 'leaderboard_last_summary');
-	let storedSummary = null;
-	if (storedSummaryJson) {
-		try {
-			storedSummary = JSON.parse(storedSummaryJson);
-		} catch (error) {
-			storedSummary = null;
+	try {
+		if (!(await ensureLingryMetaDb(env))) {
+			return fallback;
 		}
+		const storedSummaryJson = await getLingryMeta(env, 'leaderboard_last_summary');
+		let storedSummary = null;
+		if (storedSummaryJson) {
+			try {
+				storedSummary = JSON.parse(storedSummaryJson);
+			} catch (error) {
+				storedSummary = null;
+			}
+		}
+		const lastRefresh = await getLingryMeta(env, 'leaderboard_last_refresh_at');
+		const startedAt = await getLingryMeta(env, 'leaderboard_refresh_started_at');
+		const lastRefreshMs = parseLingryMetaDate(lastRefresh);
+		const startedMs = parseLingryMetaDate(startedAt);
+		const refreshing = Boolean(lingryLeaderboardRefreshState.running) || Boolean(startedMs && startedMs > lastRefreshMs && Date.now() - startedMs < LINGRY_LEADERBOARD_REFRESH_LOCK_MS);
+		return {
+			...(storedSummary || fallback),
+			refreshed_at: lastRefresh || (storedSummary && storedSummary.refreshed_at) || '',
+			refreshing
+		};
+	} catch (error) {
+		return {
+			...fallback,
+			refreshing: Boolean(lingryLeaderboardRefreshState.running),
+			errors: [{ error: safeLeaderboardError(error, 'Leaderboard refresh metadata is not available yet.') }]
+		};
 	}
-	const lastRefresh = await getLingryMeta(env, 'leaderboard_last_refresh_at');
-	const startedAt = await getLingryMeta(env, 'leaderboard_refresh_started_at');
-	const lastRefreshMs = parseLingryMetaDate(lastRefresh);
-	const startedMs = parseLingryMetaDate(startedAt);
-	const refreshing = Boolean(lingryLeaderboardRefreshState.running) || Boolean(startedMs && startedMs > lastRefreshMs && Date.now() - startedMs < LINGRY_LEADERBOARD_REFRESH_LOCK_MS);
-	return {
-		...(storedSummary || fallback),
-		refreshed_at: lastRefresh || (storedSummary && storedSummary.refreshed_at) || '',
-		refreshing
-	};
 }
 
 async function refreshLingryLeaderboardIndex(env) {
@@ -805,7 +907,9 @@ async function refreshLingryLeaderboardIndex(env) {
 	lingryLeaderboardRefreshState.running = (async () => {
 		const summary = emptyLingryLeaderboardSummary();
 		summary.started_at = new Date().toISOString();
-		await setLingryMeta(env, 'leaderboard_refresh_started_at', summary.started_at);
+		await setLingryMeta(env, 'leaderboard_refresh_started_at', summary.started_at).catch(error => {
+			summary.errors.push({ error: safeLeaderboardError(error, 'Leaderboard refresh lock could not be saved.') });
+		});
 		for (let offset = 0; offset < LINGRY_LEADERBOARD_RECENT_BLOCKS; offset += LINGRY_LEADERBOARD_SCAN_CHUNK_BLOCKS) {
 			const blocks = Math.min(LINGRY_LEADERBOARD_SCAN_CHUNK_BLOCKS, LINGRY_LEADERBOARD_RECENT_BLOCKS - offset);
 			try {
@@ -829,9 +933,13 @@ async function refreshLingryLeaderboardIndex(env) {
 		summary.refreshing = false;
 		lingryLeaderboardRefreshState.lastRefresh = Date.now();
 		lingryLeaderboardRefreshState.summary = summary;
-		await setLingryMeta(env, 'leaderboard_last_refresh_at', summary.refreshed_at);
-		await setLingryMeta(env, 'leaderboard_last_summary', JSON.stringify(summary));
-		await setLingryMeta(env, 'leaderboard_refresh_started_at', '');
+		try {
+			await setLingryMeta(env, 'leaderboard_last_refresh_at', summary.refreshed_at);
+			await setLingryMeta(env, 'leaderboard_last_summary', JSON.stringify(summary));
+			await setLingryMeta(env, 'leaderboard_refresh_started_at', '');
+		} catch (error) {
+			summary.errors.push({ error: safeLeaderboardError(error, 'Leaderboard refresh summary could not be saved.') });
+		}
 		return summary;
 	})();
 	try {
@@ -877,13 +985,7 @@ function mapLeaderboardAddressRow(row) {
 
 async function readLingryLeaderboard(env, limit = 25) {
 	if (!(await ensureLingrySocialDb(env))) {
-		return {
-			enabled: false,
-			words: [],
-			addresses_by_likes: [],
-			addresses_by_tips: [],
-			addresses_by_words: []
-		};
+		return emptyLingryLeaderboard('Lingry social database is not configured.');
 	}
 	const safeLimit = Math.max(5, Math.min(Number(limit) || 25, 100));
 	const wordRows = await env.LINGRY_DB.prepare(`
@@ -952,7 +1054,13 @@ async function handleLingryLeaderboard(request, env, ctx) {
 	const limit = Math.max(5, Math.min(Number(url.searchParams.get('limit')) || 25, 100));
 	const forceRefresh = ['1', 'true', 'yes', 'on'].includes(String(url.searchParams.get('refresh') || '').toLowerCase());
 	const waitForRefresh = ['1', 'true', 'yes', 'on'].includes(String(url.searchParams.get('wait') || '').toLowerCase());
-	let refreshSummary = await readLingryLeaderboardRefreshSummary(env);
+	let refreshSummary = await Promise.race([
+		readLingryLeaderboardRefreshSummary(env),
+		timeoutAfter(LINGRY_LEADERBOARD_QUERY_TIMEOUT_MS, 'Leaderboard refresh metadata timed out.')
+	]).catch(error => ({
+		...emptyLingryLeaderboardSummary(safeLeaderboardError(error, 'Leaderboard refresh metadata is not available yet.')),
+		refreshing: Boolean(lingryLeaderboardRefreshState.running)
+	}));
 	const lastRefreshMs = parseLingryMetaDate(refreshSummary.refreshed_at);
 	const recentlyStarted = refreshSummary.refreshing;
 	const stale = !lastRefreshMs || Date.now() - lastRefreshMs >= LINGRY_LEADERBOARD_REFRESH_MS;
@@ -964,18 +1072,33 @@ async function handleLingryLeaderboard(request, env, ctx) {
 			return lingryLeaderboardRefreshState.summary;
 		});
 		if (waitForRefresh) {
-			await refreshPromise;
-			refreshSummary = await readLingryLeaderboardRefreshSummary(env);
+			refreshSummary = await Promise.race([
+				refreshPromise,
+				timeoutAfter(LINGRY_LEADERBOARD_WAIT_TIMEOUT_MS, 'Leaderboard refresh is still running in the background.')
+			]).catch(error => ({
+				...refreshSummary,
+				refreshing: true,
+				errors: [{ error: safeLeaderboardError(error, 'Leaderboard refresh is still running in the background.') }]
+			}));
 		} else if (ctx && typeof ctx.waitUntil === 'function') {
 			ctx.waitUntil(refreshPromise);
 			refreshSummary = { ...refreshSummary, refreshing: true };
 		}
 	} else if (waitForRefresh && lingryLeaderboardRefreshState.running) {
-		await lingryLeaderboardRefreshState.running;
-		refreshSummary = await readLingryLeaderboardRefreshSummary(env);
+		refreshSummary = await Promise.race([
+			lingryLeaderboardRefreshState.running,
+			timeoutAfter(LINGRY_LEADERBOARD_WAIT_TIMEOUT_MS, 'Leaderboard refresh is still running in the background.')
+		]).catch(error => ({
+			...refreshSummary,
+			refreshing: true,
+			errors: [{ error: safeLeaderboardError(error, 'Leaderboard refresh is still running in the background.') }]
+		}));
 	}
 
-	const leaderboard = await readLingryLeaderboard(env, limit);
+	const leaderboard = await Promise.race([
+		readLingryLeaderboard(env, limit),
+		timeoutAfter(LINGRY_LEADERBOARD_QUERY_TIMEOUT_MS, 'Leaderboard query timed out.')
+	]).catch(error => emptyLingryLeaderboard(safeLeaderboardError(error)));
 	return jsonResponse({
 		...leaderboard,
 		since_block: LINGRY_WORD_START_HEIGHT,
@@ -1982,49 +2105,70 @@ export default {
 		await refreshLingryLeaderboardIndex(env);
 	},
 	async fetch(request, env, ctx) {
+		const requestId = createRequestId();
 		const url = new URL(request.url);
-		const lingryApiResponse = await handleLingryV1Request(request, env, ctx);
-		if (lingryApiResponse) {
-			return lingryApiResponse;
+		traceRequest(env, requestId, 'fetch:start', { method: request.method, pathname: url.pathname });
+		if (url.pathname === '/healthz') {
+			traceRequest(env, requestId, 'healthz:return');
+			return localHealthResponse();
 		}
-		if (url.pathname === '/api/invent-word-from-prompt') {
-			return handleGenerateWord(request, env, 'prompt');
+		try {
+			traceRequest(env, requestId, 'v1:before');
+			const lingryApiResponse = await Promise.race([
+				handleLingryV1Request(request, env, ctx),
+				timeoutAfter(LOCAL_ASSET_TIMEOUT_MS, 'Lingry v1 router timed out.')
+			]);
+			traceRequest(env, requestId, 'v1:after', { handled: Boolean(lingryApiResponse) });
+			if (lingryApiResponse) {
+				traceRequest(env, requestId, 'fetch:return', { route: 'v1' });
+				return lingryApiResponse;
+			}
+			if (url.pathname === '/api/invent-word-from-prompt') {
+				return handleGenerateWord(request, env, 'prompt');
+			}
+			if (url.pathname === '/api/generate-word') {
+				return handleGenerateWord(request, env, null);
+			}
+			if (url.pathname === '/api/faucet/fund') {
+				return handleFaucetFund(request, env);
+			}
+			if (url.pathname === '/api/social/summary') {
+				return handleLingrySocialSummary(request, env);
+			}
+			if (url.pathname === '/api/social/like') {
+				return handleLingrySocialLike(request, env);
+			}
+			if (url.pathname === '/api/social/tip') {
+				return handleLingrySocialTip(request, env);
+			}
+			if (url.pathname === '/api/leaderboard') {
+				return handleLingryLeaderboard(request, env, ctx);
+			}
+			if (url.pathname === '/api/words/latest') {
+				return handleWordLatest(request, env);
+			}
+			if (url.pathname === '/api/words/scan') {
+				return handleWordScan(request, env);
+			}
+			if (url.pathname === '/api/words/search') {
+				return handleWordSearch(request, env);
+			}
+			if (url.pathname.startsWith('/api/words/')) {
+				const word = decodeURIComponent(url.pathname.slice('/api/words/'.length));
+				return handleWordDetail(request, env, word);
+			}
+			if (url.pathname.startsWith('/api/tx/') && url.pathname.endsWith('/word')) {
+				const txid = decodeURIComponent(url.pathname.slice('/api/tx/'.length, -'/word'.length));
+				return handleTxWord(request, env, txid);
+			}
+			traceRequest(env, requestId, 'assets:before', { pathname: url.pathname });
+			const response = await assetResponse(request, env);
+			traceRequest(env, requestId, 'assets:after', { status: response.status });
+			return response;
+		} catch (error) {
+			const status = /timed out/i.test(error && error.message || '') ? 504 : 500;
+			traceRequest(env, requestId, 'fetch:error', { status, message: error && error.message ? error.message : 'unknown' });
+			return safeErrorResponse(error, requestId, status);
 		}
-		if (url.pathname === '/api/generate-word') {
-			return handleGenerateWord(request, env, null);
-		}
-		if (url.pathname === '/api/faucet/fund') {
-			return handleFaucetFund(request, env);
-		}
-		if (url.pathname === '/api/social/summary') {
-			return handleLingrySocialSummary(request, env);
-		}
-		if (url.pathname === '/api/social/like') {
-			return handleLingrySocialLike(request, env);
-		}
-		if (url.pathname === '/api/social/tip') {
-			return handleLingrySocialTip(request, env);
-		}
-		if (url.pathname === '/api/leaderboard') {
-			return handleLingryLeaderboard(request, env, ctx);
-		}
-		if (url.pathname === '/api/words/latest') {
-			return handleWordLatest(request, env);
-		}
-		if (url.pathname === '/api/words/scan') {
-			return handleWordScan(request, env);
-		}
-		if (url.pathname === '/api/words/search') {
-			return handleWordSearch(request, env);
-		}
-		if (url.pathname.startsWith('/api/words/')) {
-			const word = decodeURIComponent(url.pathname.slice('/api/words/'.length));
-			return handleWordDetail(request, env, word);
-		}
-		if (url.pathname.startsWith('/api/tx/') && url.pathname.endsWith('/word')) {
-			const txid = decodeURIComponent(url.pathname.slice('/api/tx/'.length, -'/word'.length));
-			return handleTxWord(request, env, txid);
-		}
-		return assetResponse(request, env);
 	}
 };
