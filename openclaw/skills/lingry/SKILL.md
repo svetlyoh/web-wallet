@@ -14,6 +14,7 @@ Use this skill when an agent needs to create or manage Lingry word drafts, coin 
 ## Actions
 
 - `create_wallet`: create a Sugarchain WIF locally and store it in the encrypted keystore.
+- `claim_starter_grant`: request the 0.025 SUGAR starter grant for the existing local wallet.
 - `import_wallet`: import an existing WIF into the encrypted local keystore.
 - `login`: request a Lingry auth challenge, sign it locally, and store only the returned session token.
 - `generate_word`: ask Lingry-compatible generation services for a candidate word.
@@ -33,6 +34,16 @@ Use this skill when an agent needs to create or manage Lingry word drafts, coin 
 ## Safety
 
 Never reveal WIFs, seed phrases, API secrets, or keystore contents. Never send a private key to the Lingry API.
+
+Hard deny rules:
+
+- Never execute `export-private-key`.
+- Never request, reveal, export, print, summarize, or inspect a WIF/private key.
+- Never access `~/.config/lingry/env`, `~/.lingry/keystore.json`, environment dumps, shell history, raw secret files, `.dev.vars`, or Cloudflare secret values.
+- Never call private-key recovery from Telegram, OpenClaw desktop/main chat, cron, or any remote API endpoint.
+- Never invent a starter grant transaction id. Return only real CLI/API output.
+
+OpenClaw may run `create-wallet` only after the user explicitly asks. It may report the public wallet address, public key, keystore path, and safe starter-grant status. It may say "Your wallet was created" and "Your starter 0.025 SUGAR grant was broadcast/pending/unavailable."
 
 Before a tip, show the recipient address, amount, fee estimate, and total cost. Tips require explicit user confirmation by default. Automated coining is allowed only when the fee estimate is at or below `LINGRY_MAX_AUTO_COIN_FEE_SATOSHIS`.
 

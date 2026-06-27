@@ -27,6 +27,7 @@ $env:LINGRY_WALLET_PASSPHRASE="replace-with-your-local-passphrase"
 $env:LINGRY_DEFAULT_LANGUAGE_CODE="W"
 $env:LINGRY_MAX_AUTO_COIN_FEE_SATOSHIS="2000"
 $env:LINGRY_MAX_AUTO_TIP_SATOSHIS="250000"
+$env:LINGRY_AUTO_CLAIM_STARTER_GRANT="true"
 ```
 
 `LINGRY_API_BASE_URL` is the deployed Worker API URL, not the GitHub repository URL.
@@ -34,8 +35,19 @@ $env:LINGRY_MAX_AUTO_TIP_SATOSHIS="250000"
 ```powershell
 node bin/lingry-agent.mjs create-wallet
 node bin/lingry-agent.mjs address
+node bin/lingry-agent.mjs claim-starter-grant
 node bin/lingry-agent.mjs list-words
 ```
+
+`create-wallet` creates a local encrypted keystore and attempts the free 0.025 SUGAR starter grant through the Lingry API. The grant claim sends only the new public address, public key, and a signature proving wallet control. The private key and passphrase remain only on this computer.
+
+To recover the WIF private key for offline backup, use a private interactive terminal only:
+
+```bash
+lingry-openclaw export-private-key --confirm
+```
+
+The command requires typing `DISPLAY-WIF`. It is never supported through Telegram or OpenClaw chat.
 
 Install the 8:00 AM local-time daily OpenClaw pick from Lingry Rankings:
 
@@ -76,3 +88,15 @@ scrypt-derived key + AES-256-GCM encrypted WIF
 ```
 
 The WIF is never printed by default and is never sent to the Lingry API.
+
+## Linux Installer
+
+On Ubuntu:
+
+```bash
+cd "$HOME/lingry-openclaw/web-wallet/openclaw/skills/lingry"
+bash install-linux.sh
+lingry-openclaw create-wallet
+lingry-openclaw claim-starter-grant
+lingry-openclaw address
+```

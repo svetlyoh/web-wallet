@@ -7,7 +7,11 @@
 	],
 	"vars": {
 		"LINGRY_FUNDING_ADDRESS": "sugar1q39n666w687nxm9x98tx5kgw2uvk780gtmd6yyu",
-		"LINGRY_SUGAR_GRANTS_ENABLED": "true"
+		"LINGRY_SUGAR_GRANTS_ENABLED": "false",
+		"LINGRY_GRANT_FUNDING_ADDRESS": "",
+		"LINGRY_GRANT_DAILY_BUDGET_SUGAR": "0",
+		"LINGRY_GRANT_MONTHLY_BUDGET_SUGAR": "0",
+		"LINGRY_GRANT_MAX_PER_IP_DAY": "0"
 	},
 	"observability": {
 		"enabled": true

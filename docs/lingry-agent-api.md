@@ -71,6 +71,18 @@ Configured codes: `W E S G F I R P C A H B J K T V U N M Y L D O Q X Z`.
 - `GET /v1/healthz`
 - `GET /openapi.json`
 
+## Starter Grant API
+
+The OpenClaw wallet starter grant uses Worker routes outside `/v1`:
+
+- `POST /api/wallet-grants/challenge`
+- `POST /api/wallet-grants/claim`
+- `GET /api/wallet-grants/status/<claim-id-or-address>`
+
+The local client creates the wallet, sends only the public address and public key, signs the returned challenge locally, then submits the signature. The user WIF and passphrase never leave the computer. The server-side grant wallet WIF must exist only as the Cloudflare secret `LINGRY_GRANT_WALLET_WIF`.
+
+The recipient amount is exactly `0.025 SUGAR`; network fees are paid separately by the grant wallet. Production grants remain disabled unless `LINGRY_SUGAR_GRANTS_ENABLED=true`, the grant wallet address is configured, and daily/monthly/IP budgets are positive.
+
 ## Auth Compatibility Gap
 
 `SugarchainMessageVerifier` is deliberately wired as a rejecting interface unless a compatible Sugarchain wallet-message verifier is enabled. This prevents an insecure MVP shortcut. Local development can enable `LINGRY_ENABLE_DEV_SIGNATURES=true`, where the accepted test signature is `dev:<nonce>`. Do not enable that in production.
@@ -84,4 +96,3 @@ prepare -> local sign -> submit -> broadcast -> confirm
 ```
 
 Submitted signed transactions are parsed before broadcast. Coining must contain the expected OP_RETURN payload. Tips must pay the intended recipient and exact satoshi amount.
-

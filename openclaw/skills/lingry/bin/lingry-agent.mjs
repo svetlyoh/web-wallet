@@ -13,6 +13,7 @@ const defaultLanguage = process.env.LINGRY_DEFAULT_LANGUAGE_CODE || 'W';
 const maxAutoCoinFee = Number(process.env.LINGRY_MAX_AUTO_COIN_FEE_SATOSHIS || 0);
 const coinFeeSatoshis = Number(process.env.LINGRY_COIN_FEE_SATOSHIS || process.env.LINGRY_MAX_AUTO_COIN_FEE_SATOSHIS || 1000);
 const requestTimeoutMs = Math.max(1000, Number(process.env.LINGRY_AGENT_REQUEST_TIMEOUT_MS || 180000));
+const starterGrantEnabled = String(process.env.LINGRY_AUTO_CLAIM_STARTER_GRANT || 'true').toLowerCase() !== 'false';
 const dailyPickLanguageCodes = new Set(
 	String(process.env.LINGRY_DAILY_PICK_LANGUAGE_CODES || 'W,E')
 		.split(/[,\s]+/)
@@ -78,6 +79,137 @@ function loadWallet() {
 	decipher.setAuthTag(Buffer.from(store.tag, 'base64'));
 	const wif = Buffer.concat([decipher.update(Buffer.from(store.ciphertext, 'base64')), decipher.final()]).toString('utf8');
 	return { ...store, wif };
+}
+
+function isInteractiveTerminal() {
+	return Boolean(process.stdin.isTTY && process.stdout.isTTY);
+}
+
+function promptLine(question) {
+	return new Promise(resolve => {
+		process.stdout.write(question);
+		let buffer = '';
+		function cleanup() {
+			process.stdin.off('data', onData);
+			if (process.stdin.isTTY) {
+				process.stdin.setRawMode(false);
+			}
+			process.stdin.pause();
+		}
+		function onData(chunk) {
+			const text = String(chunk);
+			buffer += text;
+			if (buffer.includes('\n') || buffer.includes('\r')) {
+				cleanup();
+				resolve(buffer.replace(/[\r\n]+/g, '').trim());
+			}
+		}
+		process.stdin.resume();
+		process.stdin.setEncoding('utf8');
+		process.stdin.on('data', onData);
+	});
+}
+
+async function maybeDisplayWifOnce(wallet) {
+	if (!isInteractiveTerminal()) {
+		console.error('Private-key display is disabled in non-interactive mode.');
+		console.error('Use `lingry-openclaw export-private-key --confirm` from a private interactive terminal if needed.');
+		return false;
+	}
+	console.error('');
+	console.error('Your private key is encrypted in:');
+	console.error(keystorePath);
+	console.error('');
+	const answer = await promptLine('Would you like to display the WIF private key once now for offline backup? [y/N] ');
+	if (answer.toLowerCase() !== 'y') {
+		return false;
+	}
+	console.error('');
+	console.error("WARNING: Anyone with this WIF can spend this wallet's SUGAR.");
+	console.error('Do not paste it into chat, Telegram, GitHub, or a cloud document.');
+	const confirm = await promptLine('Display private key now? Type DISPLAY-WIF to continue: ');
+	if (confirm !== 'DISPLAY-WIF') {
+		console.error('Private key was not displayed.');
+		return false;
+	}
+	console.error('');
+	console.error('WIF private key for address ' + wallet.address + ':');
+	console.error(wallet.wif);
+	console.error('');
+	console.error('WARNING: This terminal scrollback may retain the WIF. Clear it after making an offline backup.');
+	return true;
+}
+
+async function exportPrivateKey() {
+	if (!process.argv.includes('--confirm')) {
+		throw new Error('export-private-key requires --confirm and a private interactive terminal.');
+	}
+	if (!isInteractiveTerminal()) {
+		throw new Error('Private-key export requires an interactive terminal.');
+	}
+	const wallet = loadWallet();
+	console.error("WARNING: Anyone with this WIF can spend this wallet's SUGAR.");
+	console.error('Do not paste it into chat, Telegram, GitHub, or a cloud document.');
+	const confirm = await promptLine('Display private key now? Type DISPLAY-WIF to continue: ');
+	if (confirm !== 'DISPLAY-WIF') {
+		throw new Error('Private key was not displayed.');
+	}
+	console.log('WIF private key for address ' + wallet.address + ':');
+	console.log(wallet.wif);
+	console.log('WARNING: This terminal scrollback may retain the WIF. Clear it after making an offline backup.');
+}
+
+function signGrantChallenge(keys, challengeText) {
+	const digest = crypto.createHash('sha256').update(challengeText).digest();
+	return keys.sign(digest).toString('hex');
+}
+
+async function claimStarterGrant(walletInput = null) {
+	const wallet = walletInput || loadWallet();
+	const keys = keysFromWallet(wallet);
+	const installationId = crypto.createHash('sha256')
+		.update(wallet.address + ':' + keystorePath)
+		.digest('hex')
+		.slice(0, 32);
+	try {
+		const challenge = await legacyApi('/api/wallet-grants/challenge', {
+			method: 'POST',
+			body: JSON.stringify({
+				address: wallet.address,
+				public_key: wallet.public_key,
+				installation_id: installationId
+			})
+		});
+		if (challenge.startup_grant?.status === 'broadcasted') {
+			return challenge.startup_grant;
+		}
+		const signature = signGrantChallenge(keys, challenge.challenge);
+		const claim = await legacyApi('/api/wallet-grants/claim', {
+			method: 'POST',
+			headers: {
+				'idempotency-key': challenge.claim_id || crypto.randomUUID()
+			},
+			body: JSON.stringify({
+				claim_id: challenge.claim_id,
+				address: wallet.address,
+				public_key: wallet.public_key,
+				nonce: challenge.nonce,
+				signature,
+				installation_id: installationId
+			})
+		});
+		return claim.startup_grant || {
+			requested_amount_sugar: '0.025',
+			status: 'pending_or_unavailable',
+			safe_message: 'Wallet was created successfully. The first-funding grant could not be completed yet.'
+		};
+	} catch (error) {
+		return {
+			requested_amount_sugar: '0.025',
+			status: 'pending_or_unavailable',
+			safe_message: 'Wallet was created successfully. The first-funding grant could not be completed yet.'
+		};
+	}
 }
 
 async function fetchJsonWithTimeout(url, options = {}, label = 'Lingry request') {
@@ -331,7 +463,43 @@ async function main() {
 	if (command === 'create-wallet') {
 		const wallet = walletFromKey(bitcoin.ECPair.makeRandom({ network: sugarNetwork }));
 		const store = saveWallet(wallet);
-		console.log(JSON.stringify({ address: store.address, public_key: store.public_key, keystore_path: keystorePath }, null, 2));
+		const startupGrant = starterGrantEnabled
+			? await claimStarterGrant(wallet)
+			: {
+				requested_amount_sugar: '0.025',
+				status: 'declined_or_disabled',
+				safe_message: 'Automatic starter grant claim is disabled locally.'
+			};
+		console.log(JSON.stringify({
+			wallet: {
+				address: store.address,
+				public_key: store.public_key,
+				keystore_path: keystorePath
+			},
+			private_key_backup: {
+				warning: 'The WIF private key controls this wallet. Back it up offline from a private terminal only.',
+				displayed_in_normal_output: false,
+				recovery_command: 'lingry-openclaw export-private-key --confirm'
+			},
+			startup_grant: startupGrant
+		}, null, 2));
+		await maybeDisplayWifOnce(wallet);
+		return;
+	}
+	if (command === 'export-private-key') {
+		await exportPrivateKey();
+		return;
+	}
+	if (command === 'claim-starter-grant') {
+		const wallet = loadWallet();
+		console.log(JSON.stringify({
+			wallet: {
+				address: wallet.address,
+				public_key: wallet.public_key,
+				keystore_path: keystorePath
+			},
+			startup_grant: await claimStarterGrant(wallet)
+		}, null, 2));
 		return;
 	}
 	if (command === 'import-wallet') {
@@ -423,7 +591,7 @@ async function main() {
 		}), null, 2));
 		return;
 	}
-	console.log('Usage: lingry-agent create-wallet | import-wallet <wif> | address | list-words [language] | daily-popular-pick | install-daily-cron | prompt-word <prompt> | prompt-and-coin <prompt> | create-word-draft <term> <pos> <meaning>');
+	console.log('Usage: lingry-agent create-wallet | claim-starter-grant | export-private-key --confirm | import-wallet <wif> | address | list-words [language] | daily-popular-pick | install-daily-cron | prompt-word <prompt> | prompt-and-coin <prompt> | create-word-draft <term> <pos> <meaning>');
 }
 
 main().catch(error => {

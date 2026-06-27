@@ -28,6 +28,41 @@ npx wrangler secret put TURNSTILE_SECRET_KEY
 
 For local development, copy `.dev.vars.example` to `.dev.vars` and replace placeholders locally.
 
+## Starter Grant Administration
+
+Production starter grants are disabled by default. Enable them only after configuring a dedicated, limited-balance grant wallet. Do not use a main treasury wallet.
+
+Secret name:
+
+```powershell
+npx wrangler secret put LINGRY_GRANT_WALLET_WIF
+```
+
+Do not put the WIF value in GitHub, `wrangler.jsonc`, `.dev.vars.example`, docs, logs, Telegram, D1, KV, R2, or terminal transcripts.
+
+Non-secret Worker variables:
+
+```text
+LINGRY_SUGAR_GRANTS_ENABLED=true
+LINGRY_GRANT_FUNDING_ADDRESS=<grant wallet public address>
+LINGRY_GRANT_DAILY_BUDGET_SUGAR=<daily budget>
+LINGRY_GRANT_MONTHLY_BUDGET_SUGAR=<monthly budget>
+LINGRY_GRANT_MAX_PER_IP_DAY=<positive integer>
+LINGRY_GRANT_FEE_SATOSHIS=<optional network fee>
+```
+
+The Worker derives the public address from `LINGRY_GRANT_WALLET_WIF` before broadcasting and fails closed unless it matches `LINGRY_GRANT_FUNDING_ADDRESS`.
+
+Grant endpoints:
+
+```text
+POST /api/wallet-grants/challenge
+POST /api/wallet-grants/claim
+GET  /api/wallet-grants/status/<claim-id-or-address>
+```
+
+The recipient amount is exactly `0.025 SUGAR`; network fees are paid separately by the grant wallet.
+
 ## Durable Objects
 
 The Worker exports:

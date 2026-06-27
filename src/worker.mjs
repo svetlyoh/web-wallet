@@ -1,5 +1,6 @@
 import bitcoin from 'bitcoinjs-lib';
 import { Buffer } from 'node:buffer';
+import nodeCrypto from 'node:crypto';
 import {
 	ActorDO,
 	FeedDO,
@@ -14,10 +15,10 @@ export { ActorDO, FeedDO, LexiconShardDO, WebhookDO };
 const MINI_MAX_MODEL = 'MiniMax-M3';
 const SUGAR_API_BASES = ['https://api.sugar.wtf', 'https://api.sugarchain.org'];
 const SUGAR_DECIMALS = 8;
-const FAUCET_AMOUNT_SATOSHIS = 2500000;
-const FAUCET_MINIMUM_BALANCE_SATOSHIS = 1000000;
-const FAUCET_FEE_SATOSHIS = 1000;
-const FAUCET_DEFAULT_ADDRESS = 'sugar1q39n666w687nxm9x98tx5kgw2uvk780gtmd6yyu';
+const LINGRY_NEW_WALLET_GRANT_SUGAR = '0.025';
+const LINGRY_NEW_WALLET_GRANT_SATOSHIS = 2500000;
+const LINGRY_GRANT_DEFAULT_FEE_SATOSHIS = 1000;
+const LINGRY_GRANT_CHALLENGE_TTL_MS = 10 * 60 * 1000;
 const SUGAR_API_RETRIES = 2;
 const LOCAL_ASSET_TIMEOUT_MS = 8000;
 const SUGAR_API_TX_PAGE_SIZE = 10;
@@ -197,6 +198,11 @@ function normalizeHex(value) {
 	return String(value || '').trim().replace(/^0x/i, '').replace(/\s+/g, '').toLowerCase();
 }
 
+async function sha256Hex(text) {
+	const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(String(text || '')));
+	return Array.from(new Uint8Array(digest)).map(byte => byte.toString(16).padStart(2, '0')).join('');
+}
+
 function getP2WPKHScript(pubkey) {
 	return bitcoin.payments.p2wpkh({
 		pubkey,
@@ -213,6 +219,11 @@ function getP2SHScript(redeem) {
 
 function getAddressFromKeys(keys) {
 	return getP2WPKHScript(keys.publicKey).address;
+}
+
+function getAddressFromPublicKeyHex(publicKeyHex) {
+	const publicKey = Buffer.from(normalizeHex(publicKeyHex), 'hex');
+	return getP2WPKHScript(publicKey).address;
 }
 
 function validateSugarAddress(address) {
@@ -1599,72 +1610,358 @@ function buildFaucetTransaction(keys, recipientAddress, utxos, amountSatoshis, f
 	return txb.build().toHex();
 }
 
-async function handleFaucetFund(request, env) {
+function grantJson(data, status = 200) {
+	return jsonResponse({
+		startup_grant: {
+			requested_amount_sugar: LINGRY_NEW_WALLET_GRANT_SUGAR,
+			...data
+		}
+	}, status);
+}
+
+function normalizeGrantPublicKey(value) {
+	const publicKey = normalizeHex(value);
+	return /^(02|03)[0-9a-f]{64}$/.test(publicKey) || /^04[0-9a-f]{128}$/.test(publicKey) ? publicKey : '';
+}
+
+function buildWalletGrantChallenge({ address, publicKey, nonce, expiresAt }) {
+	return [
+		'Lingry starter grant v1',
+		'address=' + address,
+		'public_key=' + publicKey,
+		'nonce=' + nonce,
+		'expires_at=' + expiresAt,
+		'amount_sugar=' + LINGRY_NEW_WALLET_GRANT_SUGAR
+	].join('\n');
+}
+
+function verifyWalletGrantSignature({ publicKey, challengeText, signature }) {
+	try {
+		const key = bitcoin.ECPair.fromPublicKey(Buffer.from(publicKey, 'hex'), sugarNetwork);
+		const digest = nodeCrypto.createHash('sha256').update(challengeText).digest();
+		return key.verify(digest, Buffer.from(normalizeHex(signature), 'hex'));
+	} catch (error) {
+		return false;
+	}
+}
+
+function sugarToSatoshis(value) {
+	const text = String(value || '0').trim();
+	const [whole, fraction = ''] = text.split('.');
+	const decimals = (fraction + '0'.repeat(SUGAR_DECIMALS)).slice(0, SUGAR_DECIMALS);
+	return Number(BigInt(whole || '0') * 100000000n + BigInt(decimals || '0'));
+}
+
+function getGrantClientIp(request) {
+	return request.headers.get('cf-connecting-ip') || request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
+}
+
+async function hashGrantIp(ip, env) {
+	const salt = String(env.LINGRY_SESSION_SECRET || env.LINGRY_GRANT_AUDIT_SALT || 'lingry-grant-audit');
+	return sha256Hex(salt + ':' + String(ip || 'unknown'));
+}
+
+async function ensureWalletGrantDb(env) {
+	if (!(await ensureLingrySocialDb(env))) {
+		return false;
+	}
+	await env.LINGRY_DB.prepare(`
+		CREATE TABLE IF NOT EXISTS lingry_wallet_grant_challenges (
+			claim_id TEXT PRIMARY KEY,
+			address TEXT NOT NULL,
+			public_key TEXT NOT NULL,
+			nonce TEXT NOT NULL UNIQUE,
+			challenge_text TEXT NOT NULL,
+			installation_id TEXT NOT NULL DEFAULT '',
+			ip_hash TEXT NOT NULL DEFAULT '',
+			created_at TEXT NOT NULL,
+			expires_at TEXT NOT NULL,
+			claimed_at TEXT NOT NULL DEFAULT ''
+		)
+	`).run();
+	await env.LINGRY_DB.prepare(`
+		CREATE TABLE IF NOT EXISTS lingry_wallet_grants (
+			grant_id TEXT PRIMARY KEY,
+			claim_id TEXT NOT NULL,
+			address TEXT NOT NULL UNIQUE,
+			public_key TEXT NOT NULL UNIQUE,
+			installation_id TEXT NOT NULL DEFAULT '',
+			ip_hash TEXT NOT NULL DEFAULT '',
+			amount_satoshis INTEGER NOT NULL,
+			status TEXT NOT NULL,
+			txid TEXT NOT NULL DEFAULT '',
+			safe_message TEXT NOT NULL DEFAULT '',
+			idempotency_key TEXT NOT NULL DEFAULT '',
+			created_at TEXT NOT NULL,
+			updated_at TEXT NOT NULL
+		)
+	`).run();
+	await env.LINGRY_DB.prepare('CREATE INDEX IF NOT EXISTS idx_lingry_wallet_grant_challenges_expires ON lingry_wallet_grant_challenges(expires_at)').run();
+	await env.LINGRY_DB.prepare('CREATE INDEX IF NOT EXISTS idx_lingry_wallet_grants_status_updated ON lingry_wallet_grants(status, updated_at)').run();
+	await env.LINGRY_DB.prepare('CREATE INDEX IF NOT EXISTS idx_lingry_wallet_grants_ip_updated ON lingry_wallet_grants(ip_hash, updated_at)').run();
+	return true;
+}
+
+async function readGrantByAddressOrClaim(env, id) {
+	if (!(await ensureWalletGrantDb(env))) {
+		return null;
+	}
+	const value = String(id || '').trim();
+	if (!value) {
+		return null;
+	}
+	return env.LINGRY_DB.prepare(`
+		SELECT grant_id, claim_id, address, public_key, amount_satoshis, status, txid, safe_message, created_at, updated_at
+		FROM lingry_wallet_grants
+		WHERE address = ? OR claim_id = ?
+		LIMIT 1
+	`).bind(value, value).first();
+}
+
+function mapGrantRow(row) {
+	if (!row) {
+		return {
+			status: 'not_found',
+			safe_message: 'No starter grant has been recorded for this wallet yet.'
+		};
+	}
+	return {
+		claim_id: row.claim_id,
+		address: row.address,
+		amount_satoshis: Number(row.amount_satoshis || LINGRY_NEW_WALLET_GRANT_SATOSHIS),
+		amount_sugar: sugarAmount(Number(row.amount_satoshis || LINGRY_NEW_WALLET_GRANT_SATOSHIS)).toFixed(3),
+		status: row.status,
+		txid: row.txid || '',
+		safe_message: row.safe_message || '',
+		updated_at: row.updated_at || ''
+	};
+}
+
+async function existingGrantForWallet(env, address, publicKey) {
+	return env.LINGRY_DB.prepare(`
+		SELECT grant_id, claim_id, address, public_key, amount_satoshis, status, txid, safe_message, created_at, updated_at
+		FROM lingry_wallet_grants
+		WHERE address = ? OR public_key = ?
+		ORDER BY updated_at DESC
+		LIMIT 1
+	`).bind(address, publicKey).first();
+}
+
+async function recordGrantState(env, { grantId, claimId, address, publicKey, installationId, ipHash, status, txid = '', safeMessage = '', idempotencyKey = '' }) {
+	const now = new Date().toISOString();
+	await env.LINGRY_DB.prepare(`
+		INSERT INTO lingry_wallet_grants (grant_id, claim_id, address, public_key, installation_id, ip_hash, amount_satoshis, status, txid, safe_message, idempotency_key, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		ON CONFLICT(address) DO UPDATE SET
+			status = excluded.status,
+			txid = CASE WHEN excluded.txid != '' THEN excluded.txid ELSE lingry_wallet_grants.txid END,
+			safe_message = excluded.safe_message,
+			idempotency_key = excluded.idempotency_key,
+			updated_at = excluded.updated_at
+	`).bind(grantId, claimId, address, publicKey, installationId, ipHash, LINGRY_NEW_WALLET_GRANT_SATOSHIS, status, txid, safeMessage, idempotencyKey, now, now).run();
+	await env.LINGRY_DB.prepare('UPDATE lingry_wallet_grant_challenges SET claimed_at = ? WHERE claim_id = ?').bind(now, claimId).run();
+	return existingGrantForWallet(env, address, publicKey);
+}
+
+async function completedGrantTotalSince(env, isoPrefix) {
+	const row = await env.LINGRY_DB.prepare(`
+		SELECT COALESCE(SUM(amount_satoshis), 0) AS total
+		FROM lingry_wallet_grants
+		WHERE status = 'broadcasted' AND updated_at >= ?
+	`).bind(isoPrefix).first();
+	return Number(row && row.total || 0);
+}
+
+async function grantCountForIpToday(env, ipHash) {
+	const dayStart = new Date().toISOString().slice(0, 10) + 'T00:00:00.000Z';
+	const row = await env.LINGRY_DB.prepare(`
+		SELECT COUNT(*) AS count
+		FROM lingry_wallet_grants
+		WHERE ip_hash = ? AND updated_at >= ?
+	`).bind(ipHash, dayStart).first();
+	return Number(row && row.count || 0);
+}
+
+async function grantUnavailable(env, context, safeMessage) {
+	const row = await recordGrantState(env, {
+		...context,
+		status: 'pending_or_unavailable',
+		safeMessage
+	});
+	return grantJson(mapGrantRow(row));
+}
+
+async function handleWalletGrantChallenge(request, env) {
 	if (request.method !== 'POST') {
 		return jsonResponse({ error: 'Method not allowed.' }, 405);
 	}
 
 	try {
+		if (!(await ensureWalletGrantDb(env))) {
+			return grantJson({ status: 'pending_or_unavailable', safe_message: 'Starter grants are not configured on this server.' }, 503);
+		}
 		const body = await request.json().catch(() => ({}));
 		const address = normalizeAddress(body.address);
+		const publicKey = normalizeGrantPublicKey(body.public_key || body.publicKey);
+		const installationId = sanitizeText(body.installation_id || '', 80);
 		if (!validateSugarAddress(address)) {
-			return jsonResponse({ funded: false, error: 'Invalid Sugarchain address.' }, 400);
+			return grantJson({ status: 'rejected', safe_message: 'Invalid Sugarchain address.' }, 400);
 		}
-
-		const balance = await getAddressBalanceSatoshis(address);
-		if (balance >= FAUCET_MINIMUM_BALANCE_SATOSHIS) {
-			return jsonResponse({
-				funded: false,
-				reason: 'balance_ok',
-				balance,
-				minimum_balance: FAUCET_MINIMUM_BALANCE_SATOSHIS
-			});
+		if (!publicKey || getAddressFromPublicKeyHex(publicKey) !== address) {
+			return grantJson({ status: 'rejected', safe_message: 'Public key does not match the requested address.' }, 400);
 		}
-
-		const grantsEnabled = String(env.LINGRY_SUGAR_GRANTS_ENABLED || 'true').toLowerCase() !== 'false';
-		if (!grantsEnabled) {
-			return jsonResponse({ funded: false, error: 'Starter funding is disabled on this server.' }, 503);
+		const existing = await existingGrantForWallet(env, address, publicKey);
+		if (existing && existing.status === 'broadcasted') {
+			return grantJson(mapGrantRow(existing));
 		}
-
-		const faucetWif = String(env.LINGRY_FUNDING_WIF || env.LINGRY_FAUCET_WIF || '').trim();
-		if (!faucetWif) {
-			return jsonResponse({ funded: false, error: 'Starter funding is not configured on this server.' }, 503);
-		}
-
-		const previousAttempt = faucetAttempts.get(address);
-		if (previousAttempt && Date.now() - previousAttempt < 10 * 60 * 1000) {
-			return jsonResponse({
-				funded: false,
-				reason: 'recent_attempt',
-				retry_after_seconds: Math.ceil((10 * 60 * 1000 - (Date.now() - previousAttempt)) / 1000)
-			});
-		}
-
-		const keys = bitcoin.ECPair.fromWIF(faucetWif, sugarNetwork);
-		const faucetAddress = getAddressFromKeys(keys);
-		const expectedAddress = env.LINGRY_FUNDING_ADDRESS || env.LINGRY_FAUCET_ADDRESS || FAUCET_DEFAULT_ADDRESS;
-		if (expectedAddress && faucetAddress !== expectedAddress) {
-			throw new Error('Starter funding key does not match the configured starter address.');
-		}
-
-		const required = FAUCET_AMOUNT_SATOSHIS + FAUCET_FEE_SATOSHIS;
-		const utxos = await getAddressUtxos(faucetAddress, required);
-		const selection = chooseFaucetUtxos(utxos, required);
-		const raw = buildFaucetTransaction(keys, address, selection.chosen, FAUCET_AMOUNT_SATOSHIS, FAUCET_FEE_SATOSHIS);
-		const broadcast = await postSugarForm('/broadcast', { raw });
-		if (broadcast.error) {
-			throw new Error(broadcast.error.message || 'Starter funding broadcast failed.');
-		}
-
-		faucetAttempts.set(address, Date.now());
+		const now = Date.now();
+		const expiresAt = new Date(now + LINGRY_GRANT_CHALLENGE_TTL_MS).toISOString();
+		const nonce = 'grant_' + crypto.randomUUID().replace(/-/g, '');
+		const claimId = 'claim_' + crypto.randomUUID().replace(/-/g, '');
+		const challengeText = buildWalletGrantChallenge({ address, publicKey, nonce, expiresAt });
+		const ipHash = await hashGrantIp(getGrantClientIp(request), env);
+		await env.LINGRY_DB.prepare(`
+			INSERT INTO lingry_wallet_grant_challenges (claim_id, address, public_key, nonce, challenge_text, installation_id, ip_hash, created_at, expires_at)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`).bind(claimId, address, publicKey, nonce, challengeText, installationId, ipHash, new Date(now).toISOString(), expiresAt).run();
 		return jsonResponse({
-			funded: true,
-			txid: broadcast.result,
-			amount: sugarAmount(FAUCET_AMOUNT_SATOSHIS)
+			claim_id: claimId,
+			address,
+			public_key: publicKey,
+			nonce,
+			challenge: challengeText,
+			expires_at: expiresAt,
+			startup_grant: {
+				requested_amount_sugar: LINGRY_NEW_WALLET_GRANT_SUGAR,
+				status: existing ? existing.status : 'challenge_created'
+			}
 		});
 	} catch (error) {
-		return jsonResponse({ funded: false, error: error.message || 'Starter funding failed.' }, 400);
+		return grantJson({ status: 'pending_or_unavailable', safe_message: 'Starter grant challenge could not be created.' }, 400);
 	}
+}
+
+async function handleWalletGrantClaim(request, env) {
+	if (request.method !== 'POST') {
+		return jsonResponse({ error: 'Method not allowed.' }, 405);
+	}
+	try {
+		if (!(await ensureWalletGrantDb(env))) {
+			return grantJson({ status: 'pending_or_unavailable', safe_message: 'Starter grants are not configured on this server.' }, 503);
+		}
+		const body = await request.json().catch(() => ({}));
+		const address = normalizeAddress(body.address);
+		const publicKey = normalizeGrantPublicKey(body.public_key || body.publicKey);
+		const nonce = sanitizeText(body.nonce, 120);
+		const claimId = sanitizeText(body.claim_id || '', 120);
+		const signature = normalizeHex(body.signature);
+		const installationId = sanitizeText(body.installation_id || '', 80);
+		const idempotencyKey = sanitizeText(request.headers.get('idempotency-key') || body.idempotency_key || claimId || nonce, 120);
+		if (!validateSugarAddress(address) || !publicKey || getAddressFromPublicKeyHex(publicKey) !== address || !nonce || !signature) {
+			return grantJson({ status: 'rejected', safe_message: 'Starter grant claim is missing a valid address, public key, nonce, or signature.' }, 400);
+		}
+		const challenge = await env.LINGRY_DB.prepare(`
+			SELECT claim_id, address, public_key, nonce, challenge_text, installation_id, ip_hash, expires_at, claimed_at
+			FROM lingry_wallet_grant_challenges
+			WHERE nonce = ? AND address = ? AND public_key = ?
+			LIMIT 1
+		`).bind(nonce, address, publicKey).first();
+		if (!challenge || (claimId && challenge.claim_id !== claimId)) {
+			return grantJson({ status: 'rejected', safe_message: 'Starter grant challenge was not found.' }, 404);
+		}
+		if (Date.parse(challenge.expires_at) <= Date.now()) {
+			return grantJson({ status: 'expired', safe_message: 'Starter grant challenge expired. Request a new challenge and retry.' }, 400);
+		}
+		if (!verifyWalletGrantSignature({ publicKey, challengeText: challenge.challenge_text, signature })) {
+			return grantJson({ status: 'rejected', safe_message: 'Starter grant signature could not be verified.' }, 401);
+		}
+		const existing = await existingGrantForWallet(env, address, publicKey);
+		if (existing && existing.status === 'broadcasted') {
+			return grantJson(mapGrantRow(existing));
+		}
+
+		const context = {
+			grantId: existing && existing.grant_id || 'grant_' + crypto.randomUUID().replace(/-/g, ''),
+			claimId: challenge.claim_id,
+			address,
+			publicKey,
+			installationId: installationId || challenge.installation_id || '',
+			ipHash: challenge.ip_hash || await hashGrantIp(getGrantClientIp(request), env),
+			idempotencyKey
+		};
+
+		const grantsEnabled = String(env.LINGRY_SUGAR_GRANTS_ENABLED || '').toLowerCase() === 'true';
+		if (!grantsEnabled) {
+			return grantUnavailable(env, context, 'Wallet was created successfully. Starter grants are currently disabled.');
+		}
+		const maxPerIpDay = Number(env.LINGRY_GRANT_MAX_PER_IP_DAY || 0);
+		if (maxPerIpDay <= 0 || await grantCountForIpToday(env, context.ipHash) >= maxPerIpDay) {
+			return grantUnavailable(env, context, 'Wallet was created successfully. Starter grant rate limits are currently unavailable.');
+		}
+		const dailyBudget = sugarToSatoshis(env.LINGRY_GRANT_DAILY_BUDGET_SUGAR || '0');
+		const monthlyBudget = sugarToSatoshis(env.LINGRY_GRANT_MONTHLY_BUDGET_SUGAR || '0');
+		const today = new Date().toISOString().slice(0, 10) + 'T00:00:00.000Z';
+		const month = new Date().toISOString().slice(0, 7) + '-01T00:00:00.000Z';
+		if (dailyBudget < LINGRY_NEW_WALLET_GRANT_SATOSHIS || await completedGrantTotalSince(env, today) + LINGRY_NEW_WALLET_GRANT_SATOSHIS > dailyBudget) {
+			return grantUnavailable(env, context, 'Wallet was created successfully. The daily starter grant budget is unavailable.');
+		}
+		if (monthlyBudget < LINGRY_NEW_WALLET_GRANT_SATOSHIS || await completedGrantTotalSince(env, month) + LINGRY_NEW_WALLET_GRANT_SATOSHIS > monthlyBudget) {
+			return grantUnavailable(env, context, 'Wallet was created successfully. The monthly starter grant budget is unavailable.');
+		}
+		const grantWif = String(env.LINGRY_GRANT_WALLET_WIF || '').trim();
+		const expectedAddress = normalizeAddress(env.LINGRY_GRANT_FUNDING_ADDRESS || '');
+		if (!grantWif || !expectedAddress) {
+			return grantUnavailable(env, context, 'Wallet was created successfully. The starter grant wallet is not configured.');
+		}
+		const keys = bitcoin.ECPair.fromWIF(grantWif, sugarNetwork);
+		const grantFundingAddress = getAddressFromKeys(keys);
+		if (grantFundingAddress !== expectedAddress) {
+			return grantUnavailable(env, context, 'Wallet was created successfully. The starter grant wallet validation failed.');
+		}
+		const feeSatoshis = Math.max(1, Number(env.LINGRY_GRANT_FEE_SATOSHIS || LINGRY_GRANT_DEFAULT_FEE_SATOSHIS));
+		const required = LINGRY_NEW_WALLET_GRANT_SATOSHIS + feeSatoshis;
+		const balance = await getAddressBalanceSatoshis(grantFundingAddress);
+		if (balance < required) {
+			return grantUnavailable(env, context, 'Wallet was created successfully. The starter grant wallet balance is temporarily too low.');
+		}
+		const utxos = await getAddressUtxos(grantFundingAddress, required);
+		const selection = chooseFaucetUtxos(utxos, required);
+		const raw = buildFaucetTransaction(keys, address, selection.chosen, LINGRY_NEW_WALLET_GRANT_SATOSHIS, feeSatoshis);
+		const broadcast = await postSugarForm('/broadcast', { raw });
+		if (broadcast.error || !broadcast.result) {
+			return grantUnavailable(env, context, 'Wallet was created successfully. The starter grant could not be broadcast yet.');
+		}
+		const row = await recordGrantState(env, {
+			...context,
+			status: 'broadcasted',
+			txid: String(broadcast.result),
+			safeMessage: 'Starter grant broadcasted.'
+		});
+		return grantJson(mapGrantRow(row));
+	} catch (error) {
+		return grantJson({ status: 'pending_or_unavailable', safe_message: 'Wallet was created successfully. The first-funding grant could not be completed yet.' }, 400);
+	}
+}
+
+async function handleWalletGrantStatus(request, env) {
+	if (request.method !== 'GET') {
+		return jsonResponse({ error: 'Method not allowed.' }, 405);
+	}
+	try {
+		const url = new URL(request.url);
+		const id = decodeURIComponent(url.pathname.slice('/api/wallet-grants/status/'.length));
+		const row = await readGrantByAddressOrClaim(env, id);
+		return grantJson(mapGrantRow(row));
+	} catch (error) {
+		return grantJson({ status: 'pending_or_unavailable', safe_message: 'Starter grant status is temporarily unavailable.' }, 503);
+	}
+}
+
+async function handleFaucetFund(request, env) {
+	return grantJson({
+		status: 'pending_or_unavailable',
+		safe_message: 'This funding route has moved to /api/wallet-grants/challenge and /api/wallet-grants/claim.'
+	}, 410);
 }
 
 async function indexSugarTxid(txid, knownBlock = null) {
@@ -2131,6 +2428,15 @@ export default {
 			}
 			if (url.pathname === '/api/faucet/fund') {
 				return handleFaucetFund(request, env);
+			}
+			if (url.pathname === '/api/wallet-grants/challenge') {
+				return handleWalletGrantChallenge(request, env);
+			}
+			if (url.pathname === '/api/wallet-grants/claim') {
+				return handleWalletGrantClaim(request, env);
+			}
+			if (url.pathname.startsWith('/api/wallet-grants/status/')) {
+				return handleWalletGrantStatus(request, env);
 			}
 			if (url.pathname === '/api/social/summary') {
 				return handleLingrySocialSummary(request, env);
