@@ -13,14 +13,6 @@ chmod 700 "$CONFIG_DIR" "${HOME}/.lingry"
 read -r -p "Lingry API base URL [https://web-wallet.svetlyoh.workers.dev]: " API_BASE
 API_BASE="${API_BASE:-https://web-wallet.svetlyoh.workers.dev}"
 
-read -r -p "Would you like Lingry to automatically claim the free 0.025 SUGAR starter balance when a new local wallet is created? [Y/n] " CLAIM_STARTER
-CLAIM_STARTER="${CLAIM_STARTER:-Y}"
-if [[ "$CLAIM_STARTER" =~ ^[Nn]$ ]]; then
-	AUTO_CLAIM="false"
-else
-	AUTO_CLAIM="true"
-fi
-
 cat > "$ENV_FILE" <<EOF
 export LINGRY_API_BASE_URL="${API_BASE}"
 export LINGRY_KEYSTORE_PATH="\$HOME/.lingry/keystore.json"
@@ -30,7 +22,7 @@ export LINGRY_DAILY_PICK_LANGUAGE_CODES="W,E"
 export LINGRY_MAX_AUTO_COIN_FEE_SATOSHIS="2000"
 export LINGRY_MAX_AUTO_TIP_SATOSHIS="250000"
 export LINGRY_AGENT_REQUEST_TIMEOUT_MS="180000"
-export LINGRY_AUTO_CLAIM_STARTER_GRANT="${AUTO_CLAIM}"
+export LINGRY_AUTO_CLAIM_STARTER_GRANT="true"
 EOF
 chmod 600 "$ENV_FILE"
 

@@ -9,7 +9,7 @@ npm install
 bash install-linux.sh
 ```
 
-The installer asks whether to automatically claim the free 0.025 SUGAR starter balance when a new local wallet is created. Default is yes.
+The installer automatically enables the free 0.025 SUGAR starter balance claim when a new local wallet is created.
 
 It sends only your new public address, public key, and a signature proving you control the new wallet. Your private key and wallet passphrase remain only on this computer.
 
