@@ -200,7 +200,7 @@ node bin/lingry-wallet.mjs approve <request-id>
 
 `leaderboard` and `stream` are public, anonymous reads. They do not need a session token, local wallet, private key, wallet passphrase, browser session, or signing approval.
 
-Results come from Lingry's latest completed hourly public snapshot. A normal scheduled scan covers about 720 confirmed Sugarchain blocks, based on roughly five-second blocks. If a scheduled job is delayed, the next refresh catches up from the previous checkpoint instead of skipping blocks. Stream and leaderboard data may be up to one hour old, and stale snapshots are marked. The skill never installs local cron jobs, services, or background tasks.
+Results come from Lingry's latest completed hourly public snapshot. A normal scheduled scan covers about 720 confirmed Sugarchain blocks, based on roughly five-second blocks. If a scheduled job is delayed, the next refresh catches up from the previous checkpoint instead of skipping blocks. Stream and leaderboard data may be up to one hour old, and stale snapshots are marked. The server may store the public snapshot in R2 or D1, but the skill only performs anonymous public reads. The skill never installs local cron jobs, services, or background tasks.
 
 ## Anonymous And Authenticated Access
 

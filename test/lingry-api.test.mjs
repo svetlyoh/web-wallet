@@ -284,13 +284,14 @@ test('OpenAPI specification reflects implemented routes', () => {
 
 test('cron configuration and public index constants are hourly', () => {
 	assert.deepEqual(wrangler.triggers.crons, ['0 * * * *']);
-	assert.ok((wrangler.r2_buckets || []).some(bucket => bucket.binding === 'LINGRY_PUBLIC_INDEX' && bucket.bucket_name === 'lingry-public-index'));
 	const source = fs.readFileSync(new URL('../src/worker.mjs', import.meta.url), 'utf8');
 	assert.match(source, /const LINGRY_BLOCK_SECONDS = 5/);
 	assert.match(source, /const LINGRY_HOURLY_SCAN_BLOCKS = Math\.ceil\(LINGRY_HOURLY_REFRESH_MS \/ \(LINGRY_BLOCK_SECONDS \* 1000\)\)/);
 	assert.match(source, /lastScannedHeight \+ 1/);
 	assert.match(source, /catchup = Math\.max\(0, safeTip - lastScannedHeight\) > LINGRY_HOURLY_SCAN_BLOCKS/);
 	assert.match(source, /lastScannedHeight - LINGRY_PUBLIC_INDEX_CONFIRMATION_DEPTH - LINGRY_PUBLIC_INDEX_REORG_OVERLAP_BLOCKS/);
+	assert.match(source, /LINGRY_PUBLIC_INDEX/);
+	assert.match(source, /public_index_latest_snapshot_json/);
 });
 
 test('public leaderboard and stream read latest R2 snapshot without live scan', async () => {

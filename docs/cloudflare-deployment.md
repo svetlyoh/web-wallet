@@ -28,6 +28,8 @@ npx wrangler secret put TURNSTILE_SECRET_KEY
 
 `SUGARCHAIN_RPC_URL` remains the preferred broadcast path. If it is not configured, Lingry transaction submission falls back to the public Sugar API broadcast endpoints unless `LINGRY_DISABLE_PUBLIC_SUGAR_BROADCAST=true` is set.
 
+The public Lingry leaderboard/stream index can use an optional private R2 bucket binding named `LINGRY_PUBLIC_INDEX` with bucket `lingry-public-index`. If R2 is not enabled for the Cloudflare account, the Worker stores the latest public snapshot in D1 metadata and continues serving the public routes.
+
 For local development, copy `.dev.vars.example` to `.dev.vars` and replace placeholders locally.
 
 ## Starter Grant Administration

@@ -655,14 +655,16 @@ function hasPublicIndexBucket(env) {
 }
 
 async function readPublicIndexSnapshot(env) {
-	if (!hasPublicIndexBucket(env)) {
-		throw new Error('LINGRY_PUBLIC_INDEX R2 bucket is not configured.');
+	let text = '';
+	if (hasPublicIndexBucket(env)) {
+		const object = await env.LINGRY_PUBLIC_INDEX.get('latest.json');
+		text = object ? await object.text() : '';
+	} else {
+		text = await getLingryIndexMeta(env, 'public_index_latest_snapshot_json');
 	}
-	const object = await env.LINGRY_PUBLIC_INDEX.get('latest.json');
-	if (!object) {
+	if (!text) {
 		return null;
 	}
-	const text = await object.text();
 	const snapshot = JSON.parse(text);
 	if (!snapshot || snapshot.schema_version !== LINGRY_PUBLIC_INDEX_SCHEMA_VERSION) {
 		throw new Error('Lingry public index snapshot schema is invalid.');
@@ -671,24 +673,24 @@ async function readPublicIndexSnapshot(env) {
 }
 
 async function writePublicIndexSnapshot(env, snapshot) {
-	if (!hasPublicIndexBucket(env)) {
-		throw new Error('LINGRY_PUBLIC_INDEX R2 bucket is not configured.');
-	}
 	const key = snapshotObjectKey(new Date(snapshot.generated_at));
 	const body = JSON.stringify(snapshot);
-	await env.LINGRY_PUBLIC_INDEX.put(key, body, {
-		httpMetadata: { contentType: 'application/json; charset=utf-8' },
-		customMetadata: { schema_version: String(snapshot.schema_version), generated_at: snapshot.generated_at }
-	});
-	const written = await env.LINGRY_PUBLIC_INDEX.get(key);
-	if (!written) {
-		throw new Error('Lingry public index immutable snapshot could not be read after write.');
+	if (hasPublicIndexBucket(env)) {
+		await env.LINGRY_PUBLIC_INDEX.put(key, body, {
+			httpMetadata: { contentType: 'application/json; charset=utf-8' },
+			customMetadata: { schema_version: String(snapshot.schema_version), generated_at: snapshot.generated_at }
+		});
+		const written = await env.LINGRY_PUBLIC_INDEX.get(key);
+		if (!written) {
+			throw new Error('Lingry public index immutable snapshot could not be read after write.');
+		}
+		JSON.parse(await written.text());
+		await env.LINGRY_PUBLIC_INDEX.put('latest.json', body, {
+			httpMetadata: { contentType: 'application/json; charset=utf-8' },
+			customMetadata: { snapshot_key: key, schema_version: String(snapshot.schema_version), generated_at: snapshot.generated_at }
+		});
 	}
-	JSON.parse(await written.text());
-	await env.LINGRY_PUBLIC_INDEX.put('latest.json', body, {
-		httpMetadata: { contentType: 'application/json; charset=utf-8' },
-		customMetadata: { snapshot_key: key, schema_version: String(snapshot.schema_version), generated_at: snapshot.generated_at }
-	});
+	await setLingryIndexMeta(env, 'public_index_latest_snapshot_json', body);
 	return key;
 }
 
@@ -2480,6 +2482,31 @@ async function refreshLingryPublicIndex(env) {
 	}
 }
 
+async function seedPublicIndexSnapshotFromD1(env) {
+	if (!(await ensureLingrySocialDb(env))) {
+		return null;
+	}
+	const previousSnapshot = await readPublicIndexSnapshot(env).catch(() => null);
+	if (previousSnapshot) {
+		return previousSnapshot;
+	}
+	const lastScannedHeight = Number(await getLingryIndexMeta(env, 'public_index_last_scanned_height') || 0);
+	const scanSummary = {
+		start_height: lastScannedHeight,
+		end_height: lastScannedHeight,
+		scanned_blocks: 0,
+		scanned_transactions: 0,
+		indexed_records: 0,
+		catchup: false,
+		errors: []
+	};
+	const snapshot = await buildPublicIndexSnapshot(env, null, scanSummary, null);
+	await writePublicIndexSnapshot(env, snapshot);
+	await setLingryIndexMeta(env, 'public_index_last_success_at', snapshot.generated_at);
+	await setLingryIndexMeta(env, 'public_index_last_snapshot_key', 'd1-bootstrap');
+	return snapshot;
+}
+
 function publicSnapshotEnvelope(snapshot, body) {
 	return {
 		ok: true,
@@ -2495,21 +2522,24 @@ function publicSnapshotEnvelope(snapshot, body) {
 async function handlePublicSnapshotRoute(request, env, kind) {
 	const url = new URL(request.url);
 	const limit = normalizeSnapshotLimit(url.searchParams.get('limit'), 25);
-	const snapshot = await readPublicIndexSnapshot(env).catch(error => {
+	let snapshot = await readPublicIndexSnapshot(env).catch(error => {
 		if (/not configured/i.test(error.message || '')) {
 			throw error;
 		}
 		return null;
 	});
 	if (!snapshot) {
-		return jsonResponse({
-			ok: false,
-			error: {
-				code: 'hourly_snapshot_not_ready',
-				message: 'Lingry public index has not completed its first hourly refresh yet.',
-				retryable: true
-			}
-		}, 503);
+		snapshot = await seedPublicIndexSnapshotFromD1(env).catch(() => null);
+		if (!snapshot) {
+			return jsonResponse({
+				ok: false,
+				error: {
+					code: 'hourly_snapshot_not_ready',
+					message: 'Lingry public index has not completed its first hourly refresh yet.',
+					retryable: true
+				}
+			}, 503);
+		}
 	}
 	if (kind === 'stream') {
 		const cursor = Math.max(0, Number(url.searchParams.get('cursor')) || 0);
