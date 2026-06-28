@@ -3737,7 +3737,10 @@
 
 			function createLingryApiSession() {
 				if (!globalData.keys || !globalData.address) {
-					setLingryApiSessionStatus('Login before creating an API session token.', 'warning')
+					setLingryAuthMode('login')
+					$('#lingry-login-panel').removeClass('d-none')
+					$('#lingry-login-toggle, #lingry-signup-toggle').attr('aria-expanded', 'true')
+					setLingryApiSessionStatus('Login with your Lingry key first, then return to API Session and create the token.', 'warning')
 					return
 				}
 				setLingryApiSessionStatus('Creating API session challenge.', 'info')
