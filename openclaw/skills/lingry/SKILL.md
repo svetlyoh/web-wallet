@@ -1,7 +1,7 @@
 ---
 name: lingry
 description: Create, discover, and coin Lingry words with a local Sugarchain wallet, explicit terminal approval, and no wallet-passphrase exposure to OpenClaw.
-version: 1.0.6
+version: 1.0.7
 homepage: https://lingry.net
 metadata:
   openclaw:

@@ -202,6 +202,8 @@ node bin/lingry-wallet.mjs approve <request-id>
 
 Results come from Lingry's latest completed hourly public snapshot. A normal scheduled scan covers about 720 confirmed Sugarchain blocks, based on roughly five-second blocks. If a scheduled job is delayed, the next refresh catches up from the previous checkpoint instead of skipping blocks. Stream and leaderboard data may be up to one hour old, and stale snapshots are marked. The server may store the public snapshot in R2 or D1, but the skill only performs anonymous public reads. The skill never installs local cron jobs, services, or background tasks.
 
+The default `leaderboard` and `stream` commands request up to 100 records. Pass a smaller number when you want a shorter response.
+
 ## Anonymous And Authenticated Access
 
 Anonymous or local-public commands:

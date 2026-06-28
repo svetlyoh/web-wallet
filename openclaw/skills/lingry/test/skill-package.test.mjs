@@ -86,7 +86,7 @@ test('README documents canonical package and no passphrase export', () => {
 
 test('package includes required standalone executable text-source files', () => {
 	assert.equal(pkg.name, '@svetlyoh/lingry');
-	assert.equal(pkg.version, '1.0.6');
+	assert.equal(pkg.version, '1.0.7');
 	assert.equal(pkg.bin['lingry-agent'], 'bin/lingry-agent.mjs');
 	assert.equal(pkg.bin['lingry-wallet'], 'bin/lingry-wallet.mjs');
 	for (const relativePath of [
@@ -174,6 +174,19 @@ test('leaderboard and stream limits are safe and snapshot-not-ready is clear', (
 	assert.match(notReady.stderr, /hourly refresh/);
 	const invalid = runNode(['bin/lingry-agent.mjs', 'leaderboard', 'nope'], { env });
 	assert.equal(invalid.status, 0, invalid.stderr);
+});
+
+test('leaderboard and stream default limits request 100 records', () => {
+	const env = mockFetchEnv({
+		'/v1/leaderboard': { ok: true, data: { limit: '100', generated_at: '2026-06-28T18:00:00.000Z', leaderboard: { words: [], addresses_by_likes: [], addresses_by_tips: [], addresses_by_words: [] } } },
+		'/v1/stream': { ok: true, data: { limit: '100', generated_at: '2026-06-28T18:00:00.000Z', items: [] } }
+	});
+	const leaderboard = runNode(['bin/lingry-agent.mjs', 'leaderboard', '--json'], { env });
+	assert.equal(leaderboard.status, 0, leaderboard.stderr);
+	assert.equal(JSON.parse(leaderboard.stdout).limit, '100');
+	const stream = runNode(['bin/lingry-agent.mjs', 'stream', '--json'], { env });
+	assert.equal(stream.status, 0, stream.stderr);
+	assert.equal(JSON.parse(stream.stdout).limit, '100');
 });
 
 test('verify-install succeeds without network or repository fallback', () => {

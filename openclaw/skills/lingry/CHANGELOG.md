@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.7
+
+- Change default public leaderboard and stream command limits to 100 records.
+
 ## 1.0.6
 
 - Accept direct public snapshot responses for leaderboard and stream commands.

@@ -36,7 +36,7 @@ function printJson(value) {
 
 function parsePublicReadOptions(args) {
 	let json = false;
-	let limit = 25;
+	let limit = 100;
 	for (const arg of args) {
 		if (arg === '--json') {
 			json = true;
@@ -47,7 +47,7 @@ function parsePublicReadOptions(args) {
 		}
 	}
 	if (!Number.isFinite(limit) || limit <= 0) {
-		limit = 25;
+		limit = 100;
 	}
 	limit = Math.max(1, Math.min(Math.floor(limit), 100));
 	return { json, limit };
