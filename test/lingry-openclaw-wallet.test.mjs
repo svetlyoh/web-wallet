@@ -17,6 +17,7 @@ import {
 } from '../src/lingry-grants.mjs';
 
 const agentPath = path.resolve('openclaw/skills/lingry/bin/lingry-agent.mjs');
+const walletPath = path.resolve('openclaw/skills/lingry/bin/lingry-wallet.mjs');
 const wifPattern = /\b[KL5][1-9A-HJ-NP-Za-km-z]{50,51}\b/;
 
 function tempEnv() {
@@ -25,30 +26,35 @@ function tempEnv() {
 		dir,
 		env: {
 			...process.env,
-			LINGRY_API_BASE_URL: 'http://127.0.0.1:8787',
+			HOME: dir,
+			USERPROFILE: dir,
+			LINGRY_API_BASE_URL: 'https://127.0.0.1:9',
 			LINGRY_KEYSTORE_PATH: path.join(dir, 'keystore.json'),
-			LINGRY_WALLET_PASSPHRASE: 'test-passphrase',
-			LINGRY_AUTO_CLAIM_STARTER_GRANT: 'false'
+			LINGRY_AUTO_CLAIM_STARTER_GRANT: 'false',
+			LINGRY_AGENT_REQUEST_TIMEOUT_MS: '1000'
 		}
 	};
 }
 
-test('normal create-wallet creates encrypted keystore and does not print WIF', () => {
-	const { dir, env } = tempEnv();
-	const result = spawnSync(process.execPath, [agentPath, 'create-wallet'], {
+test('agent cannot create wallets and wallet helper refuses non-interactive passphrase handling', () => {
+	const { env } = tempEnv();
+	const agentResult = spawnSync(process.execPath, [agentPath, 'create-wallet'], {
 		env,
 		encoding: 'utf8'
 	});
-	assert.equal(result.status, 0, result.stderr);
-	const output = result.stdout + result.stderr;
+	assert.equal(agentResult.status, 1);
+	assert.match(agentResult.stderr, /terminal-only/);
+
+	const walletResult = spawnSync(process.execPath, [walletPath, 'create-wallet'], {
+		env,
+		encoding: 'utf8',
+		timeout: 3000
+	});
+	assert.notEqual(walletResult.status, 0);
+	assert.match(walletResult.stderr, /interactive local terminal/);
+
+	const output = agentResult.stdout + agentResult.stderr + walletResult.stdout + walletResult.stderr;
 	assert.equal(wifPattern.test(output), false);
-	const json = JSON.parse(result.stdout);
-	assert.equal(json.private_key_backup.displayed_in_normal_output, false);
-	assert.match(json.private_key_backup.warning, /never prints or exports WIFs/);
-	assert.match(json.next_step, /claim-starter-grant/);
-	const keystore = JSON.parse(fs.readFileSync(path.join(dir, 'keystore.json'), 'utf8'));
-	assert.equal(typeof keystore.ciphertext, 'string');
-	assert.equal(Object.hasOwn(keystore, 'wif'), false);
 });
 
 test('OpenClaw skill omits private-key export commands from agent tools', () => {

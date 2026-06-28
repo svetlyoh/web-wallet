@@ -1,7 +1,7 @@
 ---
 name: lingry
-description: Create, discover, and interact with Lingry words using a local Sugarchain wallet and explicit transaction confirmation.
-version: 1.0.0
+description: Create, discover, and coin Lingry words with a local Sugarchain wallet, explicit terminal approval, and no wallet-passphrase exposure to OpenClaw.
+version: 1.0.1
 homepage: https://lingry.net
 metadata:
   openclaw:
@@ -11,14 +11,11 @@ metadata:
         - npm
     envVars:
       - name: LINGRY_API_BASE_URL
-        required: true
-        description: Lingry API base URL used for public API requests and signed transaction intents.
+        required: false
+        description: Optional HTTPS Lingry API base URL. Defaults to https://lingry.net.
       - name: LINGRY_KEYSTORE_PATH
         required: false
-        description: Optional path to the local encrypted Lingry keystore.
-      - name: LINGRY_WALLET_PASSPHRASE
-        required: false
-        description: Local wallet-keystore passphrase. Never print, log, or transmit it.
+        description: Optional path to the local encrypted Lingry keystore. Defaults to ~/.lingry/keystore.json.
       - name: LINGRY_AGENT_STATE_PATH
         required: false
         description: Optional path for non-secret local Lingry candidate state.
@@ -27,10 +24,10 @@ metadata:
         description: Default Lingry language code. Defaults to W.
       - name: LINGRY_MAX_AUTO_COIN_FEE_SATOSHIS
         required: false
-        description: Maximum permitted local coining fee. Coining still requires explicit user confirmation.
+        description: Maximum local coining fee value used when preparing a request. Signing still requires terminal approval.
       - name: LINGRY_COIN_FEE_SATOSHIS
         required: false
-        description: Local coining fee to use when preparing a confirmed transaction.
+        description: Local coining fee used when preparing a candidate coin request.
       - name: LINGRY_MAX_AUTO_TIP_SATOSHIS
         required: false
         description: Maximum permitted tip amount for workflows that prepare tips.
@@ -44,68 +41,107 @@ metadata:
 
 # Lingry ClawHub Skill
 
-Use this skill when a user wants to create a local Lingry wallet, request the starter grant, generate Lingry word candidates, create word drafts, list or inspect words, and coin a stored candidate only after explicit transaction confirmation.
+Use this skill when a user wants to inspect Lingry API health, list public Lingry words, generate account-bound Lingry word candidates, prepare a starter-grant claim, or prepare a candidate coining request. The OpenClaw agent must never unlock a wallet, request a wallet passphrase, sign a transaction, or broadcast a transaction.
 
-This directory is the standalone ClawHub skill distribution of Lingry. It is derived from the Lingry OpenClaw implementation but is packaged independently so ClawHub users can install it as a standard OpenClaw skill.
+This is the standalone ClawHub distribution. It must run only from the files included in this package: `bin/lingry-agent.mjs`, `bin/lingry-wallet.mjs`, `src/`, `package.json`, and `package-lock.json`. Never fall back to another Lingry install, a source checkout, a sibling directory, or an old local skill.
 
-Source relationship: adapted from the Lingry OpenClaw plugin implementation in this repository. Do not assume every plugin capability is available in the ClawHub skill.
+## Canonical API URL
 
-## Approved Commands
+The built-in API base URL is:
 
-Run commands from the installed `skills/lingry` folder:
-
-```bash
-node bin/lingry-agent.mjs status
-node bin/lingry-agent.mjs doctor
-node bin/lingry-agent.mjs auth-status
-node bin/lingry-agent.mjs create-wallet
-node bin/lingry-agent.mjs address
-node bin/lingry-agent.mjs claim-starter-grant
-node bin/lingry-agent.mjs list-words W
-node bin/lingry-agent.mjs generate-word "a word for a tiny useful idea"
-node bin/lingry-agent.mjs coin-it --confirm-broadcast
-node bin/lingry-agent.mjs create-word-draft <term> <part-of-speech> <meaning>
+```text
+https://lingry.net
 ```
 
-`coin-it` broadcasts a transaction and must only be run after the user explicitly confirms the exact action, fee, network, wallet address, and payload summary. The command itself requires `--confirm-broadcast`.
+Only override it with `LINGRY_API_BASE_URL` when the user deliberately provides another valid HTTPS Lingry API host.
+
+## Agent Commands
+
+These commands are safe for an OpenClaw agent process:
+
+```bash
+node bin/lingry-agent.mjs
+node bin/lingry-agent.mjs status
+node bin/lingry-agent.mjs doctor
+node bin/lingry-agent.mjs verify-install
+node bin/lingry-agent.mjs auth-status
+node bin/lingry-agent.mjs address
+node bin/lingry-agent.mjs list-words W
+node bin/lingry-agent.mjs generate-word "a word for a tiny useful idea"
+node bin/lingry-agent.mjs create-word-draft <term> <part-of-speech> <meaning>
+node bin/lingry-agent.mjs prepare-starter-grant
+node bin/lingry-agent.mjs prepare-coin <candidate-id-or-term>
+node bin/lingry-agent.mjs get-request <request-id>
+node bin/lingry-agent.mjs get-transaction <request-id-or-intent-id>
+```
+
+`status` is the default no-argument command. It shows wallet address if configured, API health, public word availability, session-token status, the last locally saved candidate, and the last locally saved coin result. It must never display secrets or make a transaction.
+
+## Local Wallet Commands
+
+These commands must be run by the user from a private interactive terminal, not by OpenClaw chat, services, cron jobs, pipes, or background agents:
+
+```bash
+node bin/lingry-wallet.mjs setup
+node bin/lingry-wallet.mjs create-wallet
+node bin/lingry-wallet.mjs import-wallet
+node bin/lingry-wallet.mjs inspect
+node bin/lingry-wallet.mjs claim-grant <request-id>
+node bin/lingry-wallet.mjs approve <request-id>
+```
+
+Wallet creation, wallet import, starter-grant signing, transaction signing, and broadcasting are terminal-only. The user must review the details and type `BROADCAST` before anything is signed or submitted.
 
 ## Anonymous And Authenticated Commands
 
-These commands work anonymously or only use local wallet state:
+These commands work anonymously or only use local public wallet metadata:
 
 - `status`
 - `doctor`
+- `verify-install`
 - `auth-status`
-- `create-wallet`
 - `address`
-- `claim-starter-grant`
 - `list-words`
+- `prepare-starter-grant`
+- `get-request`
+- `get-transaction` for a local request id
+- `node bin/lingry-wallet.mjs inspect`
+- `node bin/lingry-wallet.mjs setup`
+- `node bin/lingry-wallet.mjs create-wallet`
+- `node bin/lingry-wallet.mjs import-wallet`
+- `node bin/lingry-wallet.mjs claim-grant <request-id>`
 
 These commands require `LINGRY_SESSION_TOKEN`:
 
 - `generate-word`
 - `prompt-word`
 - `create-word-draft`
-- `coin-it --confirm-broadcast`
+- `prepare-coin`
+- `get-transaction` when querying an authenticated Lingry intent
+- `node bin/lingry-wallet.mjs approve <request-id>` for candidate submission
 
-`LINGRY_SESSION_TOKEN` must be obtained through the deliberate Lingry browser/account `API Session` flow. It is optional in the skill metadata because public read commands and local wallet checks do not require it.
+`LINGRY_SESSION_TOKEN` is optional in this skill metadata because public read commands, install checks, status checks, and local wallet setup do not require it.
+
+## Optional Lingry Account Session
+
+`LINGRY_SESSION_TOKEN` is needed for account-bound generation, candidate storage, draft creation, and candidate-based coining.
+
+Never paste the token into OpenClaw chat. Never place it in GitHub, `SKILL.md` examples, shell history, or a world-readable file. The user must obtain it through a deliberate Lingry browser/account flow. Do not implement or use browser-cookie scraping, browser-local-storage scraping, browser-session scraping, profile-file scraping, or automatic session-token extraction.
 
 ## Safety Rules
 
-- Never print, inspect, summarize, export, transmit, or log private keys, WIFs, seed phrases, wallet passphrases, keystore contents, API tokens, or environment dumps.
+- Never print, inspect, summarize, export, transmit, or log private keys, WIFs, seed phrases, wallet passphrases, keystore contents, API tokens, environment dumps, Cloudflare secrets, funding-wallet WIFs, or RPC credentials.
+- Never request a wallet passphrase in an OpenClaw agent process, shell export, `.env` file, systemd service, or cron job.
+- Never include wallet passphrases in skill frontmatter, examples, scripts, services, or scheduled jobs.
 - Do not include, request, or run a private-key export command.
-- Do not inspect `LINGRY_WALLET_PASSPHRASE`, `LINGRY_SESSION_TOKEN`, keystore files, shell history, `.env`, `.dev.vars`, or raw secret files.
-- Never use or request Lingry funding-wallet WIFs, Cloudflare deployment tokens, Sugarchain RPC passwords, or backend administration credentials.
-- Never silently install cron jobs, services, or background workers.
-- Never use `curl | bash`, `wget | bash`, opaque remote installers, or a runtime clone of the full Lingry repository.
 - Never scrape browser cookies, browser local storage, browser session storage, or profile files to obtain a Lingry session token.
+- Never silently install cron jobs, services, background workers, public tunnels, router port forwards, or production deployments.
+- Never use `curl | bash`, `wget | bash`, opaque remote installers, or a runtime clone of the full Lingry repository.
 - Never claim a starter grant, coining transaction, tip, or payment succeeded unless the API or node response confirms it.
 - Do not invent balances, confirmations, addresses, transaction IDs, or payment outcomes.
 
-## Starter Grant Boundary
+## Transaction Boundary
 
-`claim-starter-grant` may submit only the user's public address, public key, and proof-of-control signature to Lingry. It must never receive, store, request, display, or transmit the Lingry funding-wallet WIF.
+The agent prepares non-secret requests only. It may read public wallet metadata from `~/.lingry/keystore.json`, request public Lingry/Sugarchain data, and save a pending request under `~/.lingry/pending/`. It must not decrypt the keystore or build a signed raw transaction.
 
-## Excluded From ClawHub Skill
-
-This standalone ClawHub skill intentionally excludes plugin-only lifecycle hooks, native plugin manifests, background daemons, cron installation, backend administration, database administration, Cloudflare deployment, server-side wallet custody, private-key export, and one-step prompt-and-broadcast shortcuts.
+The wallet helper loads the encrypted keystore only inside a private terminal after the user reviews the request and types `BROADCAST`. It saves only non-secret result metadata under `~/.lingry/results/`.

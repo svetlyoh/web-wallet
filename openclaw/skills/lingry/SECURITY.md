@@ -4,6 +4,6 @@ This ClawHub skill keeps user wallet keys local and encrypted. It must never pri
 
 The skill does not include a private-key export command.
 
-Money-moving commands must require explicit user confirmation. `coin-it` requires `--confirm-broadcast` and should only be run after the user reviews the action, wallet address, network, fee, and payload summary.
+Money-moving commands must require explicit user confirmation. The agent can only run `prepare-coin`, which creates a non-secret pending request. The local wallet helper signs and submits only after the user reviews the action, wallet address, network, fee, and payload summary in a private terminal and types `BROADCAST`.
 
-The starter grant command sends only a public address, public key, and proof-of-control signature to the Lingry service.
+The starter grant preparation command sends only a public address and public key. The local wallet helper creates the proof-of-control signature only after terminal approval.

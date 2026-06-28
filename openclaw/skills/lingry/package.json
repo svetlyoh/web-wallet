@@ -1,10 +1,23 @@
 {
-  "name": "lingry",
-  "version": "1.0.0",
-  "private": true,
+  "name": "@svetlyoh/lingry",
+  "version": "1.0.1",
   "type": "module",
+  "files": [
+    ".clawhubignore",
+    "CHANGELOG.md",
+    "LICENSE",
+    "README.md",
+    "SECURITY.md",
+    "SKILL.md",
+    "SUPPORT.md",
+    "bin/",
+    "src/",
+    "test/",
+    "package-lock.json"
+  ],
   "bin": {
-    "lingry-agent": "bin/lingry-agent.mjs"
+    "lingry-agent": "bin/lingry-agent.mjs",
+    "lingry-wallet": "bin/lingry-wallet.mjs"
   },
   "scripts": {
     "test": "node --test"
