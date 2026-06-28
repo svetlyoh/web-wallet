@@ -86,7 +86,7 @@ test('README documents canonical package and no passphrase export', () => {
 
 test('package includes required standalone executable text-source files', () => {
 	assert.equal(pkg.name, '@svetlyoh/lingry');
-	assert.equal(pkg.version, '1.0.5');
+	assert.equal(pkg.version, '1.0.6');
 	assert.equal(pkg.bin['lingry-agent'], 'bin/lingry-agent.mjs');
 	assert.equal(pkg.bin['lingry-wallet'], 'bin/lingry-wallet.mjs');
 	for (const relativePath of [
@@ -128,7 +128,7 @@ test('wallet helper owns terminal-only signing commands', () => {
 test('public leaderboard and stream commands are anonymous read-only commands', () => {
 	const source = agent;
 	const leaderboardBlock = source.slice(source.indexOf('async function runPublicRead'), source.indexOf('async function runStatus'));
-	assert.match(leaderboardBlock, /\/v1\/'\s*\+\s*kind/);
+	assert.match(leaderboardBlock, /fetchJsonWithTimeout/);
 	assert.doesNotMatch(leaderboardBlock, /requireSessionToken|readKeystoreHeader|createPendingRequest|sugarApi|lingry-wallet|loadEncryptedWallet|WIF|passphrase|TransactionBuilder|broadcast/i);
 });
 
@@ -147,7 +147,7 @@ test('leaderboard and stream format public snapshots and JSON', () => {
 		},
 		items: [{ word: 'desknosh', meaning: 'a snack eaten while working', language_code: 'W', part_of_speech: 'n', creator_address: 'sugar1qabcdef1234567890', block_height: 820, txid: 'a'.repeat(64), tx_time: '2026-06-28T17:54:12.000Z', likes: 3, tips_amount: '0.02500000' }]
 	};
-	const env = mockFetchEnv({ '/v1/leaderboard': { ok: true, data: snapshot }, '/v1/stream': { ok: true, data: snapshot } });
+	const env = mockFetchEnv({ '/v1/leaderboard': snapshot, '/v1/stream': snapshot });
 	const leaderboard = runNode(['bin/lingry-agent.mjs', 'leaderboard'], { env });
 	assert.equal(leaderboard.status, 0, leaderboard.stderr);
 	assert.match(leaderboard.stdout, /Lingry Leaderboard/);
@@ -164,7 +164,7 @@ test('leaderboard and stream format public snapshots and JSON', () => {
 
 test('leaderboard and stream limits are safe and snapshot-not-ready is clear', () => {
 	const env = mockFetchEnv({
-		'/v1/leaderboard': { ok: true, data: { generated_at: '2026-06-28T18:00:00.000Z', stale: false, leaderboard: { words: [], addresses_by_likes: [], addresses_by_tips: [], addresses_by_words: [] } } },
+		'/v1/leaderboard': { ok: true, generated_at: '2026-06-28T18:00:00.000Z', stale: false, leaderboard: { words: [], addresses_by_likes: [], addresses_by_tips: [], addresses_by_words: [] } },
 		'/v1/stream': { status: 503, body: { ok: false, error: { code: 'hourly_snapshot_not_ready', message: 'Lingry public index has not completed its first hourly refresh yet.', retryable: true } } }
 	});
 	const capped = runNode(['bin/lingry-agent.mjs', 'leaderboard', '500', '--json'], { env });

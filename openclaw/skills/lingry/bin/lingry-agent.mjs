@@ -22,6 +22,7 @@ import {
 	sessionTokenConfigured,
 	skillRootFromImportMeta,
 	sugarApi,
+	fetchJsonWithTimeout,
 	verifyInstall
 } from '../src/runtime.mjs';
 
@@ -130,7 +131,13 @@ function formatStream(data) {
 
 async function runPublicRead(kind) {
 	const options = parsePublicReadOptions(process.argv.slice(3));
-	const data = await api('/v1/' + kind + '?limit=' + encodeURIComponent(options.limit), { method: 'GET' });
+	const { baseUrl } = resolveLingryApiBaseUrl();
+	const pathname = '/v1/' + kind + '?limit=' + encodeURIComponent(options.limit);
+	const response = await fetchJsonWithTimeout(baseUrl + pathname, { method: 'GET' }, 'Lingry API ' + pathname);
+	if (!response?.ok) {
+		throw new Error(response?.error?.message || 'Lingry public ' + kind + ' request failed.');
+	}
+	const data = response.data || response;
 	if (options.json) {
 		printJson(data);
 		return;

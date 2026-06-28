@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.6
+
+- Accept direct public snapshot responses for leaderboard and stream commands.
+
 ## 1.0.5
 
 - Added public hourly-indexed leaderboard and stream commands for OpenClaw.
