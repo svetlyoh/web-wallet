@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.5
+
+- Added public hourly-indexed leaderboard and stream commands for OpenClaw.
+
 ## 1.0.4
 
 - Clarify first-run setup: create or open a `lingry.net` wallet first, import the matching private/login key on Ubuntu OpenClaw, then configure the 30-day API session token.

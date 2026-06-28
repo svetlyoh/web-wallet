@@ -27,11 +27,21 @@ const WORKER_DEFAULT_CACHE_SCAN_BLOCKS = 500;
 const WORKER_RANGE_BATCH_SIZE = 100;
 const WORKER_TX_LOOKUP_CONCURRENCY = 8;
 const LINGRY_WORD_START_HEIGHT = 42900000;
-const LINGRY_LEADERBOARD_REFRESH_MS = 3 * 60 * 60 * 1000;
-const LINGRY_LEADERBOARD_REFRESH_LOCK_MS = 15 * 60 * 1000;
+const LINGRY_HOURLY_REFRESH_MS = 60 * 60 * 1000;
+const LINGRY_BLOCK_SECONDS = 5;
+const LINGRY_HOURLY_SCAN_BLOCKS = Math.ceil(LINGRY_HOURLY_REFRESH_MS / (LINGRY_BLOCK_SECONDS * 1000));
+const LINGRY_PUBLIC_INDEX_CONFIRMATION_DEPTH = 6;
+const LINGRY_PUBLIC_INDEX_REORG_OVERLAP_BLOCKS = 12;
+const LINGRY_PUBLIC_INDEX_STREAM_LIMIT = 500;
+const LINGRY_PUBLIC_INDEX_LEADERBOARD_LIMIT = 100;
+const LINGRY_PUBLIC_INDEX_STALE_MS = 2 * LINGRY_HOURLY_REFRESH_MS;
+const LINGRY_PUBLIC_INDEX_LEASE_MS = 20 * 60 * 1000;
+const LINGRY_PUBLIC_INDEX_SCHEMA_VERSION = 1;
+const LINGRY_LEADERBOARD_REFRESH_MS = LINGRY_HOURLY_REFRESH_MS;
+const LINGRY_LEADERBOARD_REFRESH_LOCK_MS = LINGRY_PUBLIC_INDEX_LEASE_MS;
 const LINGRY_LEADERBOARD_QUERY_TIMEOUT_MS = 5000;
 const LINGRY_LEADERBOARD_WAIT_TIMEOUT_MS = 10000;
-const LINGRY_LEADERBOARD_RECENT_BLOCKS = 2500;
+const LINGRY_LEADERBOARD_RECENT_BLOCKS = LINGRY_HOURLY_SCAN_BLOCKS;
 const LINGRY_LEADERBOARD_SCAN_CHUNK_BLOCKS = 500;
 const faucetAttempts = new Map();
 const workerWordCache = {
@@ -562,6 +572,126 @@ async function setLingryMeta(env, key, value) {
 	`).bind(String(key || ''), String(value || ''), new Date().toISOString()).run();
 }
 
+async function ensureLingryIndexMetaDb(env) {
+	if (!(await ensureLingrySocialDb(env))) {
+		return false;
+	}
+	await env.LINGRY_DB.prepare(`
+		CREATE TABLE IF NOT EXISTS lingry_index_meta (
+			key TEXT PRIMARY KEY,
+			value TEXT NOT NULL,
+			updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+		)
+	`).run();
+	return true;
+}
+
+async function getLingryIndexMeta(env, key) {
+	if (!(await ensureLingryIndexMetaDb(env))) {
+		return '';
+	}
+	const row = await env.LINGRY_DB.prepare('SELECT value FROM lingry_index_meta WHERE key = ?').bind(String(key || '')).first();
+	return row && row.value ? String(row.value) : '';
+}
+
+async function setLingryIndexMeta(env, key, value) {
+	if (!(await ensureLingryIndexMetaDb(env))) {
+		return;
+	}
+	await env.LINGRY_DB.prepare(`
+		INSERT INTO lingry_index_meta (key, value, updated_at)
+		VALUES (?, ?, ?)
+		ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
+	`).bind(String(key || ''), String(value || ''), new Date().toISOString()).run();
+}
+
+async function acquirePublicIndexLease(env) {
+	const now = Date.now();
+	const nowIso = new Date(now).toISOString();
+	const expiresAt = await getLingryIndexMeta(env, 'public_index_refresh_lease_expires_at');
+	const expiresMs = Date.parse(expiresAt || '');
+	if (Number.isFinite(expiresMs) && expiresMs > now) {
+		return false;
+	}
+	await setLingryIndexMeta(env, 'public_index_refresh_started_at', nowIso);
+	await setLingryIndexMeta(env, 'public_index_refresh_lease_expires_at', new Date(now + LINGRY_PUBLIC_INDEX_LEASE_MS).toISOString());
+	return true;
+}
+
+async function releasePublicIndexLease(env) {
+	await setLingryIndexMeta(env, 'public_index_refresh_lease_expires_at', '');
+}
+
+function sanitizePublicIndexError(error, fallback = 'Lingry public index refresh failed.') {
+	const message = String(error && error.message || error || '');
+	if (/timed out/i.test(message)) {
+		return message.slice(0, 160);
+	}
+	if (isD1SchemaError(error)) {
+		return 'Lingry public index database tables are not ready. Run the D1 migrations and retry.';
+	}
+	return fallback;
+}
+
+function normalizeSnapshotLimit(value, fallback = 25) {
+	const numeric = Number(value);
+	if (!Number.isFinite(numeric) || numeric <= 0) {
+		return fallback;
+	}
+	return Math.max(1, Math.min(Math.floor(numeric), 100));
+}
+
+function snapshotObjectKey(date = new Date()) {
+	return 'hourly/' + date.toISOString().replace(/\.\d{3}Z$/, 'Z').replace(/:/g, '-') + '.json';
+}
+
+function snapshotStale(snapshot) {
+	const generatedMs = Date.parse(snapshot && snapshot.generated_at || '');
+	return !Number.isFinite(generatedMs) || Date.now() - generatedMs > LINGRY_PUBLIC_INDEX_STALE_MS;
+}
+
+function hasPublicIndexBucket(env) {
+	return Boolean(env && env.LINGRY_PUBLIC_INDEX && typeof env.LINGRY_PUBLIC_INDEX.get === 'function' && typeof env.LINGRY_PUBLIC_INDEX.put === 'function');
+}
+
+async function readPublicIndexSnapshot(env) {
+	if (!hasPublicIndexBucket(env)) {
+		throw new Error('LINGRY_PUBLIC_INDEX R2 bucket is not configured.');
+	}
+	const object = await env.LINGRY_PUBLIC_INDEX.get('latest.json');
+	if (!object) {
+		return null;
+	}
+	const text = await object.text();
+	const snapshot = JSON.parse(text);
+	if (!snapshot || snapshot.schema_version !== LINGRY_PUBLIC_INDEX_SCHEMA_VERSION) {
+		throw new Error('Lingry public index snapshot schema is invalid.');
+	}
+	return snapshot;
+}
+
+async function writePublicIndexSnapshot(env, snapshot) {
+	if (!hasPublicIndexBucket(env)) {
+		throw new Error('LINGRY_PUBLIC_INDEX R2 bucket is not configured.');
+	}
+	const key = snapshotObjectKey(new Date(snapshot.generated_at));
+	const body = JSON.stringify(snapshot);
+	await env.LINGRY_PUBLIC_INDEX.put(key, body, {
+		httpMetadata: { contentType: 'application/json; charset=utf-8' },
+		customMetadata: { schema_version: String(snapshot.schema_version), generated_at: snapshot.generated_at }
+	});
+	const written = await env.LINGRY_PUBLIC_INDEX.get(key);
+	if (!written) {
+		throw new Error('Lingry public index immutable snapshot could not be read after write.');
+	}
+	JSON.parse(await written.text());
+	await env.LINGRY_PUBLIC_INDEX.put('latest.json', body, {
+		httpMetadata: { contentType: 'application/json; charset=utf-8' },
+		customMetadata: { snapshot_key: key, schema_version: String(snapshot.schema_version), generated_at: snapshot.generated_at }
+	});
+	return key;
+}
+
 function normalizeSocialTxid(value) {
 	const txid = String(value || '').trim().toLowerCase();
 	return /^[0-9a-f]{64}$/.test(txid) ? txid : '';
@@ -846,8 +976,8 @@ function emptyLingryLeaderboardSummary(error = '') {
 		enabled: true,
 		start_height: LINGRY_WORD_START_HEIGHT,
 		refresh_blocks: LINGRY_LEADERBOARD_RECENT_BLOCKS,
-		block_seconds: 5,
-		expected_three_hour_blocks: Math.ceil((3 * 60 * 60) / 5),
+		block_seconds: LINGRY_BLOCK_SECONDS,
+		expected_hourly_blocks: LINGRY_HOURLY_SCAN_BLOCKS,
 		refreshed_at: lingryLeaderboardRefreshState.lastRefresh ? new Date(lingryLeaderboardRefreshState.lastRefresh).toISOString() : '',
 		refreshing: Boolean(lingryLeaderboardRefreshState.running),
 		scanned_blocks: 0,
@@ -1114,9 +1244,9 @@ async function handleLingryLeaderboard(request, env, ctx) {
 		...leaderboard,
 		since_block: LINGRY_WORD_START_HEIGHT,
 		refresh_policy: {
-			every_hours: 3,
-			block_seconds: 5,
-			expected_blocks: Math.ceil((3 * 60 * 60) / 5),
+			every_hours: 1,
+			block_seconds: LINGRY_BLOCK_SECONDS,
+			expected_blocks: LINGRY_HOURLY_SCAN_BLOCKS,
 			scan_blocks_with_slack: LINGRY_LEADERBOARD_RECENT_BLOCKS
 		},
 		refresh_summary: refreshSummary
@@ -2176,6 +2306,227 @@ async function scanLatestSugarBlocks(startHeight, blockCount, word = '', offsetB
 	return { records: matches, summary };
 }
 
+async function scanSugarBlockRange(startHeight, endHeight) {
+	const start = Math.max(0, Number(startHeight) || 0);
+	const end = Math.max(start - 1, Number(endHeight) || 0);
+	const summary = {
+		enabled: true,
+		start_height: start,
+		end_height: end,
+		block_seconds: LINGRY_BLOCK_SECONDS,
+		nominal_hourly_blocks: LINGRY_HOURLY_SCAN_BLOCKS,
+		scanned_blocks: 0,
+		scanned_transactions: 0,
+		indexed_records: 0,
+		errors: []
+	};
+	const matches = [];
+	if (start > end) {
+		return { records: matches, summary, checkpoint_block: null };
+	}
+	let checkpointBlock = null;
+	for (let batchStart = start; batchStart <= end; batchStart += LINGRY_LEADERBOARD_SCAN_CHUNK_BLOCKS) {
+		const batchEnd = Math.min(end, batchStart + LINGRY_LEADERBOARD_SCAN_CHUNK_BLOCKS - 1);
+		const batch = await fetchSugarBlockBatch(batchStart, batchEnd, false);
+		if (batch.rangeError) {
+			summary.errors.push({ start_height: batchStart, end_height: batchEnd, error: 'Range lookup failed: ' + (batch.rangeError.message || 'Sugarchain range failed.') });
+			continue;
+		}
+		const txJobs = [];
+		for (const item of batch.blocks || []) {
+			if (item.error) {
+				summary.errors.push({ height: item.height, error: item.error.message || 'Block lookup failed.' });
+				continue;
+			}
+			const block = item.block || {};
+			checkpointBlock = block;
+			summary.scanned_blocks += 1;
+			const txids = Array.isArray(block.tx) ? block.tx.slice(1) : [];
+			for (const txid of txids) {
+				txJobs.push({ height: item.height, txid, block });
+			}
+		}
+		const txResults = await mapWithConcurrency(txJobs, WORKER_TX_LOOKUP_CONCURRENCY, async job => {
+			try {
+				return { job, records: await indexSugarTxid(job.txid, job.block) };
+			} catch (error) {
+				return { job, error };
+			}
+		});
+		for (const result of txResults) {
+			if (!result) {
+				continue;
+			}
+			summary.scanned_transactions += 1;
+			if (result.error) {
+				summary.errors.push({ height: result.job.height, txid: result.job.txid, error: result.error.message || 'Transaction lookup failed.' });
+				continue;
+			}
+			const records = result.records || [];
+			summary.indexed_records += records.length;
+			matches.push(...records);
+		}
+	}
+	summary.errors = summary.errors.slice(0, 20);
+	return { records: matches, summary, checkpoint_block: checkpointBlock };
+}
+
+function publicStreamItem(record) {
+	const social = record.social || {};
+	const tipsSatoshis = Number(social.tips_satoshis || record.tips_satoshis || 0);
+	return {
+		txid: record.txid || '',
+		word: record.word || '',
+		meaning: record.meaning || '',
+		language_code: record.language_code || 'W',
+		part_of_speech: record.part_of_speech || '',
+		creator_address: record.creator_address || record.address || '',
+		block_height: record.block_height == null ? null : Number(record.block_height),
+		block_hash: record.block_hash || '',
+		tx_time: record.tx_time || record.timestamp || '',
+		likes: Number(social.likes || record.likes || 0),
+		tips_count: Number(social.tips_count || record.tips_count || 0),
+		tips_satoshis: tipsSatoshis,
+		tips_amount: sugarAmount(tipsSatoshis)
+	};
+}
+
+async function buildPublicIndexSnapshot(env, previousSnapshot, scanSummary, checkpointBlock) {
+	const generatedAt = new Date().toISOString();
+	const streamRecords = await latestLingrySocialWords(env, LINGRY_PUBLIC_INDEX_STREAM_LIMIT);
+	const leaderboard = await readLingryLeaderboard(env, LINGRY_PUBLIC_INDEX_LEADERBOARD_LIMIT);
+	const previousCheckpoint = previousSnapshot && previousSnapshot.checkpoint || {};
+	const endHeight = Number(scanSummary.end_height || previousCheckpoint.last_scanned_height || 0);
+	const checkpointHash = checkpointBlock && checkpointBlock.hash || await getLingryIndexMeta(env, 'public_index_last_scanned_block_hash') || previousCheckpoint.last_scanned_block_hash || '';
+	return {
+		schema_version: LINGRY_PUBLIC_INDEX_SCHEMA_VERSION,
+		generated_at: generatedAt,
+		previous_snapshot_at: previousSnapshot && previousSnapshot.generated_at || null,
+		source: 'lingry-hourly-public-index',
+		checkpoint: {
+			last_scanned_height: endHeight,
+			last_scanned_block_hash: checkpointHash,
+			safe_tip_height: endHeight,
+			confirmation_depth: LINGRY_PUBLIC_INDEX_CONFIRMATION_DEPTH
+		},
+		scan: {
+			block_seconds: LINGRY_BLOCK_SECONDS,
+			nominal_hourly_blocks: LINGRY_HOURLY_SCAN_BLOCKS,
+			start_height: Number(scanSummary.start_height || 0),
+			end_height: endHeight,
+			scanned_blocks: Number(scanSummary.scanned_blocks || 0),
+			scanned_transactions: Number(scanSummary.scanned_transactions || 0),
+			indexed_records: Number(scanSummary.indexed_records || 0),
+			catchup: Boolean(scanSummary.catchup),
+			errors: Array.isArray(scanSummary.errors) ? scanSummary.errors.slice(0, 20) : []
+		},
+		stream: streamRecords.map(publicStreamItem),
+		leaderboard: {
+			words: (leaderboard.words || []).slice(0, LINGRY_PUBLIC_INDEX_LEADERBOARD_LIMIT),
+			addresses_by_likes: (leaderboard.addresses_by_likes || []).slice(0, LINGRY_PUBLIC_INDEX_LEADERBOARD_LIMIT),
+			addresses_by_tips: (leaderboard.addresses_by_tips || []).slice(0, LINGRY_PUBLIC_INDEX_LEADERBOARD_LIMIT),
+			addresses_by_words: (leaderboard.addresses_by_words || []).slice(0, LINGRY_PUBLIC_INDEX_LEADERBOARD_LIMIT)
+		}
+	};
+}
+
+async function readSafeChainTip() {
+	const info = await fetchSugarJson('/info');
+	const currentHeight = Number(info.blocks || info.headers || 0);
+	return Math.max(0, currentHeight - LINGRY_PUBLIC_INDEX_CONFIRMATION_DEPTH);
+}
+
+async function refreshLingryPublicIndex(env) {
+	if (!(await ensureLingrySocialDb(env))) {
+		throw new Error('Lingry social database is not configured.');
+	}
+	const acquired = await acquirePublicIndexLease(env);
+	if (!acquired) {
+		return { skipped: true, reason: 'refresh lease is already active' };
+	}
+	try {
+		const previousSnapshot = await readPublicIndexSnapshot(env).catch(() => null);
+		const previousCheckpoint = previousSnapshot && previousSnapshot.checkpoint || {};
+		const safeTip = await readSafeChainTip();
+		let lastScannedHeight = Number(await getLingryIndexMeta(env, 'public_index_last_scanned_height') || previousCheckpoint.last_scanned_height || 0);
+		let storedHash = await getLingryIndexMeta(env, 'public_index_last_scanned_block_hash') || previousCheckpoint.last_scanned_block_hash || '';
+		if (lastScannedHeight > 0 && storedHash) {
+			const checkpoint = await fetchSugarBlockByHeight(lastScannedHeight).catch(() => null);
+			if (checkpoint && checkpoint.hash && checkpoint.hash !== storedHash) {
+				lastScannedHeight = Math.max(LINGRY_WORD_START_HEIGHT, lastScannedHeight - LINGRY_PUBLIC_INDEX_CONFIRMATION_DEPTH - LINGRY_PUBLIC_INDEX_REORG_OVERLAP_BLOCKS);
+			}
+		}
+		if (!lastScannedHeight) {
+			lastScannedHeight = Math.max(LINGRY_WORD_START_HEIGHT, safeTip - LINGRY_HOURLY_SCAN_BLOCKS);
+		}
+		const startHeight = Math.min(safeTip + 1, lastScannedHeight + 1);
+		const scan = await scanSugarBlockRange(startHeight, safeTip);
+		scan.summary.safe_tip_height = safeTip;
+		scan.summary.catchup = Math.max(0, safeTip - lastScannedHeight) > LINGRY_HOURLY_SCAN_BLOCKS;
+		await persistLingrySocialWords(env, scan.records);
+		const snapshot = await buildPublicIndexSnapshot(env, previousSnapshot, scan.summary, scan.checkpoint_block);
+		const snapshotKey = await writePublicIndexSnapshot(env, snapshot);
+		await setLingryIndexMeta(env, 'public_index_last_success_at', snapshot.generated_at);
+		await setLingryIndexMeta(env, 'public_index_last_snapshot_key', snapshotKey);
+		await setLingryIndexMeta(env, 'public_index_last_scanned_height', String(snapshot.checkpoint.last_scanned_height || 0));
+		await setLingryIndexMeta(env, 'public_index_last_scanned_block_hash', snapshot.checkpoint.last_scanned_block_hash || '');
+		await setLingryIndexMeta(env, 'public_index_last_error', '');
+		return { ok: true, snapshot_key: snapshotKey, snapshot };
+	} catch (error) {
+		await setLingryIndexMeta(env, 'public_index_last_error', sanitizePublicIndexError(error));
+		throw error;
+	} finally {
+		await releasePublicIndexLease(env).catch(() => {});
+	}
+}
+
+function publicSnapshotEnvelope(snapshot, body) {
+	return {
+		ok: true,
+		source: 'lingry-hourly-public-index',
+		snapshot_version: snapshot.schema_version || LINGRY_PUBLIC_INDEX_SCHEMA_VERSION,
+		generated_at: snapshot.generated_at || '',
+		stale: snapshotStale(snapshot),
+		scan: snapshot.scan || {},
+		...body
+	};
+}
+
+async function handlePublicSnapshotRoute(request, env, kind) {
+	const url = new URL(request.url);
+	const limit = normalizeSnapshotLimit(url.searchParams.get('limit'), 25);
+	const snapshot = await readPublicIndexSnapshot(env).catch(error => {
+		if (/not configured/i.test(error.message || '')) {
+			throw error;
+		}
+		return null;
+	});
+	if (!snapshot) {
+		return jsonResponse({
+			ok: false,
+			error: {
+				code: 'hourly_snapshot_not_ready',
+				message: 'Lingry public index has not completed its first hourly refresh yet.',
+				retryable: true
+			}
+		}, 503);
+	}
+	if (kind === 'stream') {
+		const cursor = Math.max(0, Number(url.searchParams.get('cursor')) || 0);
+		const items = (snapshot.stream || []).slice(cursor, cursor + limit);
+		const nextCursor = cursor + items.length < (snapshot.stream || []).length ? String(cursor + items.length) : '';
+		return jsonResponse(publicSnapshotEnvelope(snapshot, { items, next_cursor: nextCursor }));
+	}
+	return jsonResponse(publicSnapshotEnvelope(snapshot, {
+		leaderboard: {
+			words: (snapshot.leaderboard?.words || []).slice(0, limit),
+			addresses_by_likes: (snapshot.leaderboard?.addresses_by_likes || []).slice(0, limit),
+			addresses_by_tips: (snapshot.leaderboard?.addresses_by_tips || []).slice(0, limit),
+			addresses_by_words: (snapshot.leaderboard?.addresses_by_words || []).slice(0, limit)
+		}
+	}));
+}
+
 async function handleWordLatest(request, env) {
 	const url = new URL(request.url);
 	const limit = Math.max(1, Math.min(Number(url.searchParams.get('limit')) || 50, 100));
@@ -2396,10 +2747,12 @@ async function handleTxWord(request, env, txid) {
 export default {
 	async scheduled(controller, env, ctx) {
 		if (ctx && typeof ctx.waitUntil === 'function') {
-			ctx.waitUntil(refreshLingryLeaderboardIndex(env));
+			ctx.waitUntil(refreshLingryPublicIndex(env).catch(error => {
+				console.log(JSON.stringify({ service: 'lingry-public-index', status: 'refresh_failed', error: sanitizePublicIndexError(error) }));
+			}));
 			return;
 		}
-		await refreshLingryLeaderboardIndex(env);
+		await refreshLingryPublicIndex(env);
 	},
 	async fetch(request, env, ctx) {
 		const requestId = createRequestId();
@@ -2410,6 +2763,12 @@ export default {
 			return localHealthResponse();
 		}
 		try {
+			if (url.pathname === '/v1/leaderboard') {
+				return handlePublicSnapshotRoute(request, env, 'leaderboard');
+			}
+			if (url.pathname === '/v1/stream') {
+				return handlePublicSnapshotRoute(request, env, 'stream');
+			}
 			traceRequest(env, requestId, 'v1:before');
 			const lingryApiResponse = await Promise.race([
 				handleLingryV1Request(request, env, ctx),

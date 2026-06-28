@@ -1,8 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
+import fs from 'node:fs';
 import crypto from 'node:crypto';
 import bitcoin from 'bitcoinjs-lib';
+import worker from '../src/worker.mjs';
 import {
 	assertNoPrivateKeyFields,
 	buildLingryPayload,
@@ -18,6 +20,7 @@ import {
 
 const require = createRequire(import.meta.url);
 const cjsParser = require('../lib/sugarwords/parser.js');
+const wrangler = JSON.parse(fs.readFileSync(new URL('../wrangler.jsonc', import.meta.url), 'utf8'));
 const sugarNetwork = {
 	messagePrefix: '\x19Sugarchain Signed Message:\n',
 	bip32: { public: 0x0488b21e, private: 0x0488ade4 },
@@ -39,6 +42,20 @@ function fakeRawTx(outputs) {
 
 function opReturn(payload) {
 	return bitcoin.script.compile([bitcoin.opcodes.OP_RETURN, Buffer.from(payload, 'utf8')]);
+}
+
+function snapshotR2(snapshot) {
+	const objects = new Map(snapshot ? [['latest.json', JSON.stringify(snapshot)]] : []);
+	return {
+		objects,
+		async get(key) {
+			const value = objects.get(key);
+			return value == null ? null : { async text() { return value; } };
+		},
+		async put(key, value) {
+			objects.set(key, String(value));
+		}
+	};
 }
 
 test('every configured language code parses correctly', () => {
@@ -250,6 +267,8 @@ test('OpenAPI specification reflects implemented routes', () => {
 		'/v1/candidates/{candidate_id}',
 		'/v1/candidates/{candidate_id}/coin/prepare',
 		'/v1/words',
+		'/v1/leaderboard',
+		'/v1/stream',
 		'/v1/words/{word_id}/coin/prepare',
 		'/v1/transactions/{intent_id}/submit',
 		'/v1/broadcast/status',
@@ -261,4 +280,72 @@ test('OpenAPI specification reflects implemented routes', () => {
 	for (const route of required) {
 		assert.ok(OPENAPI.paths[route], route);
 	}
+});
+
+test('cron configuration and public index constants are hourly', () => {
+	assert.deepEqual(wrangler.triggers.crons, ['0 * * * *']);
+	assert.ok((wrangler.r2_buckets || []).some(bucket => bucket.binding === 'LINGRY_PUBLIC_INDEX' && bucket.bucket_name === 'lingry-public-index'));
+	const source = fs.readFileSync(new URL('../src/worker.mjs', import.meta.url), 'utf8');
+	assert.match(source, /const LINGRY_BLOCK_SECONDS = 5/);
+	assert.match(source, /const LINGRY_HOURLY_SCAN_BLOCKS = Math\.ceil\(LINGRY_HOURLY_REFRESH_MS \/ \(LINGRY_BLOCK_SECONDS \* 1000\)\)/);
+	assert.match(source, /lastScannedHeight \+ 1/);
+	assert.match(source, /catchup = Math\.max\(0, safeTip - lastScannedHeight\) > LINGRY_HOURLY_SCAN_BLOCKS/);
+	assert.match(source, /lastScannedHeight - LINGRY_PUBLIC_INDEX_CONFIRMATION_DEPTH - LINGRY_PUBLIC_INDEX_REORG_OVERLAP_BLOCKS/);
+});
+
+test('public leaderboard and stream read latest R2 snapshot without live scan', async () => {
+	const originalFetch = globalThis.fetch;
+	globalThis.fetch = async () => {
+		throw new Error('live scan should not run for public snapshot routes');
+	};
+	const snapshot = {
+		schema_version: 1,
+		generated_at: '2026-06-28T18:00:00.000Z',
+		scan: { start_height: 100, end_height: 820, scanned_blocks: 720, block_seconds: 5, confirmation_depth: 6 },
+		stream: [{
+			txid: 'a'.repeat(64),
+			word: 'desknosh',
+			meaning: 'a snack eaten while working',
+			language_code: 'W',
+			part_of_speech: 'n',
+			creator_address: 'sugar1qabcdef1234567890',
+			block_height: 820,
+			tx_time: '2026-06-28T17:54:12.000Z',
+			likes: 2,
+			tips_count: 1,
+			tips_amount: '0.02500000'
+		}],
+		leaderboard: {
+			words: [{ word: 'desknosh', meaning: 'a snack eaten while working', language_code: 'W', part_of_speech: 'n', creator_address: 'sugar1qabcdef1234567890', likes: 2, tips_count: 1, tips_amount: '0.02500000' }],
+			addresses_by_likes: [],
+			addresses_by_tips: [],
+			addresses_by_words: []
+		}
+	};
+	try {
+		const env = { LINGRY_PUBLIC_INDEX: snapshotR2(snapshot) };
+		const leaderboard = await worker.fetch(new Request('https://lingry.net/v1/leaderboard?limit=10'), env, {});
+		assert.equal(leaderboard.status, 200);
+		const leaderboardJson = await leaderboard.json();
+		assert.equal(leaderboardJson.ok, true);
+		assert.equal(leaderboardJson.source, 'lingry-hourly-public-index');
+		assert.equal(leaderboardJson.leaderboard.words[0].word, 'desknosh');
+		assert.doesNotMatch(JSON.stringify(leaderboardJson), /secret|passphrase|rpc/i);
+		const stream = await worker.fetch(new Request('https://lingry.net/v1/stream?limit=10'), env, {});
+		assert.equal(stream.status, 200);
+		const streamJson = await stream.json();
+		assert.equal(streamJson.items[0].word, 'desknosh');
+		assert.equal(streamJson.next_cursor, '');
+	} finally {
+		globalThis.fetch = originalFetch;
+	}
+});
+
+test('public snapshot routes return clear 503 when latest snapshot is absent', async () => {
+	const response = await worker.fetch(new Request('https://lingry.net/v1/stream'), { LINGRY_PUBLIC_INDEX: snapshotR2(null) }, {});
+	assert.equal(response.status, 503);
+	const json = await response.json();
+	assert.equal(json.ok, false);
+	assert.equal(json.error.code, 'hourly_snapshot_not_ready');
+	assert.equal(json.error.retryable, true);
 });

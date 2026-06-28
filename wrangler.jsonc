@@ -18,7 +18,7 @@
 	},
 	"triggers": {
 		"crons": [
-			"0 */3 * * *"
+			"0 * * * *"
 		]
 	},
 	"durable_objects": {
@@ -57,6 +57,12 @@
 			"binding": "LINGRY_DB",
 			"database_name": "lingry-social",
 			"database_id": "24addd5a-c6e9-4873-9f5a-fd4a15d41b59"
+		}
+	],
+	"r2_buckets": [
+		{
+			"binding": "LINGRY_PUBLIC_INDEX",
+			"bucket_name": "lingry-public-index"
 		}
 	],
 	"main": "src/worker.mjs",

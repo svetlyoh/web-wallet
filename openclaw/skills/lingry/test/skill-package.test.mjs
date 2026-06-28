@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -36,6 +36,23 @@ function runNode(args, options = {}) {
 	});
 }
 
+function mockFetchEnv(routePayloads) {
+	const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'lingry-fetch-mock-'));
+	const mockPath = path.join(dir, 'mock-fetch.mjs');
+	fs.writeFileSync(mockPath, `
+const payloads = ${JSON.stringify(routePayloads)};
+globalThis.fetch = async (url) => {
+	const parsed = new URL(String(url));
+	const payload = payloads[parsed.pathname] || payloads.default;
+	if (payload && payload.status) {
+		return new Response(JSON.stringify(payload.body), { status: payload.status, headers: { 'content-type': 'application/json' } });
+	}
+	return new Response(JSON.stringify(payload), { status: 200, headers: { 'content-type': 'application/json' } });
+};
+`, 'utf8');
+	return isolatedEnv({ NODE_OPTIONS: `--import=${pathToFileURL(mockPath).href}` });
+}
+
 function copyCleanRoom() {
 	const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'lingry-clean-room-'));
 	fs.cpSync(root, temp, {
@@ -62,12 +79,14 @@ test('README documents canonical package and no passphrase export', () => {
 	assert.match(readme, /https:\/\/lingry\.net/);
 	assert.match(readme, /Optional Lingry Account Session/);
 	assert.match(readme, /node bin\/lingry-wallet\.mjs setup/);
+	assert.match(readme, /node bin\/lingry-agent\.mjs leaderboard/);
+	assert.match(readme, /node bin\/lingry-agent\.mjs stream/);
 	assert.doesNotMatch(readme, /export\s+LINGRY_WALLET_PASSPHRASE|LINGRY_WALLET_PASSPHRASE=|export-private-key|plugin-skills/);
 });
 
 test('package includes required standalone executable text-source files', () => {
 	assert.equal(pkg.name, '@svetlyoh/lingry');
-	assert.equal(pkg.version, '1.0.4');
+	assert.equal(pkg.version, '1.0.5');
 	assert.equal(pkg.bin['lingry-agent'], 'bin/lingry-agent.mjs');
 	assert.equal(pkg.bin['lingry-wallet'], 'bin/lingry-wallet.mjs');
 	for (const relativePath of [
@@ -86,6 +105,15 @@ test('agent has no wallet decryption, passphrase, fallback, or direct broadcast 
 	assert.doesNotMatch(agent, /plugin-skills|web-wallet|localhost:8787|--confirm-broadcast/);
 	assert.match(agent, /prepare-coin/);
 	assert.match(agent, /prepare-starter-grant/);
+	assert.match(agent, /leaderboard/);
+	assert.match(agent, /stream/);
+});
+
+test('leaderboard and stream usage is listed', () => {
+	const result = runNode(['bin/lingry-agent.mjs', 'help']);
+	assert.equal(result.status, 0, result.stderr);
+	assert.match(result.stdout, /leaderboard \[limit\] \[--json\]/);
+	assert.match(result.stdout, /stream \[limit\] \[--json\]/);
 });
 
 test('wallet helper owns terminal-only signing commands', () => {
@@ -95,6 +123,57 @@ test('wallet helper owns terminal-only signing commands', () => {
 	assert.match(wallet, /claim-grant/);
 	assert.match(wallet, /BROADCAST/);
 	assert.match(wallet, /Lingry wallet commands must be run from an interactive local terminal/);
+});
+
+test('public leaderboard and stream commands are anonymous read-only commands', () => {
+	const source = agent;
+	const leaderboardBlock = source.slice(source.indexOf('async function runPublicRead'), source.indexOf('async function runStatus'));
+	assert.match(leaderboardBlock, /\/v1\/'\s*\+\s*kind/);
+	assert.doesNotMatch(leaderboardBlock, /requireSessionToken|readKeystoreHeader|createPendingRequest|sugarApi|lingry-wallet|loadEncryptedWallet|WIF|passphrase|TransactionBuilder|broadcast/i);
+});
+
+test('leaderboard and stream format public snapshots and JSON', () => {
+	const snapshot = {
+		ok: true,
+		source: 'lingry-hourly-public-index',
+		generated_at: '2026-06-28T18:00:00.000Z',
+		stale: true,
+		scan: { start_height: 100, end_height: 820, scanned_blocks: 720 },
+		leaderboard: {
+			words: [{ word: 'desknosh', meaning: 'a snack eaten while working', language_code: 'W', part_of_speech: 'n', likes: 3, tips_amount: '0.02500000', creator_address: 'sugar1qabcdef1234567890' }],
+			addresses_by_likes: [{ address: 'sugar1qabcdef1234567890', likes_received: 3, words_count: 1 }],
+			addresses_by_tips: [{ address: 'sugar1qabcdef1234567890', tips_amount: '0.02500000', tips_count: 1 }],
+			addresses_by_words: [{ address: 'sugar1qabcdef1234567890', words_count: 1, likes_received: 3 }]
+		},
+		items: [{ word: 'desknosh', meaning: 'a snack eaten while working', language_code: 'W', part_of_speech: 'n', creator_address: 'sugar1qabcdef1234567890', block_height: 820, txid: 'a'.repeat(64), tx_time: '2026-06-28T17:54:12.000Z', likes: 3, tips_amount: '0.02500000' }]
+	};
+	const env = mockFetchEnv({ '/v1/leaderboard': { ok: true, data: snapshot }, '/v1/stream': { ok: true, data: snapshot } });
+	const leaderboard = runNode(['bin/lingry-agent.mjs', 'leaderboard'], { env });
+	assert.equal(leaderboard.status, 0, leaderboard.stderr);
+	assert.match(leaderboard.stdout, /Lingry Leaderboard/);
+	assert.match(leaderboard.stdout, /1\. desknosh/);
+	assert.match(leaderboard.stdout, /STALE/);
+	const stream = runNode(['bin/lingry-agent.mjs', 'stream', '20'], { env });
+	assert.equal(stream.status, 0, stream.stderr);
+	assert.match(stream.stdout, /Lingry Stream/);
+	assert.match(stream.stdout, /1\. desknosh/);
+	const json = runNode(['bin/lingry-agent.mjs', 'leaderboard', '--json'], { env });
+	assert.equal(json.status, 0, json.stderr);
+	assert.equal(JSON.parse(json.stdout).leaderboard.words[0].word, 'desknosh');
+});
+
+test('leaderboard and stream limits are safe and snapshot-not-ready is clear', () => {
+	const env = mockFetchEnv({
+		'/v1/leaderboard': { ok: true, data: { generated_at: '2026-06-28T18:00:00.000Z', stale: false, leaderboard: { words: [], addresses_by_likes: [], addresses_by_tips: [], addresses_by_words: [] } } },
+		'/v1/stream': { status: 503, body: { ok: false, error: { code: 'hourly_snapshot_not_ready', message: 'Lingry public index has not completed its first hourly refresh yet.', retryable: true } } }
+	});
+	const capped = runNode(['bin/lingry-agent.mjs', 'leaderboard', '500', '--json'], { env });
+	assert.equal(capped.status, 0, capped.stderr);
+	const notReady = runNode(['bin/lingry-agent.mjs', 'stream'], { env });
+	assert.notEqual(notReady.status, 0);
+	assert.match(notReady.stderr, /hourly refresh/);
+	const invalid = runNode(['bin/lingry-agent.mjs', 'leaderboard', 'nope'], { env });
+	assert.equal(invalid.status, 0, invalid.stderr);
 });
 
 test('verify-install succeeds without network or repository fallback', () => {

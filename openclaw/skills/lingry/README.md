@@ -169,6 +169,12 @@ node bin/lingry-agent.mjs verify-install
 node bin/lingry-agent.mjs auth-status
 node bin/lingry-agent.mjs address
 node bin/lingry-agent.mjs list-words W
+node bin/lingry-agent.mjs leaderboard
+node bin/lingry-agent.mjs leaderboard 10
+node bin/lingry-agent.mjs leaderboard --json
+node bin/lingry-agent.mjs stream
+node bin/lingry-agent.mjs stream 20
+node bin/lingry-agent.mjs stream --json
 node bin/lingry-agent.mjs generate-word "a word for a tiny useful idea found while coding"
 node bin/lingry-agent.mjs create-word-draft desknosh n "a snack eaten at a desk"
 node bin/lingry-agent.mjs prepare-coin <candidate-id-or-term>
@@ -190,6 +196,12 @@ node bin/lingry-wallet.mjs approve <request-id>
 
 `prepare-coin` does not sign or broadcast. It creates a pending request. The user reviews that request in a private terminal and must type `BROADCAST` before `lingry-wallet approve` signs and submits anything.
 
+## Public Hourly Index
+
+`leaderboard` and `stream` are public, anonymous reads. They do not need a session token, local wallet, private key, wallet passphrase, browser session, or signing approval.
+
+Results come from Lingry's latest completed hourly public snapshot. A normal scheduled scan covers about 720 confirmed Sugarchain blocks, based on roughly five-second blocks. If a scheduled job is delayed, the next refresh catches up from the previous checkpoint instead of skipping blocks. Stream and leaderboard data may be up to one hour old, and stale snapshots are marked. The skill never installs local cron jobs, services, or background tasks.
+
 ## Anonymous And Authenticated Access
 
 Anonymous or local-public commands:
@@ -200,6 +212,8 @@ Anonymous or local-public commands:
 - `auth-status`
 - `address`
 - `list-words`
+- `leaderboard`
+- `stream`
 - `prepare-starter-grant`
 - `get-request`
 - `get-transaction` for a local request id

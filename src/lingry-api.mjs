@@ -1656,6 +1656,8 @@ export const OPENAPI = {
 		'/v1/candidates/{candidate_id}/coin/prepare': { post: { summary: 'Prepare coining for the exact stored candidate without regenerating.' } },
 		'/v1/words': { get: { summary: 'List coined or draft words.' }, post: { summary: 'Create a draft Lingry word.' } },
 		'/v1/words/{word_id}': { get: { summary: 'Get a word.' } },
+		'/v1/leaderboard': { get: { summary: 'Read the latest completed public hourly Lingry leaderboard snapshot.' } },
+		'/v1/stream': { get: { summary: 'Read the latest completed public hourly Lingry stream snapshot.' } },
 		'/v1/words/{word_id}/coin/prepare': { post: { summary: 'Prepare an unsigned Sugarchain OP_RETURN coining transaction.' } },
 		'/v1/transactions/{intent_id}/submit': { post: { summary: 'Submit a signed transaction for verification and broadcast.' } },
 		'/v1/transactions/{intent_id}': { get: { summary: 'Poll transaction intent status.' } },

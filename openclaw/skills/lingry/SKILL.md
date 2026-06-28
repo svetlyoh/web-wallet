@@ -1,7 +1,7 @@
 ---
 name: lingry
 description: Create, discover, and coin Lingry words with a local Sugarchain wallet, explicit terminal approval, and no wallet-passphrase exposure to OpenClaw.
-version: 1.0.4
+version: 1.0.5
 homepage: https://lingry.net
 metadata:
   openclaw:
@@ -67,6 +67,8 @@ node bin/lingry-agent.mjs verify-install
 node bin/lingry-agent.mjs auth-status
 node bin/lingry-agent.mjs address
 node bin/lingry-agent.mjs list-words W
+node bin/lingry-agent.mjs leaderboard
+node bin/lingry-agent.mjs stream
 node bin/lingry-agent.mjs generate-word "a word for a tiny useful idea"
 node bin/lingry-agent.mjs create-word-draft <term> <part-of-speech> <meaning>
 node bin/lingry-agent.mjs prepare-starter-grant
@@ -76,6 +78,22 @@ node bin/lingry-agent.mjs get-transaction <request-id-or-intent-id>
 ```
 
 `status` is the default no-argument command. It shows wallet address if configured, API health, public word availability, session-token status, the last locally saved candidate, and the last locally saved coin result. It must never display secrets or make a transaction.
+
+## Public Social Reads
+
+When the user asks to show Lingry's leaderboard, run:
+
+```bash
+node bin/lingry-agent.mjs leaderboard
+```
+
+When the user asks to show the latest Lingry stream, run:
+
+```bash
+node bin/lingry-agent.mjs stream
+```
+
+These commands are public read-only calls. They do not need a session token, wallet, private key, passphrase, browser session, or signing approval. Render the returned words as a concise numbered list, mention the snapshot time, and state clearly when data is stale. Do not claim the stream is live or real-time; it refreshes from the latest completed hourly snapshot. Do not scrape `lingry.net/leaderboard`, `lingry.net/stream`, browser cookies, browser storage, or page HTML. Do not expose raw API payloads unless the user asks for JSON.
 
 ## Local Wallet Commands
 
@@ -219,6 +237,8 @@ These commands work anonymously or only use local public wallet metadata:
 - `auth-status`
 - `address`
 - `list-words`
+- `leaderboard`
+- `stream`
 - `prepare-starter-grant`
 - `get-request`
 - `get-transaction` for a local request id

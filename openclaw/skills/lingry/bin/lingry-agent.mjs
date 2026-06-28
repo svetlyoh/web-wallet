@@ -33,6 +33,111 @@ function printJson(value) {
 	console.log(JSON.stringify(value, null, 2));
 }
 
+function parsePublicReadOptions(args) {
+	let json = false;
+	let limit = 25;
+	for (const arg of args) {
+		if (arg === '--json') {
+			json = true;
+			continue;
+		}
+		if (/^\d+$/.test(arg)) {
+			limit = Number(arg);
+		}
+	}
+	if (!Number.isFinite(limit) || limit <= 0) {
+		limit = 25;
+	}
+	limit = Math.max(1, Math.min(Math.floor(limit), 100));
+	return { json, limit };
+}
+
+function shortAddress(address) {
+	const text = String(address || '');
+	return text.length > 16 ? text.slice(0, 8) + '...' + text.slice(-6) : text;
+}
+
+function sugarText(value) {
+	const text = String(value || '0');
+	return text === '0' ? '0 SUGAR' : text + ' SUGAR';
+}
+
+function staleLine(data) {
+	if (!data.stale) {
+		return '';
+	}
+	return 'Status: STALE - latest completed hourly snapshot is older than two hours.\n';
+}
+
+function formatLeaderboard(data) {
+	const board = data.leaderboard || {};
+	const lines = [
+		'Lingry Leaderboard',
+		`Snapshot: ${data.generated_at || ''}`,
+		staleLine(data).trim(),
+		'Updated from the latest completed hourly public index snapshot.',
+		'',
+		'Top Words'
+	].filter(line => line !== '');
+	const words = Array.isArray(board.words) ? board.words : [];
+	if (!words.length) {
+		lines.push('No public coined words are in the snapshot yet.');
+	} else {
+		words.forEach((word, index) => {
+			lines.push(`${index + 1}. ${word.word || ''} (${word.language_code || 'W'} ${word.part_of_speech || ''}) - ${word.meaning || ''}`);
+			lines.push(`   Likes: ${Number(word.likes || 0)} | Tips: ${sugarText(word.tips_amount)} | Creator: ${shortAddress(word.creator_address)}`);
+		});
+	}
+	const sections = [
+		['Top Creators by Likes', board.addresses_by_likes || [], item => `${Number(item.likes_received || 0)} likes received | ${Number(item.words_count || 0)} words`],
+		['Top Creators by Tips', board.addresses_by_tips || [], item => `${sugarText(item.tips_amount)} | ${Number(item.tips_count || 0)} tips`],
+		['Top Creators by Words', board.addresses_by_words || [], item => `${Number(item.words_count || 0)} words | ${Number(item.likes_received || 0)} likes received`]
+	];
+	for (const [title, items, describe] of sections) {
+		lines.push('', title);
+		if (!items.length) {
+			lines.push('No creator ranking data yet.');
+			continue;
+		}
+		items.forEach((item, index) => {
+			lines.push(`${index + 1}. ${shortAddress(item.address)} - ${describe(item)}`);
+		});
+	}
+	return lines.join('\n');
+}
+
+function formatStream(data) {
+	const lines = [
+		'Lingry Stream',
+		`Snapshot: ${data.generated_at || ''}`,
+		staleLine(data).trim(),
+		'Updated from the latest completed hourly public index snapshot.',
+		''
+	].filter(line => line !== '');
+	const items = Array.isArray(data.items) ? data.items : [];
+	if (!items.length) {
+		lines.push('No public coined words are in the snapshot yet.');
+		return lines.join('\n');
+	}
+	items.forEach((item, index) => {
+		lines.push(`${index + 1}. ${item.word || ''} (${item.part_of_speech || ''}.) - ${item.meaning || ''}`);
+		lines.push(`   Language: ${item.language_code || 'W'} | Block: ${item.block_height || ''} | Creator: ${shortAddress(item.creator_address)}`);
+		lines.push(`   Likes: ${Number(item.likes || 0)} | Tips: ${sugarText(item.tips_amount)} | Coined: ${item.tx_time || ''}`);
+		lines.push('');
+	});
+	return lines.join('\n').trimEnd();
+}
+
+async function runPublicRead(kind) {
+	const options = parsePublicReadOptions(process.argv.slice(3));
+	const data = await api('/v1/' + kind + '?limit=' + encodeURIComponent(options.limit), { method: 'GET' });
+	if (options.json) {
+		printJson(data);
+		return;
+	}
+	console.log(kind === 'leaderboard' ? formatLeaderboard(data) : formatStream(data));
+}
+
 function languageInstruction(code) {
 	if (code === 'E') {
 		return 'The selected Lingry language is British English. Return the Generated Word, Meaning, and Etymology Meaning in British English. The section headings must stay exactly as requested.';
@@ -363,6 +468,14 @@ async function main() {
 		printJson(await api('/v1/words?language_code=' + encodeURIComponent(requestedLanguage), { method: 'GET' }));
 		return;
 	}
+	if (command === 'leaderboard') {
+		await runPublicRead('leaderboard');
+		return;
+	}
+	if (command === 'stream') {
+		await runPublicRead('stream');
+		return;
+	}
 	if (command === 'generate-word' || command === 'prompt-word') {
 		await generateWord();
 		return;
@@ -399,7 +512,7 @@ async function main() {
 	if (command === 'coin-it') {
 		throw new Error('Direct agent broadcasting is disabled. Run: node bin/lingry-agent.mjs prepare-coin [candidate-id-or-term], then approve from a private terminal with node bin/lingry-wallet.mjs approve <request-id>.');
 	}
-	console.log('Usage: lingry-agent [status] | doctor | verify-install | auth-status | address | list-words [language] | generate-word <prompt> | create-word-draft <term> <pos> <meaning> | prepare-coin [candidate-id-or-term] | prepare-starter-grant | get-request <request-id> | get-transaction <request-id-or-intent-id>');
+	console.log('Usage: lingry-agent [status] | doctor | verify-install | auth-status | address | list-words [language] | leaderboard [limit] [--json] | stream [limit] [--json] | generate-word <prompt> | create-word-draft <term> <pos> <meaning> | prepare-coin [candidate-id-or-term] | prepare-starter-grant | get-request <request-id> | get-transaction <request-id-or-intent-id>');
 }
 
 main().catch((error) => {
