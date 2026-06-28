@@ -35,6 +35,8 @@ const WRITE_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 const WRITE_ROUTES_WITHOUT_AUTH = new Set(['/v1/auth/challenge', '/v1/auth/verify', '/v1/internal/indexer/ingest']);
 const SUGAR_DECIMALS = 8;
 const SESSION_TOKEN_TTL_SECONDS = 30 * 24 * 60 * 60;
+const SUGAR_API_BASES = ['https://api.sugar.wtf', 'https://api.sugarchain.org'];
+const SUGAR_API_BROADCAST_TIMEOUT_MS = 15000;
 const DEFAULT_CORS_ORIGINS = [
 	'http://localhost:8080',
 	'http://127.0.0.1:8080',
@@ -355,6 +357,48 @@ function timeoutAfter(ms, message) {
 	return new Promise((resolve, reject) => {
 		setTimeout(() => reject(apiError('timeout', message, 504, true)), ms);
 	});
+}
+
+function publicSugarBroadcastEnabled(env) {
+	return String(env.LINGRY_DISABLE_PUBLIC_SUGAR_BROADCAST || '').toLowerCase() !== 'true';
+}
+
+function broadcastStatus(env) {
+	const publicFallback = publicSugarBroadcastEnabled(env);
+	return {
+		available: Boolean(env.SUGARCHAIN_RPC_URL || env.LINGRY_MOCK_BROADCAST_TXID || publicFallback),
+		rpc_configured: Boolean(env.SUGARCHAIN_RPC_URL),
+		mock_broadcast_configured: Boolean(env.LINGRY_MOCK_BROADCAST_TXID),
+		public_sugar_api_fallback: publicFallback,
+		public_sugar_api_bases: publicFallback ? SUGAR_API_BASES : []
+	};
+}
+
+async function broadcastViaPublicSugarApi(rawHex) {
+	let lastError = null;
+	for (const base of SUGAR_API_BASES) {
+		const controller = new AbortController();
+		const timeout = setTimeout(() => controller.abort(), SUGAR_API_BROADCAST_TIMEOUT_MS);
+		try {
+			const response = await fetch(base + '/broadcast', {
+				method: 'POST',
+				headers: { 'content-type': 'application/x-www-form-urlencoded' },
+				body: new URLSearchParams({ raw: rawHex }),
+				signal: controller.signal
+			});
+			const json = await response.json().catch(() => null);
+			if (!response.ok || !json || json.error || !json.result) {
+				const message = json && json.error && (json.error.message || json.error) || 'Sugarchain public broadcast failed.';
+				throw new Error(String(message));
+			}
+			return String(json.result);
+		} catch (error) {
+			lastError = error && error.name === 'AbortError' ? new Error('Sugarchain public broadcast timed out.') : error;
+		} finally {
+			clearTimeout(timeout);
+		}
+	}
+	throw apiError('broadcast_failed', lastError && lastError.message || 'Sugarchain public broadcast failed.', 502, true);
 }
 
 async function mintSessionToken(env, address, scopes) {
@@ -1081,7 +1125,10 @@ export class LexiconShardDO extends SqlDoBase {
 		if (this.env.LINGRY_MOCK_BROADCAST_TXID) {
 			return String(this.env.LINGRY_MOCK_BROADCAST_TXID);
 		}
-		throw apiError('server_not_configured', 'Sugarchain RPC is not configured.', 503, true);
+		if (publicSugarBroadcastEnabled(this.env)) {
+			return broadcastViaPublicSugarApi(rawHex);
+		}
+		throw apiError('server_not_configured', 'Sugarchain broadcast is not configured.', 503, true);
 	}
 
 	setLike(wordId, body, liked) {
@@ -1366,6 +1413,9 @@ async function handleApi(request, env) {
 		if (url.pathname === '/v1/healthz') {
 			return envelope({ status: 'ok', languages: LINGRY_LANGUAGES.length }, 200, headers, id);
 		}
+		if (url.pathname === '/v1/broadcast/status' && request.method === 'GET') {
+			return envelope({ broadcast: broadcastStatus(env) }, 200, headers, id);
+		}
 		if (url.pathname === '/openapi.json') {
 			return new Response(JSON.stringify(OPENAPI), { status: 200, headers: { ...headers, 'content-type': 'application/json; charset=utf-8' } });
 		}
@@ -1609,6 +1659,7 @@ export const OPENAPI = {
 		'/v1/words/{word_id}/coin/prepare': { post: { summary: 'Prepare an unsigned Sugarchain OP_RETURN coining transaction.' } },
 		'/v1/transactions/{intent_id}/submit': { post: { summary: 'Submit a signed transaction for verification and broadcast.' } },
 		'/v1/transactions/{intent_id}': { get: { summary: 'Poll transaction intent status.' } },
+		'/v1/broadcast/status': { get: { summary: 'Report whether Lingry transaction broadcast is available.' } },
 		'/v1/words/{word_id}/likes': { post: { summary: 'Like a word.' }, delete: { summary: 'Unlike a word.' } },
 		'/v1/words/{word_id}/tips/prepare': { post: { summary: 'Prepare an unsigned Sugarchain tip transaction.' } },
 		'/v1/events': { get: { summary: 'List public Lingry events.' } },

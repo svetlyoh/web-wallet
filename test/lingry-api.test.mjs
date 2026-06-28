@@ -181,6 +181,27 @@ test('candidate submit rejects wrong candidate hash before broadcast', async () 
 	);
 });
 
+test('transaction broadcast falls back to public Sugar API when RPC is not configured', async () => {
+	const originalFetch = globalThis.fetch;
+	const checker = Object.create(LexiconShardDO.prototype);
+	checker.env = {};
+	let requestedUrl = '';
+	let requestedBody = '';
+	globalThis.fetch = async (url, init) => {
+		requestedUrl = String(url);
+		requestedBody = String(init.body);
+		return new Response(JSON.stringify({ result: 'tx_public_fallback' }), { status: 200, headers: { 'content-type': 'application/json' } });
+	};
+	try {
+		const txid = await checker.broadcastRawTransaction('01000000000000000000');
+		assert.equal(txid, 'tx_public_fallback');
+		assert.equal(requestedUrl, 'https://api.sugar.wtf/broadcast');
+		assert.equal(requestedBody, 'raw=01000000000000000000');
+	} finally {
+		globalThis.fetch = originalFetch;
+	}
+});
+
 test('tip transactions must match intended recipient and satoshi amount', () => {
 	const checker = Object.create(LexiconShardDO.prototype);
 	const key = bitcoin.ECPair.makeRandom({ network: sugarNetwork });
@@ -231,6 +252,7 @@ test('OpenAPI specification reflects implemented routes', () => {
 		'/v1/words',
 		'/v1/words/{word_id}/coin/prepare',
 		'/v1/transactions/{intent_id}/submit',
+		'/v1/broadcast/status',
 		'/v1/words/{word_id}/likes',
 		'/v1/words/{word_id}/tips/prepare',
 		'/v1/internal/indexer/ingest',

@@ -206,11 +206,20 @@ function loadWalletAfterApproval(tty, request) {
 	return wallet;
 }
 
+async function requireBroadcastAvailable() {
+	const status = await api('/v1/broadcast/status');
+	if (!status?.broadcast?.available) {
+		throw new Error('Lingry transaction broadcast is not available on the configured API. Try again later or ask the Lingry operator to configure Sugarchain broadcast.');
+	}
+	return status.broadcast;
+}
+
 async function approveCoin(tty) {
 	const requestId = process.argv[3] || '';
 	const request = readPendingRequest(requestId);
 	if (request.type !== 'coin') throw new Error('This request is not a coin request.');
 	requireFreshRequest(request);
+	await requireBroadcastAvailable();
 	const wallet = loadWalletAfterApproval(tty, request);
 	const keys = keysFromWallet(wallet);
 	const requiredOutput = (request.required_outputs || []).find((output) => output.type === 'op_return');

@@ -26,6 +26,8 @@ npx wrangler secret put INTERNAL_INDEXER_SECRET
 npx wrangler secret put TURNSTILE_SECRET_KEY
 ```
 
+`SUGARCHAIN_RPC_URL` remains the preferred broadcast path. If it is not configured, Lingry transaction submission falls back to the public Sugar API broadcast endpoints unless `LINGRY_DISABLE_PUBLIC_SUGAR_BROADCAST=true` is set.
+
 For local development, copy `.dev.vars.example` to `.dev.vars` and replace placeholders locally.
 
 ## Starter Grant Administration

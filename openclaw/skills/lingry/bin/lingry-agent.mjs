@@ -146,6 +146,7 @@ async function runStatus() {
 
 async function runDoctor() {
 	const health = await apiProbe('/v1/healthz', { method: 'GET' });
+	const broadcast = await apiProbe('/v1/broadcast/status', { method: 'GET' });
 	const publicWords = await publicListWordsProbe(1);
 	const generationProbe = sessionTokenConfigured()
 		? await apiProbe('/v1/generations', {
@@ -174,6 +175,12 @@ async function runDoctor() {
 			plugin_or_checkout_fallback: false
 		},
 		api_health: safeProbeResult(health),
+		broadcast_status: {
+			...safeProbeResult(broadcast),
+			available: Boolean(broadcast.ok && broadcast.json?.ok && broadcast.json?.data?.broadcast?.available),
+			rpc_configured: Boolean(broadcast.json?.data?.broadcast?.rpc_configured),
+			public_sugar_api_fallback: Boolean(broadcast.json?.data?.broadcast?.public_sugar_api_fallback)
+		},
 		public_list_words_access: {
 			...safeProbeResult(publicWords),
 			available: Boolean(publicWords.ok && publicWords.json?.ok),

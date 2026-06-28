@@ -148,6 +148,15 @@ sleep 3
 openclaw gateway start
 ```
 
+## Troubleshooting Coin Approval
+
+If approval fails after `BROADCAST` with `Sugarchain RPC is not configured`, the configured Lingry API host cannot broadcast signed Sugarchain transactions. Update the Lingry skill/API to a version that supports public Sugar API broadcast fallback, or ask the Lingry API operator to configure Sugarchain broadcast. Current wallet helpers check broadcast availability before asking for the wallet passphrase:
+
+```bash
+cd "$HOME/.openclaw/skills/lingry"
+node bin/lingry-agent.mjs doctor
+```
+
 ## Commands
 
 Safe agent commands:
