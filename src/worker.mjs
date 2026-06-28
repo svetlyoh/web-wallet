@@ -2393,6 +2393,11 @@ function publicStreamItem(record) {
 	};
 }
 
+function publicLeaderboardWord(word) {
+	const { op_return_payload, op_return_hex, ...publicWord } = word || {};
+	return publicWord;
+}
+
 async function buildPublicIndexSnapshot(env, previousSnapshot, scanSummary, checkpointBlock) {
 	const generatedAt = new Date().toISOString();
 	const streamRecords = await latestLingrySocialWords(env, LINGRY_PUBLIC_INDEX_STREAM_LIMIT);
@@ -2424,7 +2429,7 @@ async function buildPublicIndexSnapshot(env, previousSnapshot, scanSummary, chec
 		},
 		stream: streamRecords.map(publicStreamItem),
 		leaderboard: {
-			words: (leaderboard.words || []).slice(0, LINGRY_PUBLIC_INDEX_LEADERBOARD_LIMIT),
+			words: (leaderboard.words || []).slice(0, LINGRY_PUBLIC_INDEX_LEADERBOARD_LIMIT).map(publicLeaderboardWord),
 			addresses_by_likes: (leaderboard.addresses_by_likes || []).slice(0, LINGRY_PUBLIC_INDEX_LEADERBOARD_LIMIT),
 			addresses_by_tips: (leaderboard.addresses_by_tips || []).slice(0, LINGRY_PUBLIC_INDEX_LEADERBOARD_LIMIT),
 			addresses_by_words: (leaderboard.addresses_by_words || []).slice(0, LINGRY_PUBLIC_INDEX_LEADERBOARD_LIMIT)
