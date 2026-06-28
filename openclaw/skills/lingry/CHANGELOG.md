@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.2
+
+- Align `verify-install` with the exact file list ClawHub publishes and installs.
+
 ## 1.0.1
 
 - Set the built-in API default to `https://lingry.net`.

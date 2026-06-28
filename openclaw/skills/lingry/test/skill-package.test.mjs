@@ -67,7 +67,7 @@ test('README documents canonical package and no passphrase export', () => {
 
 test('package includes required standalone executable text-source files', () => {
 	assert.equal(pkg.name, '@svetlyoh/lingry');
-	assert.equal(pkg.version, '1.0.1');
+	assert.equal(pkg.version, '1.0.2');
 	assert.equal(pkg.bin['lingry-agent'], 'bin/lingry-agent.mjs');
 	assert.equal(pkg.bin['lingry-wallet'], 'bin/lingry-wallet.mjs');
 	for (const relativePath of [

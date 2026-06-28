@@ -481,8 +481,7 @@ export function verifyInstall(skillRoot) {
 		'LICENSE',
 		'CHANGELOG.md',
 		'SECURITY.md',
-		'SUPPORT.md',
-		'.clawhubignore'
+		'SUPPORT.md'
 	];
 	const files = requiredFiles.map((relativePath) => {
 		const fullPath = path.join(skillRoot, relativePath);
