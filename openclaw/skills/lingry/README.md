@@ -26,6 +26,7 @@ Install dependencies and validate:
 
 ```bash
 npm ci --omit=dev --ignore-scripts
+node bin/lingry-agent.mjs status
 node bin/lingry-agent.mjs doctor
 ```
 
@@ -40,10 +41,20 @@ export LINGRY_MAX_AUTO_COIN_FEE_SATOSHIS="2000"
 export LINGRY_MAX_AUTO_TIP_SATOSHIS="250000"
 ```
 
+## Optional Lingry Account Session
+
+`LINGRY_SESSION_TOKEN` is optional for public browsing and local wallet checks, but it is needed for account-bound generation, candidate storage, draft creation, and candidate-based coining.
+
+Create it through a deliberate Lingry browser/account flow: sign in at Lingry, open `Keys`, then `API Session`, and choose `Create API Session Token`. Copy the token into your local OpenClaw environment only.
+
+Never paste the token into OpenClaw chat. Never place it in GitHub, `SKILL.md` examples, shell history, or a world-readable file. Do not use browser-cookie scraping, browser-local-storage scraping, or automatic token extraction.
+
 ## Commands
 
 ```bash
+node bin/lingry-agent.mjs status
 node bin/lingry-agent.mjs doctor
+node bin/lingry-agent.mjs auth-status
 node bin/lingry-agent.mjs create-wallet
 node bin/lingry-agent.mjs address
 node bin/lingry-agent.mjs claim-starter-grant
@@ -54,6 +65,25 @@ node bin/lingry-agent.mjs create-word-draft desknosh n "a snack eaten at a desk"
 ```
 
 `coin-it --confirm-broadcast` must only be run after the user explicitly approves the exact transaction action, network, fee, wallet address, and payload summary.
+
+## Anonymous And Authenticated Access
+
+Anonymous or local-only commands:
+
+- `status`
+- `doctor`
+- `auth-status`
+- `create-wallet`
+- `address`
+- `claim-starter-grant`
+- `list-words`
+
+Commands that require `LINGRY_SESSION_TOKEN`:
+
+- `generate-word`
+- `prompt-word`
+- `create-word-draft`
+- `coin-it --confirm-broadcast`
 
 ## Update And Removal
 

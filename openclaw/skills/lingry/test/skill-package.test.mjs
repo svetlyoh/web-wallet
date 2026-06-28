@@ -51,5 +51,43 @@ test('doctor command is safe and non-secret', () => {
 	const parsed = JSON.parse(result.stdout);
 	assert.equal(parsed.ok, true);
 	assert.equal(parsed.checks.passphrase_configured, false);
+	assert.equal(parsed.checks.session_token_configured, false);
+	assert.equal(parsed.public_list_words_access.available, false);
+	assert.equal(parsed.auth_status.token_configured, false);
+	assert.equal(parsed.authenticated_candidate_generation_access.ok, false);
+	assert.equal(parsed.authenticated_candidate_coin_preparation_access.ok, false);
 	assert.doesNotMatch(result.stdout + result.stderr, /WIF private key|BEGIN|[KL5][1-9A-HJ-NP-Za-km-z]{50,51}/);
+});
+
+test('default status and auth-status are safe and non-secret', () => {
+	const env = {
+		...process.env,
+		LINGRY_API_BASE_URL: 'http://127.0.0.1:9',
+		LINGRY_WALLET_PASSPHRASE: '',
+		LINGRY_KEYSTORE_PATH: path.join(root, '.tmp-keystore.json'),
+		LINGRY_SESSION_TOKEN: ''
+	};
+	const status = spawnSync(process.execPath, ['bin/lingry-agent.mjs'], {
+		cwd: root,
+		env,
+		encoding: 'utf8'
+	});
+	assert.equal(status.status, 0, status.stderr);
+	const parsedStatus = JSON.parse(status.stdout);
+	assert.equal(parsedStatus.ok, true);
+	assert.equal(parsedStatus.session_token.token_configured, false);
+	assert.equal(parsedStatus.session_token.token_accepted, 'unknown');
+	assert.ok(Object.hasOwn(parsedStatus, 'last_saved_candidate'));
+	assert.ok(Object.hasOwn(parsedStatus, 'last_coin_result'));
+
+	const auth = spawnSync(process.execPath, ['bin/lingry-agent.mjs', 'auth-status'], {
+		cwd: root,
+		env,
+		encoding: 'utf8'
+	});
+	assert.equal(auth.status, 0, auth.stderr);
+	const parsedAuth = JSON.parse(auth.stdout);
+	assert.equal(parsedAuth.token_configured, false);
+	assert.equal(parsedAuth.token_accepted, 'unknown');
+	assert.doesNotMatch(status.stdout + status.stderr + auth.stdout + auth.stderr, /WIF private key|BEGIN|[KL5][1-9A-HJ-NP-Za-km-z]{50,51}/);
 });

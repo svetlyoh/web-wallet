@@ -44,40 +44,20 @@ test('normal create-wallet creates encrypted keystore and does not print WIF', (
 	assert.equal(wifPattern.test(output), false);
 	const json = JSON.parse(result.stdout);
 	assert.equal(json.private_key_backup.displayed_in_normal_output, false);
-	assert.equal(json.startup_grant.status, 'declined_or_disabled');
+	assert.match(json.private_key_backup.warning, /never prints or exports WIFs/);
+	assert.match(json.next_step, /claim-starter-grant/);
 	const keystore = JSON.parse(fs.readFileSync(path.join(dir, 'keystore.json'), 'utf8'));
 	assert.equal(typeof keystore.ciphertext, 'string');
 	assert.equal(Object.hasOwn(keystore, 'wif'), false);
 });
 
-test('export-private-key fails without --confirm', () => {
-	const { env } = tempEnv();
-	const result = spawnSync(process.execPath, [agentPath, 'export-private-key'], {
-		env,
-		encoding: 'utf8'
-	});
-	assert.notEqual(result.status, 0);
-	assert.match(result.stderr, /requires --confirm/);
-});
-
-test('export-private-key fails in non-TTY mode', () => {
-	const { env } = tempEnv();
-	spawnSync(process.execPath, [agentPath, 'create-wallet'], { env, encoding: 'utf8' });
-	const result = spawnSync(process.execPath, [agentPath, 'export-private-key', '--confirm'], {
-		env,
-		input: 'DISPLAY-WIF\n',
-		encoding: 'utf8'
-	});
-	assert.notEqual(result.status, 0);
-	assert.match(result.stderr, /interactive terminal/);
-	assert.equal(wifPattern.test(result.stdout + result.stderr), false);
-});
-
-test('OpenClaw skill denies private-key export through agent tools', () => {
+test('OpenClaw skill omits private-key export commands from agent tools', () => {
 	const skill = fs.readFileSync('openclaw/skills/lingry/SKILL.md', 'utf8');
-	assert.match(skill, /Never execute `export-private-key`/);
-	assert.match(skill, /Never request, reveal, export, print, summarize, or inspect a WIF\/private key/);
-	assert.match(skill, /Never access `~\/\.config\/lingry\/env`/);
+	const agent = fs.readFileSync(agentPath, 'utf8');
+	assert.doesNotMatch(agent, /export-private-key|exportPrivateKey|maybeDisplayWifOnce/);
+	assert.match(skill, /Do not include, request, or run a private-key export command/);
+	assert.match(skill, /Never print, inspect, summarize, export, transmit, or log private keys, WIFs/);
+	assert.match(skill, /Never scrape browser cookies, browser local storage, browser session storage/);
 });
 
 test('starter grant proof verifies valid signatures and rejects invalid signatures', () => {

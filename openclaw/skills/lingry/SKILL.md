@@ -55,7 +55,9 @@ Source relationship: adapted from the Lingry OpenClaw plugin implementation in t
 Run commands from the installed `skills/lingry` folder:
 
 ```bash
+node bin/lingry-agent.mjs status
 node bin/lingry-agent.mjs doctor
+node bin/lingry-agent.mjs auth-status
 node bin/lingry-agent.mjs create-wallet
 node bin/lingry-agent.mjs address
 node bin/lingry-agent.mjs claim-starter-grant
@@ -67,6 +69,27 @@ node bin/lingry-agent.mjs create-word-draft <term> <part-of-speech> <meaning>
 
 `coin-it` broadcasts a transaction and must only be run after the user explicitly confirms the exact action, fee, network, wallet address, and payload summary. The command itself requires `--confirm-broadcast`.
 
+## Anonymous And Authenticated Commands
+
+These commands work anonymously or only use local wallet state:
+
+- `status`
+- `doctor`
+- `auth-status`
+- `create-wallet`
+- `address`
+- `claim-starter-grant`
+- `list-words`
+
+These commands require `LINGRY_SESSION_TOKEN`:
+
+- `generate-word`
+- `prompt-word`
+- `create-word-draft`
+- `coin-it --confirm-broadcast`
+
+`LINGRY_SESSION_TOKEN` must be obtained through the deliberate Lingry browser/account `API Session` flow. It is optional in the skill metadata because public read commands and local wallet checks do not require it.
+
 ## Safety Rules
 
 - Never print, inspect, summarize, export, transmit, or log private keys, WIFs, seed phrases, wallet passphrases, keystore contents, API tokens, or environment dumps.
@@ -75,6 +98,7 @@ node bin/lingry-agent.mjs create-word-draft <term> <part-of-speech> <meaning>
 - Never use or request Lingry funding-wallet WIFs, Cloudflare deployment tokens, Sugarchain RPC passwords, or backend administration credentials.
 - Never silently install cron jobs, services, or background workers.
 - Never use `curl | bash`, `wget | bash`, opaque remote installers, or a runtime clone of the full Lingry repository.
+- Never scrape browser cookies, browser local storage, browser session storage, or profile files to obtain a Lingry session token.
 - Never claim a starter grant, coining transaction, tip, or payment succeeded unless the API or node response confirms it.
 - Do not invent balances, confirmations, addresses, transaction IDs, or payment outcomes.
 

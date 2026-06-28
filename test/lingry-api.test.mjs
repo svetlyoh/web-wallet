@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
+import crypto from 'node:crypto';
 import bitcoin from 'bitcoinjs-lib';
 import {
 	assertNoPrivateKeyFields,
@@ -83,9 +84,26 @@ test('likes are one-per-wallet and like/unlike are idempotent as a set operation
 test('expired/reused challenges and invalid signatures are rejected by verifier contract', async () => {
 	const invalid = await SugarchainMessageVerifier.verify({ signature: 'bad', nonce: 'nonce_1', env: { LINGRY_ENABLE_DEV_SIGNATURES: 'true' } });
 	assert.equal(invalid.ok, false);
-	const unavailable = await SugarchainMessageVerifier.verify({ signature: 'anything', nonce: 'nonce_1', env: {} });
-	assert.equal(unavailable.ok, false);
-	assert.equal(unavailable.status, 501);
+	const invalidReal = await SugarchainMessageVerifier.verify({ signature: 'anything', nonce: 'nonce_1', env: {} });
+	assert.equal(invalidReal.ok, false);
+	assert.equal(invalidReal.status, 401);
+});
+
+test('wallet-signed auth challenge verifies against public key and address', async () => {
+	const key = bitcoin.ECPair.makeRandom({ network: sugarNetwork });
+	const address = bitcoin.payments.p2wpkh({ pubkey: key.publicKey, network: sugarNetwork }).address;
+	const message = 'Lingry API authentication\nNonce: nonce_1';
+	const digest = crypto.createHash('sha256').update(message).digest();
+	const signature = key.sign(digest).toString('hex');
+	const verified = await SugarchainMessageVerifier.verify({
+		address,
+		publicKey: key.publicKey.toString('hex'),
+		message,
+		signature,
+		nonce: 'nonce_1',
+		env: {}
+	});
+	assert.equal(verified.ok, true);
 });
 
 test('no API route accepts WIF or private-key input objects', () => {

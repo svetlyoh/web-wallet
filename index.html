@@ -1907,6 +1907,9 @@
 									<a class="nav-link tab-link" data-tab-name="wallet-keys" data-tab-family="wallet-block" href="#" tkey="keys"></a>
 								</li>
 								<li class="nav-item mr-2">
+									<a class="nav-link tab-link" data-tab-name="wallet-api-session" data-tab-family="wallet-block" href="#">API Session</a>
+								</li>
+								<li class="nav-item mr-2">
 									<a class="nav-link tab-link" data-tab-name="wallet-sugarwords" data-tab-family="wallet-block" href="#">AI Generate</a>
 								</li>
 								<li class="nav-item mr-2">
@@ -1958,6 +1961,7 @@
 										<div class="lingry-stream-body">
 											<div id="lingry-stream-menu" class="lingry-stream-menu d-none">
 												<button type="button" class="lingry-menu-item" data-lingry-tab="wallet-keys">Keys</button>
+												<button type="button" class="lingry-menu-item" data-lingry-tab="wallet-api-session">API Session</button>
 												<button type="button" class="lingry-menu-item" data-lingry-share-app="true">Share Lingry</button>
 												<label class="lingry-menu-language-wrap" for="lingry-language-select">
 													<span>Language for new words</span>
@@ -2086,6 +2090,36 @@
 												<input class="form-control" readonly type="text">
 											</div>
 										</div>
+									</div>
+								</div>
+							</div>
+
+							<div class="tab-item d-none" data-tab="wallet-api-session">
+								<div id="wallet-api-session" class="ai-ledger">
+									<div class="ai-ledger-header">
+										<div>
+											<div class="ai-ledger-title">API Session</div>
+											<div class="ai-ledger-subtitle">Create or revoke a short-lived Lingry API token for local tools.</div>
+										</div>
+										<div class="lingry-tool-nav">
+											<button type="button" class="lingry-tool-stream" data-lingry-tab="wallet-keys">Keys</button>
+											<button type="button" class="lingry-tool-stream" data-lingry-tab="wallet-balance">Stream</button>
+											<button type="button" class="lingry-tool-stream" data-lingry-open-menu="true">Menu</button>
+										</div>
+									</div>
+
+									<div id="lingry-api-session-status" class="alert alert-secondary ai-ledger-status" role="alert">No API session token created in this browser view.</div>
+
+									<div class="ai-ledger-section">
+										<div class="text-left small text-muted pb-2">Use this only when you intend to configure a local OpenClaw skill. Never paste the token into chat, GitHub, shell history, or a shared file.</div>
+										<div class="ai-ledger-actions">
+											<button id="lingry-api-session-create" type="button" class="btn btn-outline-dark">Create API Session Token</button>
+											<button id="lingry-api-session-copy" type="button" class="btn btn-outline-dark" disabled>Copy Token</button>
+											<button id="lingry-api-session-revoke" type="button" class="btn btn-outline-danger" disabled>Revoke Token</button>
+										</div>
+										<label for="lingry-api-session-token" class="mt-3">Session token</label>
+										<textarea id="lingry-api-session-token" class="form-control ai-ledger-code" rows="4" readonly placeholder="Create a token to show it once here."></textarea>
+										<div class="text-muted small pt-2">Expires: <span id="lingry-api-session-expiry">unknown</span></div>
 									</div>
 								</div>
 							</div>
@@ -3656,6 +3690,122 @@
 				}
 				$('#lingry-session-key-value').focus().select()
 				showMessage('Key selected. Copy it now.')
+			}
+
+			var lingryApiSessionToken = ''
+
+			function setLingryApiSessionStatus(message, variant) {
+				$('#lingry-api-session-status')
+					.removeClass('alert-secondary alert-success alert-warning alert-danger alert-info')
+					.addClass('alert-' + (variant || 'secondary'))
+					.text(message)
+			}
+
+			function updateLingryApiSessionUi(token, expiresAt) {
+				lingryApiSessionToken = token || ''
+				$('#lingry-api-session-token').val(lingryApiSessionToken)
+				$('#lingry-api-session-expiry').text(expiresAt || 'unknown')
+				$('#lingry-api-session-copy, #lingry-api-session-revoke').prop('disabled', !lingryApiSessionToken)
+			}
+
+			function lingryApiJson(path, options) {
+				options = options || {}
+				var headers = $.extend({
+					'content-type': 'application/json'
+				}, options.headers || {})
+				if (options.method && options.method != 'GET' && !headers['idempotency-key']) {
+					headers['idempotency-key'] = 'lingry-browser-' + Date.now() + '-' + Math.random().toString(16).slice(2)
+				}
+				return fetch(path, $.extend({}, options, { headers: headers })).then(function(response) {
+					return response.json().catch(function() {
+						return null
+					}).then(function(json) {
+						if (!response.ok || !json || json.ok === false) {
+							var message = json && json.error && (json.error.message || json.error) || response.statusText || 'Lingry API request failed.'
+							throw new Error(message)
+						}
+						return json.data || json
+					})
+				})
+			}
+
+			function lingryChallengeSignature(message) {
+				var digestHex = sha256.create().update(message).hex()
+				var signature = globalData.keys.sign(bitcoin.Buffer.from(digestHex, 'hex'))
+				return signature.toString('hex')
+			}
+
+			function createLingryApiSession() {
+				if (!globalData.keys || !globalData.address) {
+					setLingryApiSessionStatus('Login before creating an API session token.', 'warning')
+					return
+				}
+				setLingryApiSessionStatus('Creating API session challenge.', 'info')
+				updateLingryApiSessionUi('', '')
+				var publicKey = globalData.keys.publicKey.toString('hex')
+				return lingryApiJson('/v1/auth/challenge', {
+					method: 'POST',
+					body: JSON.stringify({
+						address: globalData.address,
+						public_key: publicKey,
+						client_name: 'Lingry browser account flow',
+						requested_scopes: ['words:create']
+					})
+				}).then(function(challenge) {
+					var signature = lingryChallengeSignature(challenge.message)
+					return lingryApiJson('/v1/auth/verify', {
+						method: 'POST',
+						body: JSON.stringify({
+							challenge_id: challenge.challenge_id,
+							address: globalData.address,
+							public_key: publicKey,
+							signature: signature
+						})
+					})
+				}).then(function(session) {
+					updateLingryApiSessionUi(session.session_token || '', session.expires_at || '')
+					setLingryApiSessionStatus('API session token created. Copy it into your local OpenClaw environment only.', 'success')
+				}).catch(function(error) {
+					updateLingryApiSessionUi('', '')
+					setLingryApiSessionStatus(error && error.message ? error.message : 'API session token creation failed.', 'danger')
+				})
+			}
+
+			function copyLingryApiSessionToken() {
+				if (!lingryApiSessionToken) {
+					return
+				}
+				if (navigator.clipboard && navigator.clipboard.writeText) {
+					navigator.clipboard.writeText(lingryApiSessionToken).then(function() {
+						setLingryApiSessionStatus('Token copied. Store it only in your local OpenClaw environment.', 'success')
+					}).catch(function() {
+						$('#lingry-api-session-token').focus().select()
+						setLingryApiSessionStatus('Clipboard copy failed. Select and copy the token from the box.', 'warning')
+					})
+					return
+				}
+				$('#lingry-api-session-token').focus().select()
+				setLingryApiSessionStatus('Token selected. Copy it now.', 'warning')
+			}
+
+			function revokeLingryApiSession() {
+				if (!lingryApiSessionToken) {
+					return
+				}
+				var token = lingryApiSessionToken
+				setLingryApiSessionStatus('Revoking API session token.', 'info')
+				return lingryApiJson('/v1/auth/logout', {
+					method: 'POST',
+					headers: {
+						authorization: 'Bearer ' + token
+					},
+					body: JSON.stringify({})
+				}).then(function() {
+					updateLingryApiSessionUi('', '')
+					setLingryApiSessionStatus('API session token revoked.', 'success')
+				}).catch(function(error) {
+					setLingryApiSessionStatus(error && error.message ? error.message : 'Token revocation failed.', 'danger')
+				})
 			}
 
 			function maybeFundLingryWallet(balanceSatoshis, justCreated) {
@@ -6114,6 +6264,8 @@
 				sugarWordsState.transaction = null
 				sugarWordsState.utxos = []
 				$('#lingry-session-key-card').addClass('d-none')
+				updateLingryApiSessionUi('', '')
+				setLingryApiSessionStatus('No API session token created in this browser view.', 'secondary')
 				updateLingrySignedInUi()
 				updateSugarWordsWalletContext()
 				setHomeTitle()
@@ -6396,6 +6548,21 @@
 
 				$('#lingry-session-key-copy').click(function(e) {
 					copyLingrySessionKey()
+					e.preventDefault()
+				})
+
+				$('#lingry-api-session-create').click(function(e) {
+					createLingryApiSession()
+					e.preventDefault()
+				})
+
+				$('#lingry-api-session-copy').click(function(e) {
+					copyLingryApiSessionToken()
+					e.preventDefault()
+				})
+
+				$('#lingry-api-session-revoke').click(function(e) {
+					revokeLingryApiSession()
 					e.preventDefault()
 				})
 

@@ -481,6 +481,14 @@ export class ActorDO extends SqlDoBase {
 				this.storeSession(body);
 				return responseData({ stored: true });
 			}
+			if (url.pathname === '/session' && request.method === 'GET') {
+				return responseData({ session: this.getSession(url.searchParams.get('sid') || '') });
+			}
+			const sessionDelete = url.pathname.match(/^\/session\/([^/]+)$/);
+			if (sessionDelete && request.method === 'DELETE') {
+				this.deleteSession(sessionDelete[1]);
+				return responseData({ revoked: true });
+			}
 			if (url.pathname === '/wallet' && request.method === 'POST') {
 				return responseData(this.registerWallet(body), 201);
 			}
@@ -538,6 +546,7 @@ export class ActorDO extends SqlDoBase {
 		}
 		const verified = await SugarchainMessageVerifier.verify({
 			address: row.address,
+			publicKey: body.public_key,
 			message: row.message,
 			nonce: row.nonce,
 			signature: normalizeText(body.signature),
@@ -556,6 +565,23 @@ export class ActorDO extends SqlDoBase {
 	storeSession(body) {
 		const session = body.session || {};
 		sqlRun(this.state.storage, 'INSERT OR REPLACE INTO sessions (sid, address, scopes, expires_at, created_at) VALUES (?, ?, ?, ?, ?)', session.sid, session.address, JSON.stringify(session.scopes || []), Number(session.exp || 0), nowIso());
+	}
+
+	getSession(sid) {
+		const row = sqlFirst(this.state.storage, 'SELECT * FROM sessions WHERE sid = ?', normalizeText(sid));
+		if (!row || Number(row.expires_at) < Math.floor(Date.now() / 1000)) {
+			return null;
+		}
+		return {
+			sid: row.sid,
+			address: row.address,
+			scopes: JSON.parse(row.scopes || '[]'),
+			expires_at: new Date(Number(row.expires_at) * 1000).toISOString()
+		};
+	}
+
+	deleteSession(sid) {
+		sqlRun(this.state.storage, 'DELETE FROM sessions WHERE sid = ?', normalizeText(sid));
 	}
 
 	registerWallet(body) {
@@ -1240,17 +1266,43 @@ export class WebhookDO extends SqlDoBase {
 }
 
 export class SugarchainMessageVerifier {
-	static async verify({ signature, nonce, env }) {
+	static async verify({ address, publicKey, message, signature, nonce, env }) {
 		if (String(env.LINGRY_ENABLE_DEV_SIGNATURES || '').toLowerCase() === 'true') {
 			return signature === 'dev:' + nonce
 				? { ok: true }
 				: { ok: false, message: 'Invalid development signature.' };
 		}
-		return {
-			ok: false,
-			status: 501,
-			message: 'Sugarchain wallet-message signature verification is not wired yet. The verifier interface rejects by default until a compatible real-wallet verifier is installed.'
-		};
+		try {
+			const pubkey = Buffer.from(normalizeText(publicKey), 'hex');
+			const sig = Buffer.from(normalizeText(signature), 'hex');
+			if (!pubkey.length || !sig.length) {
+				return { ok: false, status: 401, message: 'Public key and signature are required.' };
+			}
+			const candidateAddresses = new Set();
+			const p2wpkh = bitcoin.payments.p2wpkh({ pubkey, network: sugarNetwork });
+			if (p2wpkh.address) {
+				candidateAddresses.add(p2wpkh.address);
+				const p2sh = bitcoin.payments.p2sh({ redeem: p2wpkh, network: sugarNetwork });
+				if (p2sh.address) {
+					candidateAddresses.add(p2sh.address);
+				}
+			}
+			const p2pkh = bitcoin.payments.p2pkh({ pubkey, network: sugarNetwork });
+			if (p2pkh.address) {
+				candidateAddresses.add(p2pkh.address);
+			}
+			if (!candidateAddresses.has(normalizeText(address))) {
+				return { ok: false, status: 401, message: 'Public key does not match the requested address.' };
+			}
+			const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(String(message || '')));
+			const key = bitcoin.ECPair.fromPublicKey(pubkey, { network: sugarNetwork });
+			if (!key.verify(Buffer.from(digest), sig)) {
+				return { ok: false, status: 401, message: 'Invalid challenge signature.' };
+			}
+			return { ok: true };
+		} catch (error) {
+			return { ok: false, status: 401, message: 'Invalid challenge signature.' };
+		}
 	}
 }
 
@@ -1275,6 +1327,10 @@ async function authenticate(request, env) {
 	}
 	const session = await verifySessionToken(env, match[1]);
 	if (!session) {
+		throw apiError('unauthorized', 'Session is invalid or expired.', 401);
+	}
+	const stored = await callDo(env.LINGRY_ACTOR, session.address, '/session?sid=' + encodeURIComponent(session.sid || ''), { method: 'GET' });
+	if (!stored.session) {
 		throw apiError('unauthorized', 'Session is invalid or expired.', 401);
 	}
 	return session;
@@ -1359,6 +1415,8 @@ async function handleApi(request, env) {
 			session = await authenticate(request, env);
 		}
 		if (url.pathname === '/v1/auth/logout' && request.method === 'POST') {
+			session = session || await authenticate(request, env);
+			await callDo(env.LINGRY_ACTOR, session.address, '/session/' + encodeURIComponent(session.sid || ''), { method: 'DELETE' });
 			return envelope({ logged_out: true }, 200, headers, id);
 		}
 		if (url.pathname === '/v1/me' && request.method === 'GET') {
@@ -1537,7 +1595,7 @@ export const OPENAPI = {
 	paths: {
 		'/v1/auth/challenge': { post: { summary: 'Create a Sugarchain wallet-signature challenge.' } },
 		'/v1/auth/verify': { post: { summary: 'Verify a signed challenge and mint a scoped session.' } },
-		'/v1/auth/logout': { post: { summary: 'Client-side session logout acknowledgement.' } },
+		'/v1/auth/logout': { post: { summary: 'Revoke the current API session token.' } },
 		'/v1/me': { get: { summary: 'Return the authenticated wallet identity.' } },
 		'/v1/wallets/register': { post: { summary: 'Register public wallet metadata.' } },
 		'/v1/wallets/me': { get: { summary: 'Return registered wallet metadata.' } },
