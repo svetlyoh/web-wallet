@@ -1064,6 +1064,20 @@
 				display: grid;
 				gap: 9px;
 			}
+			.lingry-stream-load-more {
+				min-height: 48px;
+				border: 1px solid rgba(10, 99, 61, 0.18);
+				border-radius: 14px;
+				background: #e8f8ee;
+				color: #073d2d;
+				font-weight: 900;
+				width: 100%;
+				box-shadow: 0 8px 18px rgba(7, 75, 48, 0.08);
+			}
+			.lingry-stream-load-more:focus {
+				outline: 3px solid rgba(84, 238, 149, 0.42);
+				outline-offset: 2px;
+			}
 			.lingry-feed-card {
 				background: rgba(255, 255, 255, 0.88);
 				border: 1px solid rgba(10, 99, 61, 0.13);
@@ -1893,6 +1907,9 @@
 									<a class="nav-link tab-link" data-tab-name="wallet-keys" data-tab-family="wallet-block" href="#" tkey="keys"></a>
 								</li>
 								<li class="nav-item mr-2">
+									<a class="nav-link tab-link" data-tab-name="wallet-api-session" data-tab-family="wallet-block" href="#">API Session</a>
+								</li>
+								<li class="nav-item mr-2">
 									<a class="nav-link tab-link" data-tab-name="wallet-sugarwords" data-tab-family="wallet-block" href="#">AI Generate</a>
 								</li>
 								<li class="nav-item mr-2">
@@ -1944,6 +1961,7 @@
 										<div class="lingry-stream-body">
 											<div id="lingry-stream-menu" class="lingry-stream-menu d-none">
 												<button type="button" class="lingry-menu-item" data-lingry-tab="wallet-keys">Keys</button>
+												<button type="button" class="lingry-menu-item" data-lingry-tab="wallet-api-session">API Session</button>
 												<button type="button" class="lingry-menu-item" data-lingry-share-app="true">Share Lingry</button>
 												<label class="lingry-menu-language-wrap" for="lingry-language-select">
 													<span>Language for new words</span>
@@ -2072,6 +2090,36 @@
 												<input class="form-control" readonly type="text">
 											</div>
 										</div>
+									</div>
+								</div>
+							</div>
+
+							<div class="tab-item d-none" data-tab="wallet-api-session">
+								<div id="wallet-api-session" class="ai-ledger">
+									<div class="ai-ledger-header">
+										<div>
+											<div class="ai-ledger-title">API Session</div>
+											<div class="ai-ledger-subtitle">Create or revoke a short-lived Lingry API token for local tools.</div>
+										</div>
+										<div class="lingry-tool-nav">
+											<button type="button" class="lingry-tool-stream" data-lingry-tab="wallet-keys">Keys</button>
+											<button type="button" class="lingry-tool-stream" data-lingry-tab="wallet-balance">Stream</button>
+											<button type="button" class="lingry-tool-stream" data-lingry-open-menu="true">Menu</button>
+										</div>
+									</div>
+
+									<div id="lingry-api-session-status" class="alert alert-secondary ai-ledger-status" role="alert">No API session token created in this browser view.</div>
+
+									<div class="ai-ledger-section">
+										<label for="lingry-api-session-token">Session token</label>
+										<textarea id="lingry-api-session-token" class="form-control ai-ledger-code" rows="4" readonly placeholder="Create a token to show it once here."></textarea>
+										<div class="text-muted small pt-2">Expires: <span id="lingry-api-session-expiry">unknown</span></div>
+										<div class="ai-ledger-actions mt-3">
+											<button id="lingry-api-session-create" type="button" class="btn btn-outline-dark">Create API Session Token</button>
+											<button id="lingry-api-session-copy" type="button" class="btn btn-outline-dark" disabled>Copy Token</button>
+											<button id="lingry-api-session-revoke" type="button" class="btn btn-outline-danger" disabled>Revoke Token</button>
+										</div>
+										<div class="text-left small text-muted pt-2">Use this only when you intend to configure a local OpenClaw skill. Never paste the token into chat, GitHub, shell history, or a shared file.</div>
 									</div>
 								</div>
 							</div>
@@ -3644,6 +3692,122 @@
 				showMessage('Key selected. Copy it now.')
 			}
 
+			var lingryApiSessionToken = ''
+
+			function setLingryApiSessionStatus(message, variant) {
+				$('#lingry-api-session-status')
+					.removeClass('alert-secondary alert-success alert-warning alert-danger alert-info')
+					.addClass('alert-' + (variant || 'secondary'))
+					.text(message)
+			}
+
+			function updateLingryApiSessionUi(token, expiresAt) {
+				lingryApiSessionToken = token || ''
+				$('#lingry-api-session-token').val(lingryApiSessionToken)
+				$('#lingry-api-session-expiry').text(expiresAt || 'unknown')
+				$('#lingry-api-session-copy, #lingry-api-session-revoke').prop('disabled', !lingryApiSessionToken)
+			}
+
+			function lingryApiJson(path, options) {
+				options = options || {}
+				var headers = $.extend({
+					'content-type': 'application/json'
+				}, options.headers || {})
+				if (options.method && options.method != 'GET' && !headers['idempotency-key']) {
+					headers['idempotency-key'] = 'lingry-browser-' + Date.now() + '-' + Math.random().toString(16).slice(2)
+				}
+				return fetch(path, $.extend({}, options, { headers: headers })).then(function(response) {
+					return response.json().catch(function() {
+						return null
+					}).then(function(json) {
+						if (!response.ok || !json || json.ok === false) {
+							var message = json && json.error && (json.error.message || json.error) || response.statusText || 'Lingry API request failed.'
+							throw new Error(message)
+						}
+						return json.data || json
+					})
+				})
+			}
+
+			function lingryChallengeSignature(message) {
+				var digestHex = sha256.create().update(message).hex()
+				var signature = globalData.keys.sign(bitcoin.Buffer.from(digestHex, 'hex'))
+				return signature.toString('hex')
+			}
+
+			function createLingryApiSession() {
+				if (!globalData.keys || !globalData.address) {
+					setLingryApiSessionStatus('Login before creating an API session token.', 'warning')
+					return
+				}
+				setLingryApiSessionStatus('Creating API session challenge.', 'info')
+				updateLingryApiSessionUi('', '')
+				var publicKey = globalData.keys.publicKey.toString('hex')
+				return lingryApiJson('/v1/auth/challenge', {
+					method: 'POST',
+					body: JSON.stringify({
+						address: globalData.address,
+						public_key: publicKey,
+						client_name: 'Lingry browser account flow',
+						requested_scopes: ['words:create']
+					})
+				}).then(function(challenge) {
+					var signature = lingryChallengeSignature(challenge.message)
+					return lingryApiJson('/v1/auth/verify', {
+						method: 'POST',
+						body: JSON.stringify({
+							challenge_id: challenge.challenge_id,
+							address: globalData.address,
+							public_key: publicKey,
+							signature: signature
+						})
+					})
+				}).then(function(session) {
+					updateLingryApiSessionUi(session.session_token || '', session.expires_at || '')
+					setLingryApiSessionStatus('API session token created. Copy it into your local OpenClaw environment only.', 'success')
+				}).catch(function(error) {
+					updateLingryApiSessionUi('', '')
+					setLingryApiSessionStatus(error && error.message ? error.message : 'API session token creation failed.', 'danger')
+				})
+			}
+
+			function copyLingryApiSessionToken() {
+				if (!lingryApiSessionToken) {
+					return
+				}
+				if (navigator.clipboard && navigator.clipboard.writeText) {
+					navigator.clipboard.writeText(lingryApiSessionToken).then(function() {
+						setLingryApiSessionStatus('Token copied. Store it only in your local OpenClaw environment.', 'success')
+					}).catch(function() {
+						$('#lingry-api-session-token').focus().select()
+						setLingryApiSessionStatus('Clipboard copy failed. Select and copy the token from the box.', 'warning')
+					})
+					return
+				}
+				$('#lingry-api-session-token').focus().select()
+				setLingryApiSessionStatus('Token selected. Copy it now.', 'warning')
+			}
+
+			function revokeLingryApiSession() {
+				if (!lingryApiSessionToken) {
+					return
+				}
+				var token = lingryApiSessionToken
+				setLingryApiSessionStatus('Revoking API session token.', 'info')
+				return lingryApiJson('/v1/auth/logout', {
+					method: 'POST',
+					headers: {
+						authorization: 'Bearer ' + token
+					},
+					body: JSON.stringify({})
+				}).then(function() {
+					updateLingryApiSessionUi('', '')
+					setLingryApiSessionStatus('API session token revoked.', 'success')
+				}).catch(function(error) {
+					setLingryApiSessionStatus(error && error.message ? error.message : 'Token revocation failed.', 'danger')
+				})
+			}
+
 			function maybeFundLingryWallet(balanceSatoshis, justCreated) {
 				if (!globalData.address) {
 					return
@@ -3705,7 +3869,8 @@
 			]
 			var LINGRY_STREAM_INITIAL_BLOCKS = 20000
 			var LINGRY_STREAM_SCAN_CHUNK_BLOCKS = 500
-			var LINGRY_STREAM_TARGET_RECORDS = 15
+			var LINGRY_STREAM_TARGET_RECORDS = 1000
+			var LINGRY_STREAM_PAGE_SIZE = 25
 			var LINGRY_STREAM_MAX_LOOKBACK_BLOCKS = 20000
 			var LINGRY_STREAM_REFRESH_LOOKBACK_BLOCKS = 5000
 			var LINGRY_STREAM_REFRESH_INTERVAL_MS = 5 * 60 * 1000
@@ -3720,6 +3885,7 @@
 				'lastRun': 0,
 				'coveredBlocks': 0,
 				'lastAdded': 0,
+				'visibleCount': LINGRY_STREAM_PAGE_SIZE,
 				'seen': {}
 			}
 
@@ -3781,7 +3947,8 @@
 			function saveLingryStreamSession() {
 				try {
 					window.sessionStorage.setItem('lingry.stream.cache.v1', JSON.stringify({
-						'records': lingryStreamScanState.records.slice(0, 120),
+						'records': lingryStreamScanState.records.slice(0, LINGRY_STREAM_TARGET_RECORDS),
+						'visibleCount': lingryStreamScanState.visibleCount || LINGRY_STREAM_PAGE_SIZE,
 						'coveredBlocks': lingryStreamScanState.coveredBlocks || 0,
 						'lastRun': lingryStreamScanState.lastRun || 0
 					}))
@@ -3797,6 +3964,7 @@
 					lingryStreamScanState.records = []
 					lingryStreamScanState.seen = {}
 					mergeLingryStreamRecords(records)
+					lingryStreamScanState.visibleCount = Math.max(LINGRY_STREAM_PAGE_SIZE, Number(cached.visibleCount || LINGRY_STREAM_PAGE_SIZE))
 					lingryStreamScanState.coveredBlocks = Number(cached.coveredBlocks || 0)
 					lingryStreamScanState.lastRun = Number(cached.lastRun || 0)
 				} catch (error) {
@@ -3824,7 +3992,7 @@
 				if (added) {
 					lingryStreamScanState.records = lingryStreamScanState.records.sort(function(a, b) {
 						return lingryStreamRecordTimeValue(b) - lingryStreamRecordTimeValue(a)
-					}).slice(0, 120)
+					}).slice(0, LINGRY_STREAM_TARGET_RECORDS)
 					saveLingryStreamSession()
 				}
 				return added
@@ -4502,7 +4670,7 @@
 				if (records.length) {
 					return records.sort(function(a, b) {
 						return lingryStreamRecordTimeValue(b) - lingryStreamRecordTimeValue(a)
-					}).slice(0, 20)
+					})
 				}
 				if (lingryStreamScanState.running) {
 					return [{
@@ -4526,8 +4694,11 @@
 					return
 				}
 				var records = lingryStreamRecords()
-				lingryShareRecords = records
-				var cards = records.map(function(record, index) {
+				var hasRealRecords = records.length && records[0].status != 'sample' && records[0].status != 'live scan'
+				var visibleCount = Math.max(LINGRY_STREAM_PAGE_SIZE, Number(lingryStreamScanState.visibleCount || LINGRY_STREAM_PAGE_SIZE))
+				var visibleRecords = hasRealRecords ? records.slice(0, visibleCount) : records
+				lingryShareRecords = visibleRecords
+				var cards = visibleRecords.map(function(record, index) {
 					var word = record.word || 'aaa'
 					var meaning = record.meaning || 'meaning pending'
 					var social = lingryRecordSocial(record)
@@ -4555,10 +4726,18 @@
 						'</div>' : '') +
 					'</article>'
 				})
+				if (hasRealRecords && visibleRecords.length < records.length) {
+					var nextCount = Math.min(LINGRY_STREAM_PAGE_SIZE, records.length - visibleRecords.length)
+					cards.push('<button type="button" class="lingry-stream-load-more" data-lingry-stream-load-more>Load more words (' + nextCount + ')</button>')
+				}
 				feeds.html(cards.join(''))
-				$('#lingry-stream-count, #lingry-public-stream-count').text(lingryStreamScanState.status || (records.length + ' post' + (records.length == 1 ? '' : 's')))
+				var countText = lingryStreamScanState.status || (records.length + ' post' + (records.length == 1 ? '' : 's'))
+				if (hasRealRecords && visibleRecords.length < records.length) {
+					countText = visibleRecords.length + ' of ' + records.length + ' posts'
+				}
+				$('#lingry-stream-count, #lingry-public-stream-count').text(countText)
 				if (!skipSocialRefresh) {
-					refreshLingrySocialForRecords(records, false)
+					refreshLingrySocialForRecords(visibleRecords, false)
 				}
 			}
 
@@ -6085,6 +6264,8 @@
 				sugarWordsState.transaction = null
 				sugarWordsState.utxos = []
 				$('#lingry-session-key-card').addClass('d-none')
+				updateLingryApiSessionUi('', '')
+				setLingryApiSessionStatus('No API session token created in this browser view.', 'secondary')
 				updateLingrySignedInUi()
 				updateSugarWordsWalletContext()
 				setHomeTitle()
@@ -6257,6 +6438,16 @@
 					e.preventDefault()
 				})
 
+				$(document).on('click', '[data-lingry-stream-load-more]', function(e) {
+					lingryStreamScanState.visibleCount = Math.min(
+						LINGRY_STREAM_TARGET_RECORDS,
+						Math.max(LINGRY_STREAM_PAGE_SIZE, Number(lingryStreamScanState.visibleCount || LINGRY_STREAM_PAGE_SIZE)) + LINGRY_STREAM_PAGE_SIZE
+					)
+					saveLingryStreamSession()
+					renderLingryStream(false)
+					e.preventDefault()
+				})
+
 				$('#lingry-menu-toggle').click(function(e) {
 					setLingryMenuOpen($('#lingry-stream-menu').hasClass('d-none'))
 					e.preventDefault()
@@ -6357,6 +6548,21 @@
 
 				$('#lingry-session-key-copy').click(function(e) {
 					copyLingrySessionKey()
+					e.preventDefault()
+				})
+
+				$('#lingry-api-session-create').click(function(e) {
+					createLingryApiSession()
+					e.preventDefault()
+				})
+
+				$('#lingry-api-session-copy').click(function(e) {
+					copyLingryApiSessionToken()
+					e.preventDefault()
+				})
+
+				$('#lingry-api-session-revoke').click(function(e) {
+					revokeLingryApiSession()
 					e.preventDefault()
 				})
 
