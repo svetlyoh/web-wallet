@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.3
+
+- Add first-launch OpenClaw setup instructions for ownership repair, wallet import, session-token storage, gateway restart, and terminal testing.
+
 ## 1.0.2
 
 - Align `verify-install` with the exact file list ClawHub publishes and installs.

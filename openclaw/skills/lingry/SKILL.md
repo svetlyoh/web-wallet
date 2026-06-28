@@ -1,7 +1,7 @@
 ---
 name: lingry
 description: Create, discover, and coin Lingry words with a local Sugarchain wallet, explicit terminal approval, and no wallet-passphrase exposure to OpenClaw.
-version: 1.0.2
+version: 1.0.3
 homepage: https://lingry.net
 metadata:
   openclaw:
@@ -92,6 +92,61 @@ node bin/lingry-wallet.mjs approve <request-id>
 
 Wallet creation, wallet import, starter-grant signing, transaction signing, and broadcasting are terminal-only. The user must review the details and type `BROADCAST` before anything is signed or submitted.
 
+## First Launch In OpenClaw
+
+When a user first launches the Lingry skill, guide them through setup without asking them to paste secrets into chat:
+
+1. Open `https://lingry.net`, log in, open `Keys`, and copy the Lingry private/login key only for local terminal import.
+2. On the Ubuntu OpenClaw PC, fix ownership if previous commands used root:
+
+```bash
+sudo chown -R "$USER:$USER" "$HOME/.openclaw"
+sudo chown -R "$USER:$USER" "$HOME/.lingry" 2>/dev/null || true
+chmod 700 "$HOME/.openclaw"
+chmod 700 "$HOME/.lingry" 2>/dev/null || true
+chmod -R u+rwX,go-rwx "$HOME/.lingry" 2>/dev/null || true
+```
+
+3. Import the Lingry private/login key into the local encrypted OpenClaw wallet:
+
+```bash
+cd "$HOME/.openclaw/skills/lingry"
+unset LINGRY_WALLET_PASSPHRASE
+node bin/lingry-wallet.mjs import-wallet
+```
+
+The WIF/private key and wallet passphrase prompts are hidden; typed or pasted text will not appear.
+
+4. Verify the local wallet and token status:
+
+```bash
+cd "$HOME/.openclaw/skills/lingry" && node bin/lingry-wallet.mjs inspect && node bin/lingry-agent.mjs auth-status
+```
+
+5. Return to `https://lingry.net`, log in with the same Lingry private/login key, open `Menu` then `API Session`, create an API session token, and copy it.
+6. Put the token in the OpenClaw runtime environment file, not in chat:
+
+```bash
+nano "$HOME/.openclaw/.env"
+```
+
+Add or update this line:
+
+```bash
+LINGRY_SESSION_TOKEN=paste-token-here
+```
+
+Then run:
+
+```bash
+chmod 600 "$HOME/.openclaw/.env"
+openclaw gateway restart
+set -a && . "$HOME/.openclaw/.env" && set +a
+cd "$HOME/.openclaw/skills/lingry" && node bin/lingry-agent.mjs auth-status
+```
+
+If a direct terminal test without sourcing `.env` says `token_configured: false`, that only means the current shell has not loaded OpenClaw's runtime `.env`; source the file as shown above or test from OpenClaw after restarting the gateway.
+
 ## Anonymous And Authenticated Commands
 
 These commands work anonymously or only use local public wallet metadata:
@@ -126,7 +181,7 @@ These commands require `LINGRY_SESSION_TOKEN`:
 
 `LINGRY_SESSION_TOKEN` is needed for account-bound generation, candidate storage, draft creation, and candidate-based coining.
 
-Never paste the token into OpenClaw chat. Never place it in GitHub, `SKILL.md` examples, shell history, or a world-readable file. The user must obtain it through a deliberate Lingry browser/account flow. Do not implement or use browser-cookie scraping, browser-local-storage scraping, browser-session scraping, profile-file scraping, or automatic session-token extraction.
+Browser-created Lingry API session tokens last about 30 days. Never paste the token into OpenClaw chat. Never place it in GitHub, `SKILL.md` examples, shell history, or a world-readable file. The user must obtain it through a deliberate Lingry browser/account flow. Do not implement or use browser-cookie scraping, browser-local-storage scraping, browser-session scraping, profile-file scraping, or automatic session-token extraction.
 
 ## Safety Rules
 

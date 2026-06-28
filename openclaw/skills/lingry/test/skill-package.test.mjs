@@ -54,7 +54,7 @@ test('SKILL.md has ClawHub frontmatter and optional auth metadata', () => {
 	assert.match(skill, /LINGRY_SESSION_TOKEN[\s\S]*required: false/);
 	assert.match(skill, /Defaults to https:\/\/lingry\.net/);
 	assert.doesNotMatch(skill, /LINGRY_GRANT_WALLET_WIF|LINGRY_FUNDING_WIF/);
-	assert.doesNotMatch(skill, /LINGRY_WALLET_PASSPHRASE/);
+	assert.doesNotMatch(skill, /export\s+LINGRY_WALLET_PASSPHRASE|LINGRY_WALLET_PASSPHRASE=/);
 });
 
 test('README documents canonical package and no passphrase export', () => {
@@ -62,12 +62,12 @@ test('README documents canonical package and no passphrase export', () => {
 	assert.match(readme, /https:\/\/lingry\.net/);
 	assert.match(readme, /Optional Lingry Account Session/);
 	assert.match(readme, /node bin\/lingry-wallet\.mjs setup/);
-	assert.doesNotMatch(readme, /LINGRY_WALLET_PASSPHRASE|export-private-key|plugin-skills/);
+	assert.doesNotMatch(readme, /export\s+LINGRY_WALLET_PASSPHRASE|LINGRY_WALLET_PASSPHRASE=|export-private-key|plugin-skills/);
 });
 
 test('package includes required standalone executable text-source files', () => {
 	assert.equal(pkg.name, '@svetlyoh/lingry');
-	assert.equal(pkg.version, '1.0.2');
+	assert.equal(pkg.version, '1.0.3');
 	assert.equal(pkg.bin['lingry-agent'], 'bin/lingry-agent.mjs');
 	assert.equal(pkg.bin['lingry-wallet'], 'bin/lingry-wallet.mjs');
 	for (const relativePath of [

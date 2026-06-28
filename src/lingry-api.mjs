@@ -34,6 +34,7 @@ export const LINGRY_LANGUAGE_CODES = new Set(LINGRY_LANGUAGES.map(language => la
 const WRITE_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 const WRITE_ROUTES_WITHOUT_AUTH = new Set(['/v1/auth/challenge', '/v1/auth/verify', '/v1/internal/indexer/ingest']);
 const SUGAR_DECIMALS = 8;
+const SESSION_TOKEN_TTL_SECONDS = 30 * 24 * 60 * 60;
 const DEFAULT_CORS_ORIGINS = [
 	'http://localhost:8080',
 	'http://127.0.0.1:8080',
@@ -365,7 +366,7 @@ async function mintSessionToken(env, address, scopes) {
 		sid: randomId('sess'),
 		address,
 		scopes: Array.from(new Set(scopes || [])),
-		exp: Math.floor(Date.now() / 1000) + 3600
+		exp: Math.floor(Date.now() / 1000) + SESSION_TOKEN_TTL_SECONDS
 	};
 	const encoded = base64UrlText(JSON.stringify(payload));
 	const sig = await hmacBase64Url(secret, encoded);

@@ -717,13 +717,15 @@
 			.lingry-public-tool:not(.lingry-signed-in) .lingry-tool-logout,
 			.lingry-public-tool:not(.lingry-signed-in) [data-lingry-tab="wallet-send"],
 			.lingry-public-tool:not(.lingry-signed-in) [data-lingry-tab="wallet-keys"],
+			.lingry-public-tool:not(.lingry-signed-in) [data-lingry-tab="wallet-api-session"],
 			.lingry-public-tool:not(.lingry-signed-in) [data-lingry-history] {
 				display: none !important;
 			}
 			.lingry-wallet-open #sugarwords,
 			.lingry-wallet-open #sugarwords-prompt,
 			.lingry-wallet-open #wallet-send,
-			.lingry-wallet-open #wallet-keys {
+			.lingry-wallet-open #wallet-keys,
+			.lingry-wallet-open #wallet-api-session {
 				max-width: 390px;
 				min-height: 100vh;
 				margin: 0 auto;
@@ -737,7 +739,8 @@
 			.lingry-wallet-open #sugarwords .ai-ledger-header,
 			.lingry-wallet-open #sugarwords-prompt .ai-ledger-header,
 			.lingry-wallet-open #wallet-send .ai-ledger-header,
-			.lingry-wallet-open #wallet-keys .ai-ledger-header {
+			.lingry-wallet-open #wallet-keys .ai-ledger-header,
+			.lingry-wallet-open #wallet-api-session .ai-ledger-header {
 				position: relative;
 				display: grid;
 				grid-template-columns: minmax(0, 1fr);
@@ -752,7 +755,8 @@
 			.lingry-wallet-open #sugarwords .ai-ledger-header::after,
 			.lingry-wallet-open #sugarwords-prompt .ai-ledger-header::after,
 			.lingry-wallet-open #wallet-send .ai-ledger-header::after,
-			.lingry-wallet-open #wallet-keys .ai-ledger-header::after {
+			.lingry-wallet-open #wallet-keys .ai-ledger-header::after,
+			.lingry-wallet-open #wallet-api-session .ai-ledger-header::after {
 				content: "";
 				position: absolute;
 				inset: 0;
@@ -762,14 +766,16 @@
 			.lingry-wallet-open #sugarwords .ai-ledger-header > *,
 			.lingry-wallet-open #sugarwords-prompt .ai-ledger-header > *,
 			.lingry-wallet-open #wallet-send .ai-ledger-header > *,
-			.lingry-wallet-open #wallet-keys .ai-ledger-header > * {
+			.lingry-wallet-open #wallet-keys .ai-ledger-header > *,
+			.lingry-wallet-open #wallet-api-session .ai-ledger-header > * {
 				position: relative;
 				z-index: 1;
 			}
 			.lingry-wallet-open #sugarwords .ai-ledger-title,
 			.lingry-wallet-open #sugarwords-prompt .ai-ledger-title,
 			.lingry-wallet-open #wallet-send .ai-ledger-title,
-			.lingry-wallet-open #wallet-keys .ai-ledger-title {
+			.lingry-wallet-open #wallet-keys .ai-ledger-title,
+			.lingry-wallet-open #wallet-api-session .ai-ledger-title {
 				color: #fffdf4;
 				font-size: 26px;
 				line-height: 1.04;
@@ -780,7 +786,8 @@
 			.lingry-wallet-open #sugarwords .ai-ledger-subtitle,
 			.lingry-wallet-open #sugarwords-prompt .ai-ledger-subtitle,
 			.lingry-wallet-open #wallet-send .ai-ledger-subtitle,
-			.lingry-wallet-open #wallet-keys .ai-ledger-subtitle {
+			.lingry-wallet-open #wallet-keys .ai-ledger-subtitle,
+			.lingry-wallet-open #wallet-api-session .ai-ledger-subtitle {
 				color: rgba(255, 253, 244, 0.82);
 				font-size: 15px;
 				line-height: 1.35;
@@ -886,7 +893,8 @@
 				font-weight: 900;
 			}
 			.lingry-wallet-open #sugarwords .ai-ledger-status,
-			.lingry-wallet-open #sugarwords-prompt .ai-ledger-status {
+			.lingry-wallet-open #sugarwords-prompt .ai-ledger-status,
+			.lingry-wallet-open #wallet-api-session .ai-ledger-status {
 				margin: 12px 14px;
 				border: 1px solid rgba(10, 99, 61, 0.14);
 				border-radius: 16px;
@@ -897,7 +905,8 @@
 			.lingry-wallet-open #sugarwords .ai-ledger-section,
 			.lingry-wallet-open #sugarwords-prompt .ai-ledger-section,
 			.lingry-wallet-open #wallet-send .ai-ledger-section,
-			.lingry-wallet-open #wallet-keys .ai-ledger-section {
+			.lingry-wallet-open #wallet-keys .ai-ledger-section,
+			.lingry-wallet-open #wallet-api-session .ai-ledger-section {
 				margin: 12px 14px;
 				border: 1px solid rgba(10, 99, 61, 0.13);
 				border-radius: 18px;
@@ -909,14 +918,16 @@
 				display: block;
 			}
 			.lingry-wallet-open #sugarwords .ai-ledger-actions,
-			.lingry-wallet-open #sugarwords-prompt .ai-ledger-actions {
+			.lingry-wallet-open #sugarwords-prompt .ai-ledger-actions,
+			.lingry-wallet-open #wallet-api-session .ai-ledger-actions {
 				display: grid;
 				grid-template-columns: 1fr;
 				gap: 8px;
 				margin: 12px 14px;
 			}
 			.lingry-wallet-open #sugarwords .ai-ledger-actions .btn,
-			.lingry-wallet-open #sugarwords-prompt .ai-ledger-actions .btn {
+			.lingry-wallet-open #sugarwords-prompt .ai-ledger-actions .btn,
+			.lingry-wallet-open #wallet-api-session .ai-ledger-actions .btn {
 				min-height: 48px;
 				border-radius: 14px;
 				font-size: 15px;
@@ -932,14 +943,16 @@
 			.lingry-wallet-open #sugarwords-prompt .form-control,
 			.lingry-wallet-open #sugarwords-prompt .custom-select,
 			.lingry-wallet-open #wallet-send .form-control,
-			.lingry-wallet-open #wallet-keys .form-control {
+			.lingry-wallet-open #wallet-keys .form-control,
+			.lingry-wallet-open #wallet-api-session .form-control {
 				border-color: rgba(10, 99, 61, 0.18);
 				border-radius: 12px;
 				background: rgba(245, 255, 249, 0.92);
 				color: #043b2c;
 			}
 			.lingry-wallet-open #wallet-send label,
-			.lingry-wallet-open #wallet-keys label {
+			.lingry-wallet-open #wallet-keys label,
+			.lingry-wallet-open #wallet-api-session label {
 				color: #245c46;
 				font-size: 12px;
 				font-weight: 800;
@@ -2099,7 +2112,7 @@
 									<div class="ai-ledger-header">
 										<div>
 											<div class="ai-ledger-title">API Session</div>
-											<div class="ai-ledger-subtitle">Create or revoke a short-lived Lingry API token for local tools.</div>
+											<div class="ai-ledger-subtitle">Create or revoke a 30-day Lingry API token for local tools.</div>
 										</div>
 										<div class="lingry-tool-nav">
 											<button type="button" class="lingry-tool-stream" data-lingry-tab="wallet-keys">Keys</button>

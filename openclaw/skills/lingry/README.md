@@ -29,13 +29,30 @@ export LINGRY_MAX_AUTO_TIP_SATOSHIS="250000"
 
 ## First Wallet Setup
 
-Run wallet setup from a private Ubuntu terminal on the OpenClaw PC:
+Run wallet setup from a private Ubuntu terminal on the OpenClaw PC. If earlier commands were run as root or with `sudo`, first repair ownership:
 
 ```bash
-node bin/lingry-wallet.mjs setup
-node bin/lingry-agent.mjs address
-node bin/lingry-agent.mjs prepare-starter-grant
-node bin/lingry-wallet.mjs claim-grant <request-id>
+sudo chown -R "$USER:$USER" "$HOME/.openclaw"
+sudo chown -R "$USER:$USER" "$HOME/.lingry" 2>/dev/null || true
+chmod 700 "$HOME/.openclaw"
+chmod 700 "$HOME/.lingry" 2>/dev/null || true
+chmod -R u+rwX,go-rwx "$HOME/.lingry" 2>/dev/null || true
+```
+
+To use the same account as `lingry.net`, log in at `https://lingry.net`, open `Keys`, copy the private/login key, then import it locally:
+
+```bash
+cd "$HOME/.openclaw/skills/lingry"
+unset LINGRY_WALLET_PASSPHRASE
+node bin/lingry-wallet.mjs import-wallet
+```
+
+The WIF/private key and passphrase prompts are hidden. Typed or pasted text will not appear.
+
+Verify the wallet:
+
+```bash
+cd "$HOME/.openclaw/skills/lingry" && node bin/lingry-wallet.mjs inspect && node bin/lingry-agent.mjs auth-status
 ```
 
 The wallet helper refuses non-interactive runs. It asks for the wallet passphrase only in the terminal and never through OpenClaw chat, shell exports, `.env` files, services, or cron jobs.
@@ -46,7 +63,30 @@ The wallet helper refuses non-interactive runs. It asks for the wallet passphras
 
 Never paste the token into OpenClaw chat. Never place it in GitHub, `SKILL.md` examples, shell history, or a world-readable file. The user must obtain it through a deliberate Lingry browser/account flow. Do not use browser-cookie scraping, browser-local-storage scraping, browser-session scraping, profile-file scraping, or automatic session-token extraction.
 
-When you have a token, configure it only in a private local environment before running authenticated commands.
+Browser-created Lingry API session tokens last about 30 days. When you have a token, configure it only in a private local environment before running authenticated commands.
+
+First-time token setup:
+
+```bash
+nano "$HOME/.openclaw/.env"
+```
+
+Add or update:
+
+```bash
+LINGRY_SESSION_TOKEN=paste-token-here
+```
+
+Then secure the file, restart OpenClaw, and test from a terminal that has loaded the same `.env`:
+
+```bash
+chmod 600 "$HOME/.openclaw/.env"
+openclaw gateway restart
+set -a && . "$HOME/.openclaw/.env" && set +a
+cd "$HOME/.openclaw/skills/lingry" && node bin/lingry-agent.mjs auth-status
+```
+
+If `auth-status` says `token_configured: false` in a plain terminal, source `~/.openclaw/.env` as shown above. OpenClaw loads that file only for its own runtime after gateway restart.
 
 ## Commands
 
