@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.4
+
+- Clarify first-run setup: create or open a `lingry.net` wallet first, import the matching private/login key on Ubuntu OpenClaw, then configure the 30-day API session token.
+- Add stale OpenClaw gateway environment troubleshooting for cases where terminal `auth-status` accepts a new token but chat still reports an old expiry.
+
 ## 1.0.3
 
 - Add first-launch OpenClaw setup instructions for ownership repair, wallet import, session-token storage, gateway restart, and terminal testing.

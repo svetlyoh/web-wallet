@@ -1,7 +1,7 @@
 ---
 name: lingry
 description: Create, discover, and coin Lingry words with a local Sugarchain wallet, explicit terminal approval, and no wallet-passphrase exposure to OpenClaw.
-version: 1.0.3
+version: 1.0.4
 homepage: https://lingry.net
 metadata:
   openclaw:
@@ -96,7 +96,7 @@ Wallet creation, wallet import, starter-grant signing, transaction signing, and 
 
 When a user first launches the Lingry skill, guide them through setup without asking them to paste secrets into chat:
 
-1. Open `https://lingry.net`, log in, open `Keys`, and copy the Lingry private/login key only for local terminal import.
+1. Open `https://lingry.net`, create or open a Lingry wallet, log in, open `Menu` then `Keys`, and copy the Lingry private/login key only for local terminal import. The wallet address on `lingry.net` must match the wallet imported on the Ubuntu OpenClaw PC.
 2. On the Ubuntu OpenClaw PC, fix ownership if previous commands used root:
 
 ```bash
@@ -123,29 +123,80 @@ The WIF/private key and wallet passphrase prompts are hidden; typed or pasted te
 cd "$HOME/.openclaw/skills/lingry" && node bin/lingry-wallet.mjs inspect && node bin/lingry-agent.mjs auth-status
 ```
 
-5. Return to `https://lingry.net`, log in with the same Lingry private/login key, open `Menu` then `API Session`, create an API session token, and copy it.
-6. Put the token in the OpenClaw runtime environment file, not in chat:
+5. Return to `https://lingry.net`, log in with the same Lingry private/login key and matching wallet address, open `Menu` then `API Session`, create an API session token, and copy it. Browser-created tokens last about 30 days.
+6. Put the token in the OpenClaw runtime environment file with a hidden terminal prompt, not in chat:
 
 ```bash
-nano "$HOME/.openclaw/.env"
-```
+umask 077
+mkdir -p "$HOME/.openclaw"
 
-Add or update this line:
+read -rsp "Paste Lingry session token: " NEW_LINGRY_TOKEN
+printf '\n'
 
-```bash
-LINGRY_SESSION_TOKEN=paste-token-here
+tmpfile="$(mktemp)"
+[ -f "$HOME/.openclaw/.env" ] && grep -v '^LINGRY_SESSION_TOKEN=' "$HOME/.openclaw/.env" > "$tmpfile"
+printf 'LINGRY_SESSION_TOKEN=%s\n' "$NEW_LINGRY_TOKEN" >> "$tmpfile"
+mv "$tmpfile" "$HOME/.openclaw/.env"
+chmod 600 "$HOME/.openclaw/.env"
+
+unset NEW_LINGRY_TOKEN
+unset LINGRY_SESSION_TOKEN
 ```
 
 Then run:
 
 ```bash
-chmod 600 "$HOME/.openclaw/.env"
+systemctl --user unset-environment LINGRY_SESSION_TOKEN 2>/dev/null || true
 openclaw gateway restart
 set -a && . "$HOME/.openclaw/.env" && set +a
 cd "$HOME/.openclaw/skills/lingry" && node bin/lingry-agent.mjs auth-status
 ```
 
 If a direct terminal test without sourcing `.env` says `token_configured: false`, that only means the current shell has not loaded OpenClaw's runtime `.env`; source the file as shown above or test from OpenClaw after restarting the gateway.
+
+For future refreshes, tell the user to sign in to `https://lingry.net` with the same Lingry private/login key and matching wallet address, create a new token from `Menu` then `API Session`, repeat the hidden terminal paste flow above, and restart OpenClaw.
+
+## Troubleshooting Session Tokens
+
+If terminal `auth-status` accepts a new token but OpenClaw chat still reports an old expiry, the chat-side gateway is still using a stale environment. Do not ask the user to paste the token into chat. Give them this private terminal repair flow:
+
+```bash
+cd "$HOME/.openclaw/skills/lingry"
+
+umask 077
+mkdir -p "$HOME/.openclaw"
+
+read -rsp "Paste the NEW Lingry session token: " NEW_LINGRY_TOKEN
+printf '\n'
+
+tmpfile="$(mktemp)"
+[ -f "$HOME/.openclaw/.env" ] && grep -v '^LINGRY_SESSION_TOKEN=' "$HOME/.openclaw/.env" > "$tmpfile"
+printf 'LINGRY_SESSION_TOKEN=%s\n' "$NEW_LINGRY_TOKEN" >> "$tmpfile"
+mv "$tmpfile" "$HOME/.openclaw/.env"
+chmod 600 "$HOME/.openclaw/.env"
+
+unset LINGRY_SESSION_TOKEN
+unset NEW_LINGRY_TOKEN
+
+systemctl --user unset-environment LINGRY_SESSION_TOKEN 2>/dev/null || true
+openclaw gateway restart
+```
+
+Then verify:
+
+```bash
+cd "$HOME/.openclaw/skills/lingry"
+set -a && . "$HOME/.openclaw/.env" && set +a
+node bin/lingry-agent.mjs auth-status
+```
+
+If OpenClaw chat still shows the old expiry, restart the gateway process fully:
+
+```bash
+openclaw gateway stop
+sleep 3
+openclaw gateway start
+```
 
 ## Anonymous And Authenticated Commands
 
@@ -181,7 +232,7 @@ These commands require `LINGRY_SESSION_TOKEN`:
 
 `LINGRY_SESSION_TOKEN` is needed for account-bound generation, candidate storage, draft creation, and candidate-based coining.
 
-Browser-created Lingry API session tokens last about 30 days. Never paste the token into OpenClaw chat. Never place it in GitHub, `SKILL.md` examples, shell history, or a world-readable file. The user must obtain it through a deliberate Lingry browser/account flow. Do not implement or use browser-cookie scraping, browser-local-storage scraping, browser-session scraping, profile-file scraping, or automatic session-token extraction.
+Browser-created Lingry API session tokens last about 30 days. The user refreshes them by signing in to `https://lingry.net` with the same Lingry private/login key and matching wallet address, then opening `Menu` and `API Session`. Never paste the token into OpenClaw chat. Never place it in GitHub, `SKILL.md` examples, shell history, or a world-readable file. The user must obtain it through a deliberate Lingry browser/account flow. Do not implement or use browser-cookie scraping, browser-local-storage scraping, browser-session scraping, profile-file scraping, or automatic session-token extraction.
 
 ## Safety Rules
 

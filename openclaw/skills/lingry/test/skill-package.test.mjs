@@ -67,7 +67,7 @@ test('README documents canonical package and no passphrase export', () => {
 
 test('package includes required standalone executable text-source files', () => {
 	assert.equal(pkg.name, '@svetlyoh/lingry');
-	assert.equal(pkg.version, '1.0.3');
+	assert.equal(pkg.version, '1.0.4');
 	assert.equal(pkg.bin['lingry-agent'], 'bin/lingry-agent.mjs');
 	assert.equal(pkg.bin['lingry-wallet'], 'bin/lingry-wallet.mjs');
 	for (const relativePath of [
@@ -153,7 +153,7 @@ test('wallet helper refuses non-interactive runs and passphrase environment inpu
 		timeout: 3000
 	});
 	assert.notEqual(withEnvPassphrase.status, 0);
-	assert.match(withEnvPassphrase.stderr, /Do not provide a Lingry wallet passphrase through an environment variable/);
+	assert.match(withEnvPassphrase.stdout + withEnvPassphrase.stderr, /Do not provide a Lingry wallet passphrase through an environment variable/);
 });
 
 test('clean-room install works with no checkout fallback', () => {

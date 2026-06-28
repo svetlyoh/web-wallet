@@ -29,6 +29,8 @@ export LINGRY_MAX_AUTO_TIP_SATOSHIS="250000"
 
 ## First Wallet Setup
 
+Start on `https://lingry.net` before configuring OpenClaw. Create or open your Lingry wallet there, log in, open `Menu` then `Keys`, and keep the Lingry private/login key available only for the local Ubuntu terminal import. The wallet address on `lingry.net` must match the wallet you import on the Ubuntu OpenClaw PC.
+
 Run wallet setup from a private Ubuntu terminal on the OpenClaw PC. If earlier commands were run as root or with `sudo`, first repair ownership:
 
 ```bash
@@ -39,7 +41,7 @@ chmod 700 "$HOME/.lingry" 2>/dev/null || true
 chmod -R u+rwX,go-rwx "$HOME/.lingry" 2>/dev/null || true
 ```
 
-To use the same account as `lingry.net`, log in at `https://lingry.net`, open `Keys`, copy the private/login key, then import it locally:
+Import the same Lingry private/login key locally:
 
 ```bash
 cd "$HOME/.openclaw/skills/lingry"
@@ -67,26 +69,84 @@ Browser-created Lingry API session tokens last about 30 days. When you have a to
 
 First-time token setup:
 
-```bash
-nano "$HOME/.openclaw/.env"
-```
+1. Return to `https://lingry.net`.
+2. Log in with the same Lingry private/login key that you imported on the Ubuntu OpenClaw PC.
+3. Open `Menu` then `API Session`.
+4. Create a new API session token and copy it.
 
-Add or update:
-
-```bash
-LINGRY_SESSION_TOKEN=paste-token-here
-```
-
-Then secure the file, restart OpenClaw, and test from a terminal that has loaded the same `.env`:
+Paste the token into the OpenClaw runtime environment from a private Ubuntu terminal:
 
 ```bash
+umask 077
+mkdir -p "$HOME/.openclaw"
+
+read -rsp "Paste Lingry session token: " NEW_LINGRY_TOKEN
+printf '\n'
+
+tmpfile="$(mktemp)"
+[ -f "$HOME/.openclaw/.env" ] && grep -v '^LINGRY_SESSION_TOKEN=' "$HOME/.openclaw/.env" > "$tmpfile"
+printf 'LINGRY_SESSION_TOKEN=%s\n' "$NEW_LINGRY_TOKEN" >> "$tmpfile"
+mv "$tmpfile" "$HOME/.openclaw/.env"
 chmod 600 "$HOME/.openclaw/.env"
+
+unset NEW_LINGRY_TOKEN
+unset LINGRY_SESSION_TOKEN
+```
+
+Then restart OpenClaw and test from a terminal that has loaded the same `.env`:
+
+```bash
+systemctl --user unset-environment LINGRY_SESSION_TOKEN 2>/dev/null || true
 openclaw gateway restart
 set -a && . "$HOME/.openclaw/.env" && set +a
 cd "$HOME/.openclaw/skills/lingry" && node bin/lingry-agent.mjs auth-status
 ```
 
 If `auth-status` says `token_configured: false` in a plain terminal, source `~/.openclaw/.env` as shown above. OpenClaw loads that file only for its own runtime after gateway restart.
+
+To refresh an expired token later, sign in to `https://lingry.net` with the same Lingry private/login key and matching wallet address, create a new token from `Menu` then `API Session`, repeat the private terminal paste command above, and restart OpenClaw. Tokens are valid for about 30 days.
+
+## Troubleshooting OpenClaw Session Tokens
+
+If `node bin/lingry-agent.mjs auth-status` accepts the new token in your terminal but OpenClaw chat still reports an old expiry, OpenClaw is still running with a stale environment. Replace the token in `~/.openclaw/.env`, clear any user systemd copy, and restart the gateway:
+
+```bash
+cd "$HOME/.openclaw/skills/lingry"
+
+umask 077
+mkdir -p "$HOME/.openclaw"
+
+read -rsp "Paste the NEW Lingry session token: " NEW_LINGRY_TOKEN
+printf '\n'
+
+tmpfile="$(mktemp)"
+[ -f "$HOME/.openclaw/.env" ] && grep -v '^LINGRY_SESSION_TOKEN=' "$HOME/.openclaw/.env" > "$tmpfile"
+printf 'LINGRY_SESSION_TOKEN=%s\n' "$NEW_LINGRY_TOKEN" >> "$tmpfile"
+mv "$tmpfile" "$HOME/.openclaw/.env"
+chmod 600 "$HOME/.openclaw/.env"
+
+unset LINGRY_SESSION_TOKEN
+unset NEW_LINGRY_TOKEN
+
+systemctl --user unset-environment LINGRY_SESSION_TOKEN 2>/dev/null || true
+openclaw gateway restart
+```
+
+Verify the file OpenClaw should load:
+
+```bash
+cd "$HOME/.openclaw/skills/lingry"
+set -a && . "$HOME/.openclaw/.env" && set +a
+node bin/lingry-agent.mjs auth-status
+```
+
+If OpenClaw chat still shows the old expiry, restart the gateway process fully:
+
+```bash
+openclaw gateway stop
+sleep 3
+openclaw gateway start
+```
 
 ## Commands
 
