@@ -331,6 +331,7 @@ test('public leaderboard and stream read latest R2 snapshot without live scan', 
 		assert.equal(leaderboardJson.ok, true);
 		assert.equal(leaderboardJson.source, 'lingry-hourly-public-index');
 		assert.equal(leaderboardJson.leaderboard.words[0].word, 'desknosh');
+		assert.equal(Object.hasOwn(leaderboardJson.leaderboard.words[0], 'op_return_payload'), false);
 		assert.doesNotMatch(JSON.stringify(leaderboardJson), /secret|passphrase|rpc/i);
 		const stream = await worker.fetch(new Request('https://lingry.net/v1/stream?limit=10'), env, {});
 		assert.equal(stream.status, 200);

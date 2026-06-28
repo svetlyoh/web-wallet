@@ -2554,7 +2554,7 @@ async function handlePublicSnapshotRoute(request, env, kind) {
 	}
 	return jsonResponse(publicSnapshotEnvelope(snapshot, {
 		leaderboard: {
-			words: (snapshot.leaderboard?.words || []).slice(0, limit),
+			words: (snapshot.leaderboard?.words || []).slice(0, limit).map(publicLeaderboardWord),
 			addresses_by_likes: (snapshot.leaderboard?.addresses_by_likes || []).slice(0, limit),
 			addresses_by_tips: (snapshot.leaderboard?.addresses_by_tips || []).slice(0, limit),
 			addresses_by_words: (snapshot.leaderboard?.addresses_by_words || []).slice(0, limit)
