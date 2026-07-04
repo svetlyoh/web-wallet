@@ -36,11 +36,13 @@ For local development, copy `.dev.vars.example` to `.dev.vars` and replace place
 
 Production starter grants are disabled by default. Enable them only after configuring a dedicated, limited-balance grant wallet. Do not use a main treasury wallet.
 
-Secret name:
+Preferred secret name:
 
 ```powershell
 npx wrangler secret put LINGRY_GRANT_WALLET_WIF
 ```
+
+The Worker also accepts the legacy secret names `LINGRY_FUNDING_WIF` and `LINGRY_FAUCET_WIF` so an existing funding wallet secret can continue working during migration.
 
 Do not put the WIF value in GitHub, `wrangler.jsonc`, `.dev.vars.example`, docs, logs, Telegram, D1, KV, R2, or terminal transcripts.
 
@@ -55,7 +57,7 @@ LINGRY_GRANT_MAX_PER_IP_DAY=<positive integer>
 LINGRY_GRANT_FEE_SATOSHIS=<optional network fee>
 ```
 
-The Worker derives the public address from `LINGRY_GRANT_WALLET_WIF` before broadcasting and fails closed unless it matches `LINGRY_GRANT_FUNDING_ADDRESS`.
+The Worker derives the public address from `LINGRY_GRANT_WALLET_WIF` before broadcasting and fails closed unless it matches `LINGRY_GRANT_FUNDING_ADDRESS`. During migration, `LINGRY_FUNDING_ADDRESS` and `LINGRY_FAUCET_ADDRESS` are accepted as fallback public-address variables.
 
 Grant endpoints:
 

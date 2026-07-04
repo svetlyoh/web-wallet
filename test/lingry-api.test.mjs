@@ -282,6 +282,18 @@ test('OpenAPI specification reflects implemented routes', () => {
 	}
 });
 
+test('starter grant deployment config is enabled with funding limits', () => {
+	assert.equal(wrangler.vars.LINGRY_SUGAR_GRANTS_ENABLED, 'true');
+	assert.equal(wrangler.vars.LINGRY_GRANT_FUNDING_ADDRESS, wrangler.vars.LINGRY_FUNDING_ADDRESS);
+	assert.match(wrangler.vars.LINGRY_GRANT_FUNDING_ADDRESS, /^sugar1[0-9a-z]+$/);
+	assert.ok(Number(wrangler.vars.LINGRY_GRANT_DAILY_BUDGET_SUGAR) >= 0.025);
+	assert.ok(Number(wrangler.vars.LINGRY_GRANT_MONTHLY_BUDGET_SUGAR) >= 0.025);
+	assert.ok(Number(wrangler.vars.LINGRY_GRANT_MAX_PER_IP_DAY) > 0);
+	const source = fs.readFileSync(new URL('../src/worker.mjs', import.meta.url), 'utf8');
+	assert.match(source, /env\.LINGRY_GRANT_WALLET_WIF \|\| env\.LINGRY_FUNDING_WIF \|\| env\.LINGRY_FAUCET_WIF/);
+	assert.match(source, /env\.LINGRY_GRANT_FUNDING_ADDRESS \|\| env\.LINGRY_FUNDING_ADDRESS \|\| env\.LINGRY_FAUCET_ADDRESS/);
+});
+
 test('cron configuration and public index constants are hourly', () => {
 	assert.deepEqual(wrangler.triggers.crons, ['0 * * * *']);
 	const source = fs.readFileSync(new URL('../src/worker.mjs', import.meta.url), 'utf8');

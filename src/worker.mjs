@@ -2040,8 +2040,8 @@ async function handleWalletGrantClaim(request, env) {
 		if (monthlyBudget < LINGRY_NEW_WALLET_GRANT_SATOSHIS || await completedGrantTotalSince(env, month) + LINGRY_NEW_WALLET_GRANT_SATOSHIS > monthlyBudget) {
 			return grantUnavailable(env, context, 'Wallet was created successfully. The monthly starter grant budget is unavailable.');
 		}
-		const grantWif = String(env.LINGRY_GRANT_WALLET_WIF || '').trim();
-		const expectedAddress = normalizeAddress(env.LINGRY_GRANT_FUNDING_ADDRESS || '');
+		const grantWif = String(env.LINGRY_GRANT_WALLET_WIF || env.LINGRY_FUNDING_WIF || env.LINGRY_FAUCET_WIF || '').trim();
+		const expectedAddress = normalizeAddress(env.LINGRY_GRANT_FUNDING_ADDRESS || env.LINGRY_FUNDING_ADDRESS || env.LINGRY_FAUCET_ADDRESS || '');
 		if (!grantWif || !expectedAddress) {
 			return grantUnavailable(env, context, 'Wallet was created successfully. The starter grant wallet is not configured.');
 		}
