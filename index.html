@@ -3748,6 +3748,50 @@
 				return signature.toString('hex')
 			}
 
+			function claimLingryStarterGrant() {
+				if (!globalData.keys || !globalData.address) {
+					return Promise.resolve({
+						'startup_grant': {
+							'status': 'pending_or_unavailable',
+							'safe_message': 'Login with a Lingry wallet before requesting starter SUGAR.'
+						}
+					})
+				}
+				var publicKey = globalData.keys.publicKey.toString('hex')
+				var installationId = 'lingry-browser-wallet'
+				return lingryApiJson('/api/wallet-grants/challenge', {
+					'method': 'POST',
+					'body': JSON.stringify({
+						'address': globalData.address,
+						'public_key': publicKey,
+						'installation_id': installationId
+					})
+				}).then(function(challengeResponse) {
+					var challenge = challengeResponse || {}
+					var challengeGrant = challenge.startup_grant || challenge
+					if (!challenge.challenge && challengeGrant && challengeGrant.status == 'broadcasted') {
+						return {
+							'startup_grant': challengeGrant
+						}
+					}
+					if (!challenge || !challenge.challenge || !challenge.nonce || !challenge.claim_id) {
+						throw new Error(challengeGrant && challengeGrant.safe_message ? challengeGrant.safe_message : 'Starter grant challenge was not returned.')
+					}
+					var signature = lingryChallengeSignature(challenge.challenge)
+					return lingryApiJson('/api/wallet-grants/claim', {
+						'method': 'POST',
+						'body': JSON.stringify({
+							'claim_id': challenge.claim_id,
+							'address': globalData.address,
+							'public_key': publicKey,
+							'nonce': challenge.nonce,
+							'signature': signature,
+							'installation_id': installationId
+						})
+					})
+				})
+			}
+
 			function createLingryApiSession() {
 				if (!globalData.keys || !globalData.address) {
 					setLingryAuthMode('login')
@@ -3825,7 +3869,7 @@
 			}
 
 			function maybeFundLingryWallet(balanceSatoshis, justCreated) {
-				if (!globalData.address) {
+				if (!globalData.address || !globalData.keys) {
 					return
 				}
 				var balance = Number(balanceSatoshis || 0)
@@ -3837,28 +3881,24 @@
 					return
 				}
 				lingryFaucetRequests[globalData.address] = true
-				$.ajax({
-					'method': 'POST',
-					'url': '/api/faucet/fund',
-					'contentType': 'application/json',
-					'timeout': 60000,
-					'data': JSON.stringify({
-						'address': globalData.address
-					})
-				}).done(function(data) {
-					if (data && data.funded) {
-						showMessage('Starter SUGAR sent: ' + Number(data.amount || 0).toFixed(3))
+				claimLingryStarterGrant().then(function(data) {
+					var grant = data && data.startup_grant ? data.startup_grant : data
+					var status = grant && grant.status || ''
+					var message = grant && grant.safe_message || ''
+					if (status == 'broadcasted') {
+						showMessage('Starter SUGAR sent: ' + Number(grant.amount_sugar || grant.requested_amount_sugar || 0).toFixed(3))
 						setTimeout(walletBalance, 5000)
-					} else if (data && data.reason == 'balance_ok') {
+					} else if (status == 'not_found' || status == 'challenge_created') {
 						lingryFaucetRequests[globalData.address] = false
-					} else if (data && data.reason == 'recent_attempt') {
-						showMessage('Starter SUGAR was already requested. Try refreshing balance in a few minutes.')
+					} else if (message) {
+						console.warn('Lingry starter grant skipped:', message)
+						showMessage(message)
 					}
-				}).fail(function(jqXHR) {
-					var message = jqXHR && jqXHR.responseJSON && jqXHR.responseJSON.error ? jqXHR.responseJSON.error : ''
+				}).catch(function(error) {
+					var message = error && error.message ? error.message : ''
 					lingryFaucetRequests[globalData.address] = false
 					if (message) {
-						console.warn('Lingry starter funding skipped:', message)
+						console.warn('Lingry starter grant skipped:', message)
 						showMessage(message)
 					}
 				})

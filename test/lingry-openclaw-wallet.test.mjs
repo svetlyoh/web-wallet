@@ -36,6 +36,19 @@ function tempEnv() {
 	};
 }
 
+test('browser starter funding uses signed grant flow instead of retired faucet route', () => {
+	for (const file of ['index.html', 'public/index.html']) {
+		const source = fs.readFileSync(file, 'utf8');
+		assert.match(source, /function claimLingryStarterGrant/);
+		assert.match(source, /\/api\/wallet-grants\/challenge/);
+		assert.match(source, /\/api\/wallet-grants\/claim/);
+		assert.match(source, /var challenge = challengeResponse \|\| \{\}/);
+		assert.match(source, /var challengeGrant = challenge\.startup_grant \|\| challenge/);
+		assert.match(source, /lingryChallengeSignature\(challenge\.challenge\)/);
+		assert.doesNotMatch(source, /\/api\/faucet\/fund/);
+	}
+});
+
 test('agent cannot create wallets and wallet helper refuses non-interactive passphrase handling', () => {
 	const { env } = tempEnv();
 	const agentResult = spawnSync(process.execPath, [agentPath, 'create-wallet'], {
