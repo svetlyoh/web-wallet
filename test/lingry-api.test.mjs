@@ -292,6 +292,9 @@ test('starter grant deployment config is enabled with funding limits', () => {
 	const source = fs.readFileSync(new URL('../src/worker.mjs', import.meta.url), 'utf8');
 	assert.match(source, /env\.LINGRY_GRANT_WALLET_WIF \|\| env\.LINGRY_FUNDING_WIF \|\| env\.LINGRY_FAUCET_WIF/);
 	assert.match(source, /env\.LINGRY_GRANT_FUNDING_ADDRESS \|\| env\.LINGRY_FUNDING_ADDRESS \|\| env\.LINGRY_FAUCET_ADDRESS/);
+	assert.match(source, /async function handleFaucetFund/);
+	assert.match(source, /runStarterGrantFunding\(env, context, \{ requireLowRecipientBalance: true \}\)/);
+	assert.doesNotMatch(source, /This funding route has moved/);
 });
 
 test('cron configuration and public index constants are hourly', () => {
