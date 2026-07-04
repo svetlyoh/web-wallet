@@ -59,9 +59,77 @@ Wallet authorization is deliberately split between browser, local terminal, and 
 
 <!-- BEGIN LINGRY SCREENSHOT WALKTHROUGH -->
 
-No ClawHub screenshots have been synced yet. Add screenshots with `scripts/add_lingry_screenshot.py`, commit them to GitHub, then run `scripts/sync_lingry_screenshot_links.py --ref <commit-sha>`.
+### Sign up from the Lingry home screen
 
-Text-only agents can still use the workflow sections below to understand Lingry setup, word creation, Stream, Leaderboard, wallet authorization, and safety boundaries.
+![Lingry home screen with the Sign up tab open, showing email and password fields, a Sign up button, and a Sign up by Key option.](https://raw.githubusercontent.com/svetlyoh/web-wallet/aea18082413393a9d82bc37b501d216cbc0fae6f/docs/lingry/screenshots/01-sign-up-from-the-lingry-home-screen.jpg)
+
+**What this shows:** Users can sign up from the Lingry home screen by entering an email, creating a password, and confirming it. A key-based sign-up option is also available for users who prefer wallet-key access.
+
+**What the user does:** Enter an email address, create a password, confirm the password, then select Sign up. Users who prefer wallet-key access can select Sign up by Key instead.
+
+**Expected result:** Lingry creates the wallet session and brings the user into the app.
+
+**Agent guidance:** Guide the user to choose the normal email sign-up path unless they specifically want wallet-key access. Never ask the user to paste a private key, password, or session token into chat.
+
+### Save your login key
+
+![Lingry account screen showing a Save your login key panel with the key value redacted and a Copy button visible above the Word Stream.](https://raw.githubusercontent.com/svetlyoh/web-wallet/aea18082413393a9d82bc37b501d216cbc0fae6f/docs/lingry/screenshots/02-save-your-login-key.jpg)
+
+**What this shows:** After creating an account, Lingry provides a wallet key for future login. Users should save this key securely before continuing, since it allows them to access the wallet again later.
+
+**What the user does:** Copy the login key and save it somewhere secure before continuing in Lingry.
+
+**Expected result:** The user has a saved login key they can use to access the wallet again later.
+
+**Agent guidance:** Explain that this key must be treated like a wallet credential. Tell the user to save it privately and never paste it into chat, public docs, issue comments, or screenshots.
+
+### Prompt for a new word
+
+![Lingry Prompt for New Word screen showing a concept prompt, an Invent From Prompt button, and a generated word suggestion with meaning and part-of-speech fields.](https://raw.githubusercontent.com/svetlyoh/web-wallet/aea18082413393a9d82bc37b501d216cbc0fae6f/docs/lingry/screenshots/03-prompt-for-a-new-word.jpg)
+
+**What this shows:** Users can enter a prompt describing the idea or concept they want Lingry to turn into a new word. Lingry then uses that prompt to generate a more focused and personalized word suggestion.
+
+**What the user does:** Type a concept or idea into the Prompt for New Word field, then select Invent From Prompt.
+
+**Expected result:** Lingry generates a suggested word with meaning, part of speech, etymology meaning, confidence, and status details.
+
+**Agent guidance:** Help the user phrase the prompt clearly and specifically, then review the generated word details before recommending any coining or submission step.
+
+### Generate a word with AI
+
+![Lingry AI Generate screen showing an Invent New Word button, Coin It button, and a generated word candidate with meaning, part of speech, etymology meaning, confidence, and status.](https://raw.githubusercontent.com/svetlyoh/web-wallet/aea18082413393a9d82bc37b501d216cbc0fae6f/docs/lingry/screenshots/04-generate-a-word-with-ai.jpg)
+
+**What this shows:** The AI Generate tab automatically creates a new word idea for the user, including meaning and context. It gives users a fast way to discover and coin a new word with minimal input.
+
+**What the user does:** Open AI Generate and select Invent New Word to create a fresh word suggestion, then review or edit the generated details before selecting Coin It.
+
+**Expected result:** Lingry shows a generated word candidate with meaning, part of speech, etymology meaning, confidence, and ready-to-post status.
+
+**Agent guidance:** Use this screen when the user wants a quick generated candidate. Encourage them to review and edit the meaning before preparing any coining request.
+
+### View Lingry rankings
+
+![Lingry Rankings screen showing top trending word cards with creator handles, language flags, like counts, tip counts, and Sugar tip totals.](https://raw.githubusercontent.com/svetlyoh/web-wallet/aea18082413393a9d82bc37b501d216cbc0fae6f/docs/lingry/screenshots/05-view-lingry-rankings.jpg)
+
+**What this shows:** Lingry Rankings shows top words and creators. Users can like favorite words and tip creators with Sugars, helping reward popular or meaningful word contributions.
+
+**What the user does:** Open Lingry Rankings, review the top trending words, then use like or tip actions when a word contribution is worth supporting.
+
+**Expected result:** The user sees ranked words and creator activity ordered by likes and tips, with the latest refresh and scan context visible.
+
+**Agent guidance:** Use rankings to help the user discover popular words and creators. Explain that likes and tips are public contribution signals, and never claim a tip succeeded until the wallet/API confirms it.
+
+### View wallet keys from the menu
+
+![Lingry Keys screen showing wallet address, public key, a masked private key field with a Show button, and redeem script details.](https://raw.githubusercontent.com/svetlyoh/web-wallet/aea18082413393a9d82bc37b501d216cbc0fae6f/docs/lingry/screenshots/06-view-wallet-keys-from-the-menu.jpg)
+
+**What this shows:** From Menu > Show Keys, users can view their private key and save it for future logins. This key should be stored securely, since it provides access to the wallet.
+
+**What the user does:** Open Menu, choose Show Keys, and only reveal or copy the private key when the user is in a private setting ready to store it securely.
+
+**Expected result:** Lingry shows the wallet address, public key, masked private key field, and related wallet details so the user can save access information safely.
+
+**Agent guidance:** Warn the user that the private key controls wallet access. Never ask them to paste it into chat, screenshots, GitHub, ClawHub, logs, or support messages.
 
 <!-- END LINGRY SCREENSHOT WALKTHROUGH -->
 
