@@ -58,6 +58,7 @@ LINGRY_GRANT_FEE_SATOSHIS=<optional network fee>
 ```
 
 The Worker derives the public address from `LINGRY_GRANT_WALLET_WIF` before broadcasting and fails closed unless it matches `LINGRY_GRANT_FUNDING_ADDRESS`. During migration, `LINGRY_FUNDING_ADDRESS` and `LINGRY_FAUCET_ADDRESS` are accepted as fallback public-address variables.
+The per-IP daily grant limit counts broadcasted grants, not failed or unavailable attempts.
 
 Grant endpoints:
 

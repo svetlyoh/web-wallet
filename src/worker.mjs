@@ -1910,7 +1910,7 @@ async function grantCountForIpToday(env, ipHash) {
 	const row = await env.LINGRY_DB.prepare(`
 		SELECT COUNT(*) AS count
 		FROM lingry_wallet_grants
-		WHERE ip_hash = ? AND updated_at >= ?
+		WHERE ip_hash = ? AND status = 'broadcasted' AND updated_at >= ?
 	`).bind(ipHash, dayStart).first();
 	return Number(row && row.count || 0);
 }

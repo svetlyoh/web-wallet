@@ -288,10 +288,11 @@ test('starter grant deployment config is enabled with funding limits', () => {
 	assert.match(wrangler.vars.LINGRY_GRANT_FUNDING_ADDRESS, /^sugar1[0-9a-z]+$/);
 	assert.ok(Number(wrangler.vars.LINGRY_GRANT_DAILY_BUDGET_SUGAR) >= 0.025);
 	assert.ok(Number(wrangler.vars.LINGRY_GRANT_MONTHLY_BUDGET_SUGAR) >= 0.025);
-	assert.ok(Number(wrangler.vars.LINGRY_GRANT_MAX_PER_IP_DAY) > 0);
+	assert.ok(Number(wrangler.vars.LINGRY_GRANT_MAX_PER_IP_DAY) >= 10);
 	const source = fs.readFileSync(new URL('../src/worker.mjs', import.meta.url), 'utf8');
 	assert.match(source, /env\.LINGRY_GRANT_WALLET_WIF \|\| env\.LINGRY_FUNDING_WIF \|\| env\.LINGRY_FAUCET_WIF/);
 	assert.match(source, /env\.LINGRY_GRANT_FUNDING_ADDRESS \|\| env\.LINGRY_FUNDING_ADDRESS \|\| env\.LINGRY_FAUCET_ADDRESS/);
+	assert.match(source, /status = 'broadcasted' AND updated_at >=/);
 	assert.match(source, /async function handleFaucetFund/);
 	assert.match(source, /runStarterGrantFunding\(env, context, \{ requireLowRecipientBalance: true \}\)/);
 	assert.doesNotMatch(source, /This funding route has moved/);
