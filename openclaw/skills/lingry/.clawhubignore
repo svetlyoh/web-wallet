@@ -8,6 +8,16 @@ node_modules/
 *.sqlite
 *.sqlite-*
 *.db
+*.png
+*.jpg
+*.jpeg
+*.webp
+*.gif
+*.bmp
+*.tif
+*.tiff
+*.mov
+*.mp4
 *.bak
 *.backup
 *.keystore

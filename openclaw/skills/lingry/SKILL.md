@@ -45,6 +45,26 @@ Use this skill when a user wants to inspect Lingry API health, list public Lingr
 
 This is the standalone ClawHub distribution. It must run only from the files included in this package: `bin/lingry-agent.mjs`, `bin/lingry-wallet.mjs`, `src/`, `package.json`, and `package-lock.json`. Never fall back to another Lingry install, a source checkout, a sibling directory, or an old local skill.
 
+## Core Lingry Workflows
+
+Lingry lets users create, discover, and coin words through `https://lingry.net` and through this OpenClaw skill. Use the skill for read-only status checks, public Stream and Leaderboard views, account-bound word generation, word-draft creation, starter-grant preparation, and coining-request preparation.
+
+To create or submit a word, help the user choose a term, part of speech, and meaning, then use `generate-word`, `create-word-draft`, or `prepare-coin` as appropriate. `prepare-coin` only creates a pending non-secret request; the user must approve signing and broadcast in a private terminal with `node bin/lingry-wallet.mjs approve <request-id>`.
+
+To view public activity, use `node bin/lingry-agent.mjs stream` for the latest public Stream snapshot and `node bin/lingry-agent.mjs leaderboard` for ranked public words and addresses. These commands are read-only and do not require wallet authorization.
+
+Wallet authorization is deliberately split between browser, local terminal, and agent. The browser is where the user creates or refreshes an API session token. The local terminal is where wallet import, hidden passphrase entry, transaction review, signing, and broadcast happen. The OpenClaw agent may prepare requests and read public or non-secret status, but it must never request, expose, log, or infer private keys, wallet passphrases, session tokens, API keys, seed phrases, or recovery phrases.
+
+## Visual walkthrough
+
+<!-- BEGIN LINGRY SCREENSHOT WALKTHROUGH -->
+
+No ClawHub screenshots have been synced yet. Add screenshots with `scripts/add_lingry_screenshot.py`, commit them to GitHub, then run `scripts/sync_lingry_screenshot_links.py --ref <commit-sha>`.
+
+Text-only agents can still use the workflow sections below to understand Lingry setup, word creation, Stream, Leaderboard, wallet authorization, and safety boundaries.
+
+<!-- END LINGRY SCREENSHOT WALKTHROUGH -->
+
 ## Canonical API URL
 
 The built-in API base URL is:
