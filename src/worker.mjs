@@ -2616,6 +2616,7 @@ function publicSnapshotEnvelope(snapshot, body) {
 
 async function handlePublicIndexHealth(env) {
 	const snapshot = await readPublicIndexSnapshot(env).catch(() => null);
+	const observedSafeTip = await readSafeChainTip().catch(() => null);
 	const [lastSuccessAt, lastError, lastScannedHeightText, lastScannedHash, safeTipText, blocksBehindText, failedHeight] = await Promise.all([
 		getLingryIndexMeta(env, 'public_index_last_success_at'),
 		getLingryIndexMeta(env, 'public_index_last_error'),
@@ -2626,11 +2627,12 @@ async function handlePublicIndexHealth(env) {
 		getLingryIndexMeta(env, 'public_index_last_failed_height')
 	]);
 	const lastScannedHeight = Number(lastScannedHeightText || snapshot?.checkpoint?.last_scanned_height || 0);
-	const safeTipHeight = Number(safeTipText || snapshot?.checkpoint?.safe_tip_height || 0);
-	const blocksBehind = Math.max(0, Number(blocksBehindText || safeTipHeight - lastScannedHeight || 0));
+	const recordedSafeTip = Number(safeTipText || snapshot?.checkpoint?.safe_tip_height || 0);
+	const safeTipHeight = Math.max(recordedSafeTip, observedSafeTip == null ? 0 : Number(observedSafeTip));
+	const blocksBehind = Math.max(0, Number(blocksBehindText || 0), safeTipHeight - lastScannedHeight);
 	const stale = !snapshot || snapshotStale(snapshot);
 	const checkpointInvalid = lastScannedHeight < 0 || safeTipHeight < lastScannedHeight || (lastScannedHeight > 0 && !lastScannedHash && !snapshot?.checkpoint?.last_scanned_block_hash);
-	const unhealthy = Boolean(lastError || failedHeight || stale || checkpointInvalid);
+	const unhealthy = Boolean(lastError || failedHeight || stale || checkpointInvalid || observedSafeTip == null);
 	const status = unhealthy ? 'unhealthy' : blocksBehind > 0 ? 'catching_up' : 'healthy';
 	return jsonResponse({
 		ok: !unhealthy,
@@ -2642,6 +2644,7 @@ async function handlePublicIndexHealth(env) {
 		last_scanned_height: lastScannedHeight,
 		last_scanned_block_hash: lastScannedHash || snapshot?.checkpoint?.last_scanned_block_hash || '',
 		safe_tip_height: safeTipHeight,
+		safe_tip_available: observedSafeTip != null,
 		blocks_behind: blocksBehind,
 		catchup: blocksBehind > 0,
 		snapshot_stale: stale,

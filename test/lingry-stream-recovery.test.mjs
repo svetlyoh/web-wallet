@@ -166,3 +166,34 @@ test('trusted indexer persistence is idempotent by transaction id', async () => 
 	}
 	assert.equal(rows.size, 1);
 });
+
+test('index health compares a legacy snapshot checkpoint with the live safe tip', async () => {
+	const originalFetch = globalThis.fetch;
+	globalThis.fetch = async url => {
+		if (String(url).includes('/info')) {
+			return new Response(JSON.stringify({ result: { blocks: 200 } }), { status: 200 });
+		}
+		throw new Error('unexpected request');
+	};
+	try {
+		const snapshot = {
+			schema_version: 1,
+			generated_at: new Date().toISOString(),
+			checkpoint: { last_scanned_height: 150, last_scanned_block_hash: 'hash-150', safe_tip_height: 150 }
+		};
+		const env = {
+			LINGRY_PUBLIC_INDEX: {
+				async get() { return { async text() { return JSON.stringify(snapshot); } }; },
+				async put() {}
+			}
+		};
+		const response = await worker.fetch(new Request('https://lingry.net/v1/index-health'), env, {});
+		const json = await response.json();
+		assert.equal(json.status, 'catching_up');
+		assert.equal(json.last_scanned_height, 150);
+		assert.equal(json.safe_tip_height, 194);
+		assert.equal(json.blocks_behind, 44);
+	} finally {
+		globalThis.fetch = originalFetch;
+	}
+});
