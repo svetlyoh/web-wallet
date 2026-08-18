@@ -30,6 +30,25 @@ npx wrangler secret put TURNSTILE_SECRET_KEY
 
 The public Lingry leaderboard/stream index can use an optional private R2 bucket binding named `LINGRY_PUBLIC_INDEX` with bucket `lingry-public-index`. If R2 is not enabled for the Cloudflare account, the Worker stores the latest public snapshot in D1 metadata and continues serving the public routes.
 
+## Hourly public index
+
+The `0 * * * *` Cron Trigger invokes the Worker's `scheduled()` handler, which refreshes the public Stream and leaderboard. A Deploy Hook only builds and deploys the Git branch; it does not refresh the index hourly. Keep the full `master` configuration, including the Cron, D1 binding, and Durable Object bindings.
+
+Each run scans at most 1,000 confirmed blocks. If the safe tip is farther ahead, the snapshot reports `catchup: true` and the next Cron continues from the persisted checkpoint. The checkpoint is advanced only through blocks retrieved and inspected contiguously. A failed range request falls back to per-height requests; the first unresolved block stops the scan and leaves the cursor at the preceding verified block.
+
+Read-only diagnostics are available at `GET /v1/index-health`. A healthy or catching-up response includes distinct `last_scanned_height` and `safe_tip_height` values. A stale snapshot, invalid checkpoint, recorded refresh error, or unresolved gap reports `status: "unhealthy"`.
+
+Production verification:
+
+```text
+GET /v1/index-health
+GET /v1/stream?limit=100
+GET /v1/leaderboard?limit=100
+GET /api/words/latest?limit=100&filter=all
+```
+
+After deployment, confirm the `web-wallet` Cron remains `0 * * * *`, inspect structured Worker logs, and verify a subsequent hourly invocation advances only the real contiguous checkpoint.
+
 For local development, copy `.dev.vars.example` to `.dev.vars` and replace placeholders locally.
 
 ## Starter Grant Administration

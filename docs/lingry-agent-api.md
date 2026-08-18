@@ -73,6 +73,7 @@ Configured codes: `W E S G F I R P C A H B J K T V U N M Y L D O Q X Z`.
 - `DELETE /v1/webhooks/{webhook_id}`
 - `POST /v1/internal/indexer/ingest`
 - `GET /v1/healthz`
+- `GET /v1/index-health`
 - `GET /openapi.json`
 
 ## Starter Grant API

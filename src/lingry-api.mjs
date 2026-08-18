@@ -1,5 +1,6 @@
 import bitcoin from 'bitcoinjs-lib';
 import { Buffer } from 'node:buffer';
+import { parseSugarWordPayload } from './lingry-protocol.mjs';
 
 export const LINGRY_LANGUAGES = [
 	{ code: 'W', name: 'American English' },
@@ -117,36 +118,7 @@ function isValidLingryWord(value) {
 }
 
 export function parseLingryPayload(payloadText) {
-	const payload = normalizeText(payloadText);
-	if (!/^S[A-Z]\|/.test(payload)) {
-		return null;
-	}
-	const parts = payload.split('|');
-	if (parts.length !== 4) {
-		return null;
-	}
-	const protocol = parts[0];
-	const languageCode = normalizeLanguageCode(protocol.slice(1));
-	const word = normalizeWord(parts[1]);
-	const partOfSpeech = normalizePartOfSpeech(parts[2]);
-	const meaning = normalizeText(parts[3]);
-	if (!languageCode || protocol !== 'S' + languageCode) {
-		return null;
-	}
-	if (!isValidLingryWord(word) || !partOfSpeech || !meaning || meaning.length > 140 || byteLength(payload) > 80) {
-		return null;
-	}
-	return {
-		protocol,
-		language_code: languageCode,
-		word,
-		normalized_word: word,
-		part_of_speech: partOfSpeech,
-		meaning,
-		op_return_payload: payload,
-		op_return_hex: textToHex(payload),
-		valid: true
-	};
+	return parseSugarWordPayload(payloadText);
 }
 
 export function buildLingryPayload(input) {
@@ -185,6 +157,47 @@ export function buildLingryPayload(input) {
 function languageNameForCode(code) {
 	const normalized = normalizeLanguageCode(code);
 	return LINGRY_LANGUAGES.find(language => language.code === normalized)?.name || '';
+}
+
+async function persistTrustedIndexerRecords(env, records) {
+	if (!env.LINGRY_DB || typeof env.LINGRY_DB.prepare !== 'function' || !records.length) {
+		return 0;
+	}
+	const statements = records.map(record => env.LINGRY_DB.prepare(`
+		INSERT INTO lingry_words (
+			txid, word, meaning, etymology_meaning, language_code, part_of_speech,
+			creator_address, block_height, block_hash, tx_time, op_return_payload, op_return_hex, indexed_at
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		ON CONFLICT(txid) DO UPDATE SET
+			word = excluded.word,
+			meaning = excluded.meaning,
+			etymology_meaning = excluded.etymology_meaning,
+			language_code = excluded.language_code,
+			part_of_speech = excluded.part_of_speech,
+			creator_address = CASE WHEN excluded.creator_address != '' THEN excluded.creator_address ELSE lingry_words.creator_address END,
+			block_height = COALESCE(excluded.block_height, lingry_words.block_height),
+			block_hash = CASE WHEN excluded.block_hash != '' THEN excluded.block_hash ELSE lingry_words.block_hash END,
+			tx_time = CASE WHEN excluded.tx_time != '' THEN excluded.tx_time ELSE lingry_words.tx_time END,
+			op_return_payload = excluded.op_return_payload,
+			op_return_hex = excluded.op_return_hex,
+			indexed_at = excluded.indexed_at
+	`).bind(
+		String(record.txid || '').trim(),
+		record.parsed.word,
+		record.parsed.meaning,
+		record.parsed.roots_compact || '',
+		record.parsed.language_code,
+		record.parsed.part_of_speech || '',
+		normalizeText(record.creator_address || record.address || ''),
+		record.block_height == null ? null : Number(record.block_height),
+		normalizeText(record.block_hash || ''),
+		normalizeText(record.timestamp || record.tx_time || ''),
+		record.parsed.op_return_payload,
+		record.parsed.op_return_hex,
+		nowIso()
+	));
+	await env.LINGRY_DB.batch(statements);
+	return statements.length;
 }
 
 export async function createGeneratedCandidateRecord(input, options = {}) {
@@ -1446,19 +1459,22 @@ async function handleApi(request, env) {
 			const body = await readJson(request, 1024 * 1024);
 			const records = Array.isArray(body.records) ? body.records : [body.record || body];
 			const byLanguage = new Map();
+			const validatedRecords = [];
 			for (const record of records) {
 				const parsed = parseLingryPayload(record.op_return_payload || record.raw_payload || '');
-				if (parsed) {
+				if (parsed && String(record.txid || '').trim()) {
 					const bucket = byLanguage.get(parsed.language_code) || [];
 					bucket.push({ ...record, op_return_payload: parsed.op_return_payload });
 					byLanguage.set(parsed.language_code, bucket);
+					validatedRecords.push({ ...record, parsed });
 				}
 			}
 			const results = [];
 			for (const [languageCode, bucket] of byLanguage) {
 				results.push(await callDo(env.LINGRY_LEXICON, shardName(languageCode), '/indexer/ingest', { method: 'POST', body: JSON.stringify({ records: bucket }) }));
 			}
-			return envelope({ ingested_languages: results.length, results }, 200, headers, id);
+			const persistedRecords = await persistTrustedIndexerRecords(env, validatedRecords);
+			return envelope({ ingested_languages: results.length, persisted_records: persistedRecords, results }, 200, headers, id);
 		}
 
 		let session = null;
@@ -1658,6 +1674,7 @@ export const OPENAPI = {
 		'/v1/words/{word_id}': { get: { summary: 'Get a word.' } },
 		'/v1/leaderboard': { get: { summary: 'Read the latest completed public hourly Lingry leaderboard snapshot.' } },
 		'/v1/stream': { get: { summary: 'Read the latest completed public hourly Lingry stream snapshot.' } },
+		'/v1/index-health': { get: { summary: 'Read public-index checkpoint, lag, catch-up, and failure health.' } },
 		'/v1/words/{word_id}/coin/prepare': { post: { summary: 'Prepare an unsigned Sugarchain OP_RETURN coining transaction.' } },
 		'/v1/transactions/{intent_id}/submit': { post: { summary: 'Submit a signed transaction for verification and broadcast.' } },
 		'/v1/transactions/{intent_id}': { get: { summary: 'Poll transaction intent status.' } },

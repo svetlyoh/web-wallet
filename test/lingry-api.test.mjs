@@ -269,6 +269,7 @@ test('OpenAPI specification reflects implemented routes', () => {
 		'/v1/words',
 		'/v1/leaderboard',
 		'/v1/stream',
+		'/v1/index-health',
 		'/v1/words/{word_id}/coin/prepare',
 		'/v1/transactions/{intent_id}/submit',
 		'/v1/broadcast/status',
@@ -304,8 +305,9 @@ test('cron configuration and public index constants are hourly', () => {
 	assert.match(source, /const LINGRY_BLOCK_SECONDS = 5/);
 	assert.match(source, /const LINGRY_HOURLY_SCAN_BLOCKS = Math\.ceil\(LINGRY_HOURLY_REFRESH_MS \/ \(LINGRY_BLOCK_SECONDS \* 1000\)\)/);
 	assert.match(source, /lastScannedHeight \+ 1/);
-	assert.match(source, /catchup = Math\.max\(0, safeTip - lastScannedHeight\) > LINGRY_HOURLY_SCAN_BLOCKS/);
-	assert.match(source, /lastScannedHeight - LINGRY_PUBLIC_INDEX_CONFIRMATION_DEPTH - LINGRY_PUBLIC_INDEX_REORG_OVERLAP_BLOCKS/);
+	assert.match(source, /const LINGRY_PUBLIC_INDEX_MAX_BLOCKS_PER_RUN = 1000/);
+	assert.match(source, /startHeight \+ LINGRY_PUBLIC_INDEX_MAX_BLOCKS_PER_RUN - 1/);
+	assert.match(source, /Number\(height \|\| 0\) - LINGRY_PUBLIC_INDEX_CONFIRMATION_DEPTH - LINGRY_PUBLIC_INDEX_REORG_OVERLAP_BLOCKS/);
 	assert.match(source, /LINGRY_PUBLIC_INDEX/);
 	assert.match(source, /public_index_latest_snapshot_json/);
 });

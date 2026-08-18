@@ -1,7 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { parseSugarWordPayload } from '../src/lingry-protocol.mjs';
 
-const LANGUAGE_CODES = new Set('WESGFIRPCAHBJKTVUNMYLDOQXZ'.split(''));
 const RPC_URL = process.env.SUGARCHAIN_RPC_URL || '';
 const RPC_USERNAME = process.env.SUGARCHAIN_RPC_USERNAME || '';
 const RPC_PASSWORD = process.env.SUGARCHAIN_RPC_PASSWORD || '';
@@ -10,6 +11,10 @@ const INDEXER_SECRET = process.env.INTERNAL_INDEXER_SECRET || '';
 const STATE_PATH = process.env.LINGRY_INDEXER_STATE_PATH || path.join(process.cwd(), 'data', 'sugarchain-indexer-state.json');
 const CONFIRMATIONS = Math.max(1, Number(process.env.LINGRY_INDEXER_CONFIRMATIONS || 6));
 const START_HEIGHT = Math.max(0, Number(process.env.LINGRY_INDEXER_START_HEIGHT || 42900000));
+const END_HEIGHT = process.env.LINGRY_INDEXER_END_HEIGHT === undefined
+	? Number.POSITIVE_INFINITY
+	: Math.max(0, Number(process.env.LINGRY_INDEXER_END_HEIGHT));
+const MAX_BLOCKS = Math.max(1, Number(process.env.LINGRY_INDEXER_MAX_BLOCKS || 1000));
 
 type IndexerState = {
 	last_height: number;
@@ -99,22 +104,8 @@ function decodeOpReturn(scriptHex: string) {
 	return payload.length === length * 2 ? hexToUtf8(payload) : '';
 }
 
-function parsePayload(payload: string) {
-	const parts = String(payload || '').trim().split('|');
-	if (parts.length !== 4 || !/^S[A-Z]$/.test(parts[0])) {
-		return null;
-	}
-	const languageCode = parts[0].slice(1);
-	if (!LANGUAGE_CODES.has(languageCode)) {
-		return null;
-	}
-	const word = parts[1].trim().toLowerCase();
-	const partOfSpeech = parts[2].trim().toLowerCase().replace(/\.$/, '');
-	const meaning = parts[3].trim();
-	if (!word || !partOfSpeech || !meaning) {
-		return null;
-	}
-	return { language_code: languageCode, word, part_of_speech: partOfSpeech, meaning };
+export function parsePayload(payload: string) {
+	return parseSugarWordPayload(payload);
 }
 
 function firstInputAddress(tx: any) {
@@ -152,16 +143,17 @@ async function ingest(records: LingryRecord[]) {
 	}
 }
 
-async function scanOnce() {
+export async function scanOnce() {
 	const state = readState();
 	const chainHeight = Number(await rpc('getblockcount'));
 	const safeTip = Math.max(0, chainHeight - CONFIRMATIONS);
 	let start = Math.max(START_HEIGHT, Number(state.last_height || START_HEIGHT) - CONFIRMATIONS + 1);
-	if (start > safeTip) {
+	const end = Math.min(safeTip, END_HEIGHT, start + MAX_BLOCKS - 1);
+	if (start > end) {
 		console.log('No confirmed blocks to index.');
 		return;
 	}
-	for (let height = start; height <= safeTip; height++) {
+	for (let height = start; height <= end; height++) {
 		const hash = String(await rpc('getblockhash', [height]));
 		const block = await rpc('getblock', [hash, 2]) as any;
 		const previousHash = state.block_hashes[String(height)];
@@ -203,9 +195,14 @@ async function scanOnce() {
 		writeState(state);
 		console.log('Indexed height', height, 'records', records.length);
 	}
+	if (end < Math.min(safeTip, END_HEIGHT)) {
+		console.log('Indexer batch limit reached; next run continues at the persisted checkpoint.');
+	}
 }
 
-scanOnce().catch(error => {
-	console.error(error && error.message ? error.message : error);
-	process.exitCode = 1;
-});
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+	scanOnce().catch(error => {
+		console.error(error && error.message ? error.message : error);
+		process.exitCode = 1;
+	});
+}
