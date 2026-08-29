@@ -7,6 +7,7 @@
   "paths": {
     "/v1/auth/challenge": { "post": { "summary": "Create a Sugarchain wallet-signature challenge." } },
     "/v1/auth/verify": { "post": { "summary": "Verify a signed challenge and mint a scoped session." } },
+    "/v1/auth/wallet": { "post": { "summary": "Resolve a Lingry wallet identity after a purpose-bound ownership challenge." } },
     "/v1/auth/logout": { "post": { "summary": "Revoke the current API session token." } },
     "/v1/me": { "get": { "summary": "Return authenticated wallet identity." } },
     "/v1/wallets/register": { "post": { "summary": "Register public wallet metadata." } },

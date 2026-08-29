@@ -33,7 +33,7 @@ export const LINGRY_LANGUAGES = [
 
 export const LINGRY_LANGUAGE_CODES = new Set(LINGRY_LANGUAGES.map(language => language.code));
 const WRITE_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
-const WRITE_ROUTES_WITHOUT_AUTH = new Set(['/v1/auth/challenge', '/v1/auth/verify', '/v1/internal/indexer/ingest']);
+const WRITE_ROUTES_WITHOUT_AUTH = new Set(['/v1/auth/challenge', '/v1/auth/verify', '/v1/auth/wallet', '/v1/internal/indexer/ingest']);
 const SUGAR_DECIMALS = 8;
 const SESSION_TOKEN_TTL_SECONDS = 30 * 24 * 60 * 60;
 const SUGAR_API_BASES = ['https://api.sugar.wtf', 'https://api.sugarchain.org'];
@@ -111,6 +111,21 @@ function hexToUtf8(hex) {
 
 function normalizeHex(value) {
 	return String(value || '').trim().replace(/^0x/i, '').replace(/\s+/g, '').toLowerCase();
+}
+
+const LINGRY_WALLET_AUTH_ACTIONS = new Set(['session', 'start-new', 'recover', 'unlock']);
+
+export function normalizeLingryWalletAddress(value) {
+	const address = normalizeText(value);
+	return address.toLowerCase().startsWith('sugar1') ? address.toLowerCase() : address;
+}
+
+function normalizeLingryAuthAction(value) {
+	const action = normalizeText(value || 'session').toLowerCase();
+	if (!LINGRY_WALLET_AUTH_ACTIONS.has(action)) {
+		throw apiError('validation_error', 'Unsupported wallet authentication action.', 400);
+	}
+	return action;
 }
 
 function isValidLingryWord(value) {
@@ -522,11 +537,12 @@ export class ActorDO extends SqlDoBase {
 	async fetch(request) {
 		try {
 			this.initOnce([
-				`CREATE TABLE IF NOT EXISTS challenges (challenge_id TEXT PRIMARY KEY, address TEXT NOT NULL, nonce TEXT NOT NULL, message TEXT NOT NULL, scopes TEXT NOT NULL, client_name TEXT NOT NULL, expires_at INTEGER NOT NULL, used_at TEXT)`,
+				`CREATE TABLE IF NOT EXISTS challenges (challenge_id TEXT PRIMARY KEY, address TEXT NOT NULL, nonce TEXT NOT NULL, message TEXT NOT NULL, scopes TEXT NOT NULL, client_name TEXT NOT NULL, expires_at INTEGER NOT NULL, used_at TEXT, auth_action TEXT NOT NULL DEFAULT 'session', origin TEXT NOT NULL DEFAULT 'lingry.net', issued_at TEXT NOT NULL DEFAULT '')`,
 				`CREATE TABLE IF NOT EXISTS sessions (sid TEXT PRIMARY KEY, address TEXT NOT NULL, scopes TEXT NOT NULL, expires_at INTEGER NOT NULL, created_at TEXT NOT NULL)`,
 				`CREATE TABLE IF NOT EXISTS wallets (address TEXT PRIMARY KEY, public_key TEXT, address_type TEXT, metadata_json TEXT, registered_at TEXT NOT NULL)`,
 				`CREATE TABLE IF NOT EXISTS idempotency (key TEXT PRIMARY KEY, response_json TEXT NOT NULL, created_at TEXT NOT NULL)`
 			]);
+			this.ensureAuthChallengeColumns();
 			const url = new URL(request.url);
 			const body = request.method === 'GET' ? {} : await request.json().catch(() => ({}));
 			if (url.pathname === '/challenge' && request.method === 'POST') {
@@ -560,29 +576,51 @@ export class ActorDO extends SqlDoBase {
 		}
 	}
 
+	ensureAuthChallengeColumns() {
+		const columns = new Set(sqlAll(this.state.storage, 'PRAGMA table_info(challenges)').map(column => column.name));
+		if (!columns.has('auth_action')) {
+			sqlRun(this.state.storage, "ALTER TABLE challenges ADD COLUMN auth_action TEXT NOT NULL DEFAULT 'session'");
+		}
+		if (!columns.has('origin')) {
+			sqlRun(this.state.storage, "ALTER TABLE challenges ADD COLUMN origin TEXT NOT NULL DEFAULT 'lingry.net'");
+		}
+		if (!columns.has('issued_at')) {
+			sqlRun(this.state.storage, "ALTER TABLE challenges ADD COLUMN issued_at TEXT NOT NULL DEFAULT ''");
+		}
+	}
+
 	createChallenge(body) {
-		const address = normalizeText(body.address);
+		const address = normalizeLingryWalletAddress(body.address);
 		if (!address) {
 			throw apiError('validation_error', 'Address is required.', 400);
 		}
 		const scopes = Array.isArray(body.requested_scopes) ? body.requested_scopes.map(normalizeText).filter(Boolean) : [];
 		const nonce = randomId('nonce');
 		const challengeId = randomId('chal');
+		const authAction = normalizeLingryAuthAction(body.auth_action);
+		const origin = 'lingry.net';
+		const issuedAt = nowIso();
 		const expiresAt = Math.floor(Date.now() / 1000) + 300;
 		const clientName = sanitizeField(body.client_name || 'unknown', 80);
 		const message = [
-			'Lingry API authentication',
-			'Address: ' + address,
-			'Nonce: ' + nonce,
-			'Client: ' + clientName,
-			'Scopes: ' + scopes.join(','),
-			'Expires: ' + new Date(expiresAt * 1000).toISOString()
+			'LINGRY_AUTH_V1',
+			'origin=' + origin,
+			'action=' + authAction,
+			'address=' + address,
+			'challenge=' + nonce,
+			'client=' + clientName,
+			'scopes=' + scopes.join(','),
+			'issued_at=' + issuedAt,
+			'expires_at=' + new Date(expiresAt * 1000).toISOString()
 		].join('\n');
-		sqlRun(this.state.storage, 'INSERT INTO challenges (challenge_id, address, nonce, message, scopes, client_name, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?)', challengeId, address, nonce, message, JSON.stringify(scopes), clientName, expiresAt);
+		sqlRun(this.state.storage, 'INSERT INTO challenges (challenge_id, address, nonce, message, scopes, client_name, expires_at, auth_action, origin, issued_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', challengeId, address, nonce, message, JSON.stringify(scopes), clientName, expiresAt, authAction, origin, issuedAt);
 		return {
 			challenge_id: challengeId,
 			message,
 			nonce,
+			auth_action: authAction,
+			origin,
+			issued_at: issuedAt,
 			expires_at: new Date(expiresAt * 1000).toISOString(),
 			requested_scopes: scopes
 		};
@@ -599,8 +637,11 @@ export class ActorDO extends SqlDoBase {
 		if (Number(row.expires_at) < Math.floor(Date.now() / 1000)) {
 			throw apiError('challenge_expired', 'Challenge has expired.', 401);
 		}
-		if (normalizeText(body.address) !== row.address) {
+		if (normalizeLingryWalletAddress(body.address) !== row.address) {
 			throw apiError('invalid_signature', 'Challenge address mismatch.', 401);
+		}
+		if (normalizeLingryAuthAction(body.auth_action) !== normalizeLingryAuthAction(row.auth_action)) {
+			throw apiError('challenge_action_mismatch', 'Challenge action mismatch.', 401);
 		}
 		const verified = await SugarchainMessageVerifier.verify({
 			address: row.address,
@@ -616,6 +657,8 @@ export class ActorDO extends SqlDoBase {
 		sqlRun(this.state.storage, 'UPDATE challenges SET used_at = ? WHERE challenge_id = ?', nowIso(), row.challenge_id);
 		return {
 			address: row.address,
+			public_key: normalizeHex(body.public_key),
+			auth_action: normalizeLingryAuthAction(row.auth_action),
 			scopes: JSON.parse(row.scopes || '[]')
 		};
 	}
@@ -1380,6 +1423,90 @@ export async function storeMetadata(env, wordId, metadata) {
 	return { key, hash };
 }
 
+export async function lingryIdentityUserId(address) {
+	return 'lingry_' + (await sha256Hex(normalizeLingryWalletAddress(address))).slice(0, 32);
+}
+
+async function getLingryIdentity(env, address) {
+	const normalizedAddress = normalizeLingryWalletAddress(address);
+	const row = await env.LINGRY_DB.prepare(`
+		SELECT user_id, wallet_address, normalized_wallet_address, wallet_public_key,
+			handle, display_name, profile_json, auth_version, legacy_source, created_at, last_seen_at
+		FROM lingry_identities
+		WHERE normalized_wallet_address = ?
+	`).bind(normalizedAddress).first();
+	return row || null;
+}
+
+async function hasLegacyLingryActivity(env, address) {
+	const normalizedAddress = normalizeLingryWalletAddress(address);
+	const checks = [
+		{ query: 'SELECT 1 AS found FROM lingry_words WHERE creator_address = ? LIMIT 1', bindings: [normalizedAddress] },
+		{ query: 'SELECT 1 AS found FROM lingry_likes WHERE liker_address = ? LIMIT 1', bindings: [normalizedAddress] },
+		{ query: 'SELECT 1 AS found FROM lingry_tips WHERE from_address = ? OR to_address = ? LIMIT 1', bindings: [normalizedAddress, normalizedAddress] },
+		{ query: 'SELECT 1 AS found FROM lingry_wallet_grants WHERE address = ? LIMIT 1', bindings: [normalizedAddress] }
+	];
+	for (const check of checks) {
+		try {
+			const row = await env.LINGRY_DB.prepare(check.query).bind(...check.bindings).first();
+			if (row && row.found) {
+				return true;
+			}
+		} catch (error) {
+			if (!/no such table/i.test(String(error && error.message || error))) {
+				throw error;
+			}
+		}
+	}
+	return false;
+}
+
+async function resolveLingryWalletIdentity(env, verified) {
+	if (!env.LINGRY_DB || typeof env.LINGRY_DB.prepare !== 'function') {
+		throw apiError('server_not_configured', 'Lingry identity storage is not configured.', 503, true);
+	}
+	const address = normalizeLingryWalletAddress(verified.address);
+	const action = normalizeLingryAuthAction(verified.auth_action);
+	let identity = await getLingryIdentity(env, address);
+	let legacySource = '';
+	if (!identity && action !== 'start-new') {
+		let existingWallet = null;
+		try {
+			existingWallet = await callDo(env.LINGRY_ACTOR, address, '/wallet?address=' + encodeURIComponent(address), { method: 'GET' });
+		} catch (error) {
+			if (error && error.code !== 'server_not_configured') {
+				throw error;
+			}
+		}
+		const hasActivity = await hasLegacyLingryActivity(env, address);
+		const hasRegisteredWallet = Boolean(existingWallet && existingWallet.wallet);
+		if (!hasActivity && !hasRegisteredWallet && action !== 'recover') {
+			throw apiError('existing_identity_not_found', "We couldn't find an existing Lingry account for this wallet. Check that you're using the private key from your Lingry wallet.", 404);
+		}
+		legacySource = hasActivity
+			? 'legacy-wallet-activity'
+			: hasRegisteredWallet
+				? 'legacy-wallet-registration'
+				: 'wallet-proof-recovery';
+	}
+	const timestamp = nowIso();
+	const userId = identity ? identity.user_id : await lingryIdentityUserId(address);
+	await env.LINGRY_DB.prepare(`
+		INSERT INTO lingry_identities (
+			user_id, wallet_address, normalized_wallet_address, wallet_public_key,
+			handle, display_name, profile_json, auth_version, legacy_source, created_at, last_seen_at
+		) VALUES (?, ?, ?, ?, '', '', '{}', 'wallet-pin-v1', ?, ?, ?)
+		ON CONFLICT(normalized_wallet_address) DO UPDATE SET
+			wallet_address = excluded.wallet_address,
+			wallet_public_key = excluded.wallet_public_key,
+			auth_version = 'wallet-pin-v1',
+			legacy_source = CASE WHEN lingry_identities.legacy_source = '' THEN excluded.legacy_source ELSE lingry_identities.legacy_source END,
+			last_seen_at = excluded.last_seen_at
+	`).bind(userId, address, address, verified.public_key, legacySource, timestamp, timestamp).run();
+	identity = await getLingryIdentity(env, address);
+	return identity;
+}
+
 async function authenticate(request, env) {
 	const auth = request.headers.get('authorization') || '';
 	const match = auth.match(/^Bearer\s+(.+)$/i);
@@ -1442,11 +1569,43 @@ async function handleApi(request, env) {
 			const body = await readJson(request);
 			assertNoPrivateKeyFields(body);
 			const verified = await callDo(env.LINGRY_ACTOR, normalizeText(body.address), '/verify', { method: 'POST', body: JSON.stringify(body) });
+			if (verified.auth_action !== 'session') {
+				throw apiError('challenge_action_mismatch', 'This challenge is not valid for a developer API session.', 401);
+			}
 			const minted = await mintSessionToken(env, verified.address, verified.scopes);
 			await callDo(env.LINGRY_ACTOR, verified.address, '/session', { method: 'POST', body: JSON.stringify({ session: minted.payload }) });
 			return envelope({
 				address: verified.address,
 				scopes: verified.scopes,
+				session_token: minted.token,
+				expires_at: new Date(minted.payload.exp * 1000).toISOString()
+			}, 200, headers, id);
+		}
+		if (url.pathname === '/v1/auth/wallet' && request.method === 'POST') {
+			const body = await readJson(request);
+			assertNoPrivateKeyFields(body);
+			const verified = await callDo(env.LINGRY_ACTOR, normalizeLingryWalletAddress(body.address), '/verify', { method: 'POST', body: JSON.stringify(body) });
+			if (verified.auth_action === 'session') {
+				throw apiError('challenge_action_mismatch', 'This challenge is not valid for Lingry wallet access.', 401);
+			}
+			const identity = await resolveLingryWalletIdentity(env, verified);
+			await callDo(env.LINGRY_ACTOR, verified.address, '/wallet', {
+				method: 'POST',
+				body: JSON.stringify({
+					address: verified.address,
+					public_key: verified.public_key,
+					address_type: verified.address.toLowerCase().startsWith('sugar1') ? 'bech32' : 'legacy',
+					metadata: { user_id: identity.user_id, auth_version: identity.auth_version }
+				})
+			});
+			const scopes = ['identity:read', 'wallet:read', 'words:create'];
+			const minted = await mintSessionToken(env, verified.address, scopes);
+			await callDo(env.LINGRY_ACTOR, verified.address, '/session', { method: 'POST', body: JSON.stringify({ session: minted.payload }) });
+			return envelope({
+				identity,
+				address: verified.address,
+				public_key: verified.public_key,
+				auth_version: identity.auth_version,
 				session_token: minted.token,
 				expires_at: new Date(minted.payload.exp * 1000).toISOString()
 			}, 200, headers, id);
@@ -1662,6 +1821,7 @@ export const OPENAPI = {
 	paths: {
 		'/v1/auth/challenge': { post: { summary: 'Create a Sugarchain wallet-signature challenge.' } },
 		'/v1/auth/verify': { post: { summary: 'Verify a signed challenge and mint a scoped session.' } },
+		'/v1/auth/wallet': { post: { summary: 'Resolve a Lingry wallet identity after a purpose-bound ownership challenge.' } },
 		'/v1/auth/logout': { post: { summary: 'Revoke the current API session token.' } },
 		'/v1/me': { get: { summary: 'Return the authenticated wallet identity.' } },
 		'/v1/wallets/register': { post: { summary: 'Register public wallet metadata.' } },

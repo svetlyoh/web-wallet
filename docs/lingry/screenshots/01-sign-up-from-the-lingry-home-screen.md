@@ -1,4 +1,6 @@
-# Sign up from the Lingry home screen
+# Legacy: old account form
+
+> Archived screenshot: this flow was replaced by wallet-first **Start New** / **I already have Lingry** onboarding with a local 4-digit device PIN. Do not use this page as current user guidance.
 
 ## Screenshot file
 

@@ -13,8 +13,8 @@ python3 scripts/add_lingry_screenshot.py
 - [Screenshot intake rules](#screenshot-intake-rules)
 - [Planned walkthrough sections](#planned-walkthrough-sections)
 - [Screenshot index](#screenshot-index)
-- [1. Sign up from the Lingry home screen](#1-sign-up-from-the-lingry-home-screen)
-- [2. Save your login key](#2-save-your-login-key)
+- [1. Legacy account form (archived)](#1-legacy-account-form-archived)
+- [2. Legacy key-backup screen (archived)](#2-legacy-key-backup-screen-archived)
 - [3. Prompt for a new word](#3-prompt-for-a-new-word)
 - [4. Generate a word with AI](#4-generate-a-word-with-ai)
 - [5. View Lingry rankings](#5-view-lingry-rankings)
@@ -32,7 +32,7 @@ The published ClawHub skill package must stay text-only. Screenshots belong in t
 ## Planned walkthrough sections
 
 1. Lingry homepage
-2. Sign up or login
+2. Open Lingry with the wallet-first entry flow
 3. Creating a word
 4. Coining or submitting a word
 5. Viewing the Stream
@@ -42,7 +42,9 @@ The published ClawHub skill package must stay text-only. Screenshots belong in t
 
 ## Screenshot index
 
-## 1. Sign up from the Lingry home screen
+## 1. Legacy account form (archived)
+
+> This screenshot documents the retired account form. Current Lingry onboarding uses **Start New** or **I already have Lingry**, followed by a local 4-digit device PIN. Do not direct users through the form pictured below.
 
 ![Lingry home screen with the Sign up tab open, showing email and password fields, a Sign up button, and a Sign up by Key option.](./01-sign-up-from-the-lingry-home-screen.jpg)
 
@@ -60,7 +62,9 @@ The published ClawHub skill package must stay text-only. Screenshots belong in t
 
 Paired documentation: [`01-sign-up-from-the-lingry-home-screen.md`](./01-sign-up-from-the-lingry-home-screen.md)
 
-## 2. Save your login key
+## 2. Legacy key-backup screen (archived)
+
+> Current Lingry calls this the **Lingry Private Key** and presents it before 4-digit device-PIN setup. The image below is retained only as historical UI documentation.
 
 ![Lingry account screen showing a Save your login key panel with the key value redacted and a Copy button visible above the Word Stream.](./02-save-your-login-key.jpg)
 

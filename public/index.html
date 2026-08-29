@@ -26,6 +26,7 @@
 		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.3.1/css/bootstrap.min.css">
 		<link rel="stylesheet" href="https://sugar.wtf/wizardry.min.css">
 		<link rel="stylesheet" href="https://volbil.github.io/entypo/entypo.css">
+		<link rel="stylesheet" href="lingry-auth.css?2">
 
 		<link rel="icon" href="/favicon.ico" sizes="any">
 		<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
@@ -1839,10 +1840,6 @@
 				<div id="open-block">
 					<div class="lingry-stream-shell lingry-public-stream">
 						<div class="lingry-stream-hero">
-							<div class="lingry-public-actions">
-								<button type="button" id="lingry-login-toggle" class="lingry-login-button" aria-expanded="false" aria-controls="lingry-login-panel">Login</button>
-								<button type="button" id="lingry-signup-toggle" class="lingry-login-button" aria-expanded="false" aria-controls="lingry-login-panel">Sign up</button>
-							</div>
 							<div class="lingry-stream-top">
 								<div class="lingry-stream-brand">
 									<img class="lingry-stream-logo" src="images/ChatGPT Image Jun 22, 2026, 10_07_56 PM (1).png" alt="Lingry">
@@ -1858,38 +1855,9 @@
 								<button type="button" class="lingry-menu-toggle" data-lingry-public-tab="wallet-sugarwords">AI Generate</button>
 								<button type="button" class="lingry-menu-toggle" data-lingry-public-tab="wallet-sugarwords-prompt">Prompt for New Word</button>
 							</div>
-							<div id="lingry-login-panel" class="lingry-login-panel d-none">
-								<div class="lingry-login-card">
-									<div class="lingry-auth-switch" role="tablist" aria-label="Login options">
-										<button type="button" class="lingry-auth-mode is-active" data-lingry-auth-mode="login" aria-selected="true">Login</button>
-										<button type="button" class="lingry-auth-mode" data-lingry-auth-mode="signup" aria-selected="false">Sign up</button>
-									</div>
-									<div class="lingry-login-heading">
-										<span id="lingry-login-heading-text">Login</span>
-										<span id="open-key-error" class="lingry-login-inline-error d-none">Incorrect Key</span>
-										<button class="lingry-key-toggle" type="button" id="open-key-toggle">Open by Key</button>
-									</div>
-									<form id="open-key-form" class="open-form tab-item d-none mb-2" data-tab="open-key">
-										<div id="open-key-passphrase-wrap" class="mb-2">
-											<input id="passphrase" name="passphrase" class="form-control" type="password" autocomplete="off" tkey="wif-key">
-										</div>
-										<button class="btn btn-success btn-block" type="submit" id="open-key-wallet">Login with key</button>
-									</form>
-									<form id="open-regular-form" class="open-form tab-item" data-tab="open-regular">
-										<div class="mb-2">
-											<input id="open-email" name="open-email" class="form-control" type="email" autocomplete="email" tkey="email-address">
-										</div>
-										<div class="mb-2">
-											<input id="open-password" name="open-password" class="form-control" type="password" autocomplete="current-password" tkey="password">
-										</div>
-										<div class="mb-2 d-none" id="open-password-confirm-wrap">
-											<input id="open-password-confirm" name="open-password-confirm" class="form-control" type="password" autocomplete="new-password" tkey="password-confirm">
-										</div>
-										<div class="lingry-login-actions">
-											<button class="btn btn-success btn-block" type="submit" id="open-regular-wallet">Login</button>
-											<button class="btn btn-block lingry-google-btn" type="button" id="open-google-wallet">Continue with Google</button>
-										</div>
-									</form>
+							<div id="lingry-auth-panel" class="lingry-auth-panel">
+								<div id="lingry-auth-card" class="lingry-auth-card" aria-live="polite">
+									<div class="lingry-auth-progress" role="status">Opening secure device storage&hellip;</div>
 								</div>
 							</div>
 						</div>
@@ -1953,7 +1921,7 @@
 												<select class="lingry-language-picker" aria-label="Language for new words"></select>
 											</label>
 											<button type="button" id="lingry-menu-toggle" class="lingry-menu-toggle lingry-stream-menu-icon" aria-label="Menu" title="Menu" aria-expanded="false" aria-controls="lingry-stream-menu">&#9776;</button>
-											<button type="button" id="lingry-logout" class="lingry-logout-button" data-lingry-logout="true" aria-label="Logout" title="Logout"><span aria-hidden="true">&#8618;</span></button>
+											<button type="button" id="lingry-logout" class="lingry-logout-button" data-lingry-logout="true" aria-label="Lock Lingry" title="Lock Lingry"><span aria-hidden="true">&#8618;</span></button>
 											<div class="lingry-stream-title">New words in the stream</div>
 											<div class="lingry-stream-subtitle">Read coined words, meanings, and recent word activity.</div>
 											<div class="lingry-stream-actions">
@@ -1961,8 +1929,8 @@
 												<button type="button" class="lingry-menu-toggle" data-lingry-tab="wallet-sugarwords-prompt">Prompt for New Word</button>
 											</div>
 											<div id="lingry-session-key-card" class="lingry-session-key-card d-none">
-												<div class="lingry-session-key-title">Save your login key</div>
-												<div class="lingry-session-key-copy">Copy this key now. It stays visible during this session so you can save it for future login.</div>
+												<div class="lingry-session-key-title">Save your Lingry Private Key</div>
+												<div class="lingry-session-key-copy">Keep this key private. It restores this wallet on another device.</div>
 												<div class="input-group">
 													<input id="lingry-session-key-value" class="form-control" readonly type="text">
 													<span class="input-group-append">
@@ -2094,7 +2062,7 @@
 													</span>
 												</div>
 											</div>
-											<div class="text-muted small pb-2">Copy this key for future login.</div>
+											<div class="text-muted small pb-2">Copy this private key for recovery on another device.</div>
 										</div>
 
 										<div id="wallet-keys-script">
@@ -2148,7 +2116,7 @@
 												</label>
 												<div id="sugarwords-network" class="ai-ledger-badge lingry-identity-chip"><span class="lingry-tool-balance-amount">Guest</span><span class="lingry-tool-balance-ticker d-none">SUGAR</span></div>
 												<button type="button" class="lingry-tool-stream lingry-tool-icon" data-lingry-open-menu="true" aria-label="Menu" title="Menu">&#9776;</button>
-												<button type="button" class="lingry-tool-logout" data-lingry-logout="true" aria-label="Logout" title="Logout"><span aria-hidden="true">&#8618;</span></button>
+												<button type="button" class="lingry-tool-logout" data-lingry-logout="true" aria-label="Lock Lingry" title="Lock Lingry"><span aria-hidden="true">&#8618;</span></button>
 											</div>
 										</div>
 										<div class="lingry-tool-heading">
@@ -2206,7 +2174,7 @@
 												<div class="label">Change</div>
 												<div id="sugarwords-change" class="value">-</div>
 												<div class="label">Your address</div>
-												<div id="sugarwords-wallet-address" class="value ai-ledger-code">Login first.</div>
+										<div id="sugarwords-wallet-address" class="value ai-ledger-code">Unlock Lingry first.</div>
 												<div class="label">txid</div>
 												<div id="sugarwords-txid" class="value ai-ledger-code">-</div>
 											</div>
@@ -2260,7 +2228,7 @@
 												</label>
 												<div id="sugarwords-prompt-network" class="ai-ledger-badge lingry-identity-chip"><span class="lingry-tool-balance-amount">Guest</span><span class="lingry-tool-balance-ticker d-none">SUGAR</span></div>
 												<button type="button" class="lingry-tool-stream lingry-tool-icon" data-lingry-open-menu="true" aria-label="Menu" title="Menu">&#9776;</button>
-												<button type="button" class="lingry-tool-logout" data-lingry-logout="true" aria-label="Logout" title="Logout"><span aria-hidden="true">&#8618;</span></button>
+												<button type="button" class="lingry-tool-logout" data-lingry-logout="true" aria-label="Lock Lingry" title="Lock Lingry"><span aria-hidden="true">&#8618;</span></button>
 											</div>
 										</div>
 										<div class="lingry-tool-heading">
@@ -2323,7 +2291,7 @@
 												<div class="label">Change</div>
 												<div id="sugarwords-prompt-change" class="value">-</div>
 												<div class="label">Your address</div>
-												<div id="sugarwords-prompt-wallet-address" class="value ai-ledger-code">Login first.</div>
+										<div id="sugarwords-prompt-wallet-address" class="value ai-ledger-code">Unlock Lingry first.</div>
 												<div class="label">txid</div>
 												<div id="sugarwords-prompt-txid" class="value ai-ledger-code">-</div>
 											</div>
@@ -2497,7 +2465,7 @@
 								<div class="input-group pb-2">
 									<input class="form-control keys-privkey privkey" readonly data-original-title="" title="" type="text">
 								</div>
-								<div class="text-muted small pb-2">Copy this key and keep it somewhere safe. You will use it for future login.</div>
+								<div class="text-muted small pb-2">Copy this private key and keep it somewhere safe for wallet recovery.</div>
 							</div>
 						</div>
 					</div>
@@ -2674,7 +2642,7 @@
 				'clear': function() {
 					this.address = ''
 					this.balance = 0
-					this.keys = {}
+					this.keys = undefined
 					this.resetTx()
 				}
 			}
@@ -2706,9 +2674,6 @@
 					'bad-priv-key': getText('bad-priv-key'),
 					'not-enough-utxo': getText('not-enough-utxo'),
 					'broadcast-failed': getText('broadcast-failed'),
-					'pass-not-match': getText('pass-not-match'),
-					'pass-too-short': getText('pass-too-short'),
-					'bad-email': getText('bad-email'),
 					'small-fee': getText('small-fee') + ' ' + getConfig()['fee'] + ' ' + getConfig()['ticker'] + '!'
 				},
 				'tx': {
@@ -2997,8 +2962,7 @@
 							break
 
 						case 'create':
-							$('body').removeClass('lingry-wallet-open')
-							setTitle(getText('create-wallet'))
+							switchPage()
 							break
 
 						case 'broadcast':
@@ -3668,7 +3632,7 @@
 			function updateSugarWordsWalletContext() {
 				var ticker = getConfig()['ticker']
 				updateLingryBalanceLabels(amountFormat(globalData.balance || 0), ticker)
-				$('#sugarwords-wallet-address, #sugarwords-prompt-wallet-address').text(globalData.address || 'Login first.')
+				$('#sugarwords-wallet-address, #sugarwords-prompt-wallet-address').text(globalData.address || 'Unlock Lingry first.')
 				updateLingrySignedInUi()
 				if (!sugarWordsState.transaction) {
 					$('#sugarwords-fee, #sugarwords-prompt-fee').text((globalData.rfee || getConfig()['fee']) + ' ' + ticker)
@@ -3753,7 +3717,7 @@
 					return Promise.resolve({
 						'startup_grant': {
 							'status': 'pending_or_unavailable',
-							'safe_message': 'Login with a Lingry wallet before requesting starter SUGAR.'
+							'safe_message': 'Unlock Lingry before requesting starter SUGAR.'
 						}
 					})
 				}
@@ -3794,10 +3758,10 @@
 
 			function createLingryApiSession() {
 				if (!globalData.keys || !globalData.address) {
-					setLingryAuthMode('login')
-					$('#lingry-login-panel').removeClass('d-none')
-					$('#lingry-login-toggle, #lingry-signup-toggle').attr('aria-expanded', 'true')
-					setLingryApiSessionStatus('Login with your Lingry key first, then return to API Session and create the token.', 'warning')
+					if (window.LingryAuthController) {
+						window.LingryAuthController.openEntry()
+					}
+					setLingryApiSessionStatus('Unlock Lingry first, then return to API Session and create the token.', 'warning')
 					return
 				}
 				setLingryApiSessionStatus('Creating API session challenge.', 'info')
@@ -4298,8 +4262,8 @@
 					(record.etymology_meaning ? '<div class="lingry-share-meta">Etymology: ' + escapeHtml(record.etymology_meaning) + '</div>' : '') +
 					(meta.length ? '<div class="lingry-share-meta">' + escapeHtml(meta.join(' - ')) + '</div>' : '') +
 					'<div class="lingry-share-actions">' +
-						'<button type="button" class="lingry-share-action" data-lingry-open-login="true">Login</button>' +
-						'<button type="button" class="lingry-share-action secondary" data-lingry-open-signup="true">Sign up</button>' +
+						'<button type="button" class="lingry-share-action" data-lingry-open-auth="true">Open Lingry</button>' +
+						'<button type="button" class="lingry-share-action secondary" data-lingry-recover="true">I already have Lingry</button>' +
 					'</div>'
 				containers.removeClass('d-none').html(html)
 			}
@@ -4599,7 +4563,7 @@
 
 			function postLingrySocialLike(record, liked) {
 				if (!globalData.address) {
-					showMessage('Login to like words.')
+					showMessage('Unlock Lingry to like words.')
 					return
 				}
 				var txid = lingryRecordTxid(record)
@@ -4622,7 +4586,7 @@
 			function buildAndBroadcastLingryTip(record) {
 				var recipient = lingryRecordCreatorAddress(record)
 				if (!globalData.keys || !globalData.address) {
-					showMessage('Login to tip words.')
+					showMessage('Unlock Lingry to tip words.')
 					return Promise.resolve()
 				}
 				if (!recipient || validateAddress(recipient) == false) {
@@ -5231,7 +5195,7 @@
 				updateSugarWordsRecordFromInputs()
 				var record = sugarWordsState.currentRecord
 				if (!globalData.keys || !globalData.address) {
-					sugarWordsSetStatus('Login or sign up before coining a word.<br><button type="button" class="lingry-status-login" data-lingry-open-login="true">Login / Sign up</button>', 'warning')
+					sugarWordsSetStatus('Unlock Lingry before coining a word.<br><button type="button" class="lingry-status-login" data-lingry-open-auth="true">Open Lingry</button>', 'warning')
 					return
 				}
 				var validationError = validateSugarWordsObject(record, true)
@@ -6129,6 +6093,7 @@
 				options = options || {}
 				$('#error-message').addClass('d-none')
 				clearLingryKeyError()
+				globalData.keys = keys
 				globalData.address = getAddress(keys)
 				lingryStreamAddressExpanded = false
 				lingrySocialSummaries = {}
@@ -6309,7 +6274,8 @@
 			}
 
 			// Close wallet
-			function closeWallet() {
+			function closeWallet(options) {
+				options = options || {}
 				$('#open-block').removeClass('d-none')
 				$('#wallet-block').addClass('d-none')
 				$('body').removeClass('lingry-wallet-open lingry-public-tool lingry-signed-in')
@@ -6320,11 +6286,16 @@
 				sugarWordsState.transaction = null
 				sugarWordsState.utxos = []
 				$('#lingry-session-key-card').addClass('d-none')
+				$('#lingry-session-key-value, #wallet-keys-privkey input, #create-keys-privkey input').val('')
+				lingrySessionCreatedKey = ''
 				updateLingryApiSessionUi('', '')
 				setLingryApiSessionStatus('No API session token created in this browser view.', 'secondary')
 				updateLingrySignedInUi()
 				updateSugarWordsWalletContext()
 				setHomeTitle()
+				if (!options.authManaged && window.LingryAuthController) {
+					window.LingryAuthController.openEntry()
+				}
 			}
 
 			function getScriptType(script) {
@@ -6403,18 +6374,11 @@
 				}
 			}
 
-			// Create new wallet
+			// Legacy create route now returns to the protected Lingry entry flow.
 			$('#footer-create').click(function() {
-				var keys = createLingryWalletKeys()
-				var address = getAddress(keys)
-
-				if (address != undefined) {
-					var wif = keys.toWIF()
-					$('#create-keys-address input').val(address)
-					$('#create-keys-pubkey input').val(keys.publicKey.toString('hex'))
-					$('#create-keys-privkey input').val(wif)
-					lingrySessionCreatedKey = wif
-					showMessage('Copy your key for future login.')
+				switchPage()
+				if (window.LingryAuthController) {
+					window.LingryAuthController.openEntry()
 				}
 			})
 
@@ -6510,7 +6474,11 @@
 				})
 
 				$(document).on('click', '[data-lingry-logout]', function(e) {
-					closeWallet()
+					if (window.LingryAuthController) {
+						window.LingryAuthController.lock()
+					} else {
+						closeWallet()
+					}
 					setLingryMenuOpen(false)
 					e.preventDefault()
 				})
@@ -6630,76 +6598,17 @@
 					e.preventDefault()
 				})
 
-				$('#lingry-login-toggle').click(function(e) {
-					setLingryAuthMode('login')
-					var isOpen = $('#lingry-login-panel').hasClass('d-none')
-					$('#lingry-login-panel').toggleClass('d-none', !isOpen)
-					$(this).attr('aria-expanded', isOpen ? 'true' : 'false')
-					$('#lingry-signup-toggle').attr('aria-expanded', isOpen ? 'true' : 'false')
-					e.preventDefault()
-				})
-
 				$(document).on('click', '[data-lingry-public-tab]', function(e) {
 					openLingryPublicToolTab($(this).data('lingry-public-tab'))
 					e.preventDefault()
 				})
 
-				$(document).on('click', '[data-lingry-open-login]', function(e) {
-					setLingryAuthMode('login')
+				$(document).on('click', '[data-lingry-open-auth]', function(e) {
 					openLingryPublicStream()
-					$('#lingry-login-panel').removeClass('d-none')
-					$('#lingry-login-toggle').attr('aria-expanded', 'true')
+					if (window.LingryAuthController) {
+						window.LingryAuthController.openEntry()
+					}
 					e.preventDefault()
-				})
-
-				$(document).on('click', '[data-lingry-open-signup]', function(e) {
-					setLingryAuthMode('signup')
-					openLingryPublicStream()
-					$('#lingry-login-panel').removeClass('d-none')
-					$('#lingry-login-toggle, #lingry-signup-toggle').attr('aria-expanded', 'true')
-					e.preventDefault()
-				})
-
-				let lingryAuthMode = 'login'
-				function setLingryAuthMode(mode) {
-					lingryAuthMode = mode == 'signup' ? 'signup' : 'login'
-					var isSignup = lingryAuthMode == 'signup'
-					$('.lingry-auth-mode').each(function() {
-						var isActive = $(this).data('lingry-auth-mode') == lingryAuthMode
-						$(this).toggleClass('is-active', isActive)
-						$(this).attr('aria-selected', isActive ? 'true' : 'false')
-					})
-					$('#open-password-confirm-wrap').toggleClass('d-none', !isSignup)
-					$('#open-password-confirm').prop('required', isSignup)
-					$('#open-password').attr('autocomplete', isSignup ? 'new-password' : 'current-password')
-					$('#lingry-login-heading-text').text(isSignup ? 'Sign up' : 'Login')
-					$('#open-regular-wallet').text(isSignup ? 'Sign up' : 'Login')
-					$('#open-key-toggle').text(isSignup ? 'Sign up for Key' : 'Open by Key')
-					$('#open-key-wallet').text(isSignup ? 'Sign up by Key' : 'Login with key')
-					$('#open-key-passphrase-wrap').toggleClass('d-none', isSignup)
-					$('#passphrase').prop('required', !isSignup)
-				}
-
-				$(document).on('click', '[data-lingry-auth-mode]', function(e) {
-					setLingryAuthMode($(this).data('lingry-auth-mode'))
-					e.preventDefault()
-				})
-
-				$('#lingry-signup-toggle').click(function(e) {
-					setLingryAuthMode('signup')
-					$('#lingry-login-panel').removeClass('d-none')
-					$('#lingry-login-toggle, #lingry-signup-toggle').attr('aria-expanded', 'true')
-					e.preventDefault()
-				})
-
-				$('#open-key-toggle').click(function(e) {
-					clearLingryKeyError()
-					$('#open-key-form').toggleClass('d-none')
-					e.preventDefault()
-				})
-
-				$('#passphrase').on('input', function() {
-					clearLingryKeyError()
 				})
 
 				$(document).on('change', '#lingry-language-select, .lingry-language-picker', function() {
@@ -6710,11 +6619,6 @@
 						renderSugarWords()
 					}
 					renderLingryStream()
-				})
-
-				$('#open-google-wallet').click(function(e) {
-					showMessage('Google sign-in needs a Google OAuth client ID before it can open Lingry.')
-					e.preventDefault()
 				})
 
 				const lingryLoginMottos = [
@@ -6808,94 +6712,6 @@ $('#send-tx').click(function() {
 							showMessage(messages.error['not-enough-funds'])
 						}
 					}
-				})
-
-				// Open wallet by WIF key
-				$('#open-key-form').submit(function(e){
-					clearLingryKeyError()
-					if (lingryAuthMode == 'signup') {
-						globalData.keys = createLingryWalletKeys()
-						var createdWif = globalData.keys.toWIF()
-						$('#passphrase, #open-password, #open-password-confirm').val('')
-						openWallet(globalData.keys, {
-							'created': true,
-							'privateKey': createdWif,
-							'showSessionKey': true
-						})
-						showMessage('Key created. Copy it for future login.')
-						e.preventDefault()
-						return
-					}
-					var wif = $('#passphrase').val().trim()
-					var wifLength = wif.length
-					if ([51, 52].includes(wifLength)) {
-						globalData.keys = undefined
-						try {
-							globalData.keys = bitcoin.ECPair.fromWIF(wif, getConfig()['network'])
-						} catch(e) {
-							showLingryKeyError()
-						}
-
-						if (globalData.keys != undefined) {
-							// Open only if key is valid
-							$('#passphrase').val('')
-							openWallet(globalData.keys)
-						}
-					} else {
-						showLingryKeyError()
-					}
-
-					e.preventDefault()
-				})
-
-				// Open wallet using email and password
-				$("#open-regular-form").submit(function(e) {
-					var email = $("#open-email").val().toLowerCase()
-					var pass = $("#open-password").val()
-					var passConfirm = lingryAuthMode == 'signup' ? $("#open-password-confirm").val() : pass
-					if (email.match(/[\s\w\d]+@[\s\w\d]+/g)) {
-						if (pass.length > 0){
-							if (pass == passConfirm) {
-								if (lingryAuthMode == 'signup') {
-									globalData.keys = createLingryWalletKeys()
-									$('#open-password, #open-password-confirm').val('')
-									openWallet(globalData.keys, {
-										'created': true
-									})
-									showMessage('Account created.')
-									e.preventDefault()
-									return
-								}
-								var pass = pass
-								var s = email
-								s += '|' + pass + '|'
-								s += s.length + '|!@' + ((pass.length * 7) + email.length) * 7
-								var regchars = (pass.match(/[a-z]+/g)) ? pass.match(/[a-z]+/g).length : 1
-								var regupchars = (pass.match(/[A-Z]+/g)) ? pass.match(/[A-Z]+/g).length : 1
-								var regnums = (pass.match(/[0-9]+/g)) ? pass.match(/[0-9]+/g).length : 1
-								s += ((regnums + regchars) + regupchars) * pass.length + '3571'
-								s += (s + '' + s)
-
-								for (i = 0; i <= 51; i++){
-									s = sha256.update(s).hex()
-								}
-
-								globalData.keys = bitcoin.ECPair.fromPrivateKey(
-									bitcoin.Buffer.from(s, 'hex'),
-									{'network': getConfig()['network']}
-								)
-								openWallet(globalData.keys)
-							} else {
-								showMessage(messages.error['pass-not-match'])
-							}
-						} else {
-							showMessage('Enter a password.')
-						}
-					} else {
-						showMessage(messages.error['bad-email'])
-					}
-
-					e.preventDefault()
 				})
 
 				// Check wallet balance on balance label click
@@ -7089,8 +6905,36 @@ $('#send-tx').click(function() {
 				// Set fee from config (ToDo: update fee in backend)
 				globalData.rfee = getConfig()['fee']
 
+				window.LingryWalletBridge = {
+					createKeys: createLingryWalletKeys,
+					keysFromWif: function(wif) {
+						return bitcoin.ECPair.fromWIF(String(wif || '').trim(), getConfig()['network'])
+					},
+					address: function(keys) {
+						return getAddress(keys)
+					},
+					publicKey: function(keys) {
+						return keys.publicKey.toString('hex')
+					},
+					wif: function(keys) {
+						return keys.toWIF()
+					},
+					sign: function(keys, message) {
+						var digestHex = sha256.create().update(String(message || '')).hex()
+						return keys.sign(bitcoin.Buffer.from(digestHex, 'hex')).toString('hex')
+					},
+					open: function(keys) {
+						openWallet(keys)
+					},
+					close: closeWallet,
+					isOpen: function() {
+						return !!globalData.keys && !!globalData.address && $('body').hasClass('lingry-wallet-open')
+					}
+				}
+
 				// Testing
 			})
 		</script>
+		<script src="lingry-auth.js?2"></script>
 	</body>
 </html>

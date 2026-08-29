@@ -1,4 +1,6 @@
-# Save your login key
+# Legacy: old key-backup screen
+
+> Archived screenshot: the current first-run flow calls this the **Lingry Private Key**, masks it until requested, and proceeds to 4-digit device-PIN setup after the user confirms it is saved.
 
 ## Screenshot file
 

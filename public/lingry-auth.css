@@ -1,0 +1,249 @@
+.lingry-auth-panel {
+	position: relative;
+	z-index: 3;
+	width: min(100%, 430px);
+	margin: 16px auto 0;
+}
+
+.lingry-auth-card {
+	border: 1px solid rgba(10, 99, 61, 0.18);
+	border-radius: 18px;
+	background: rgba(255, 255, 255, 0.96);
+	box-shadow: 0 12px 28px rgba(3, 47, 35, 0.18);
+	color: #082f24;
+	padding: 16px;
+}
+
+.lingry-auth-card h2 {
+	margin: 0;
+	color: #043b2c;
+	font-size: 22px;
+	font-weight: 850;
+	line-height: 1.2;
+}
+
+.lingry-auth-copy {
+	margin: 6px 0 14px;
+	color: #386352;
+	font-size: 14px;
+	line-height: 1.4;
+}
+
+.lingry-auth-actions {
+	display: grid;
+	gap: 8px;
+}
+
+.lingry-auth-button {
+	min-height: 48px;
+	width: 100%;
+	border: 1px solid transparent;
+	border-radius: 14px;
+	background: #07864c;
+	color: #ffffff;
+	font: inherit;
+	font-size: 15px;
+	font-weight: 800;
+	cursor: pointer;
+}
+
+.lingry-auth-button:hover,
+.lingry-auth-button:focus {
+	background: #056f3f;
+}
+
+.lingry-auth-button:focus-visible,
+.lingry-auth-link:focus-visible,
+.lingry-recovery-input:focus {
+	outline: 3px solid rgba(84, 238, 149, 0.48);
+	outline-offset: 2px;
+}
+
+.lingry-auth-card[data-lingry-auth-screen="unlock"],
+.lingry-auth-card[data-lingry-auth-screen="pin-create"],
+.lingry-auth-card[data-lingry-auth-screen="pin-confirm"] {
+	border-color: rgba(255, 255, 255, 0.16);
+	background: linear-gradient(135deg, rgba(4, 59, 44, 0.98), rgba(5, 118, 69, 0.96));
+	box-shadow: 0 12px 28px rgba(3, 47, 35, 0.28);
+	color: #fffdf4;
+}
+
+.lingry-auth-card[data-lingry-auth-screen="unlock"] h2,
+.lingry-auth-card[data-lingry-auth-screen="pin-create"] h2,
+.lingry-auth-card[data-lingry-auth-screen="pin-confirm"] h2 {
+	color: #fffdf4;
+}
+
+.lingry-auth-card[data-lingry-auth-screen="unlock"] .lingry-auth-copy,
+.lingry-auth-card[data-lingry-auth-screen="pin-create"] .lingry-auth-copy,
+.lingry-auth-card[data-lingry-auth-screen="pin-confirm"] .lingry-auth-copy,
+.lingry-auth-card[data-lingry-auth-screen="unlock"] .lingry-auth-status.info,
+.lingry-auth-card[data-lingry-auth-screen="pin-create"] .lingry-auth-status.info,
+.lingry-auth-card[data-lingry-auth-screen="pin-confirm"] .lingry-auth-status.info {
+	color: rgba(255, 253, 244, 0.84);
+}
+
+.lingry-auth-card[data-lingry-auth-screen="unlock"] .lingry-auth-link,
+.lingry-auth-card[data-lingry-auth-screen="pin-create"] .lingry-auth-link,
+.lingry-auth-card[data-lingry-auth-screen="pin-confirm"] .lingry-auth-link {
+	color: #fffdf4;
+}
+
+.lingry-auth-button.secondary {
+	border-color: rgba(10, 99, 61, 0.2);
+	background: #effcf3;
+	color: #064432;
+}
+
+.lingry-auth-button:disabled {
+	cursor: wait;
+	opacity: 0.66;
+}
+
+.lingry-auth-link {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 44px;
+	margin: 6px auto 0;
+	border: 0;
+	background: transparent;
+	color: #067a46;
+	font: inherit;
+	font-size: 14px;
+	font-weight: 800;
+	cursor: pointer;
+}
+
+.lingry-auth-status {
+	min-height: 20px;
+	margin: 10px 0 0;
+	color: #9e331d;
+	font-size: 13px;
+	font-weight: 700;
+	line-height: 1.35;
+}
+
+.lingry-auth-status.info {
+	color: #386352;
+}
+
+.lingry-recovery-input,
+.lingry-backup-input {
+	min-height: 50px;
+	width: 100%;
+	box-sizing: border-box;
+	border: 1px solid rgba(10, 99, 61, 0.22);
+	border-radius: 14px;
+	background: #f6fff9;
+	color: #043b2c;
+	font: inherit;
+	font-size: 16px;
+	padding: 12px 14px;
+}
+
+.lingry-auth-field-label {
+	display: block;
+	margin-bottom: 6px;
+	color: #164532;
+	font-size: 13px;
+	font-weight: 800;
+}
+
+.lingry-auth-note {
+	margin: 8px 0 12px;
+	color: #4c6f61;
+	font-size: 12px;
+	line-height: 1.4;
+}
+
+.lingry-auth-warning {
+	color: #7b3d24;
+}
+
+.lingry-pin-wrap {
+	margin: 14px 0 8px;
+}
+
+.lingry-pin-cells {
+	position: relative;
+	display: grid;
+	grid-template-columns: repeat(4, minmax(48px, 58px));
+	justify-content: center;
+	gap: clamp(8px, 3vw, 12px);
+	max-width: 100%;
+	border-radius: 12px;
+}
+
+.lingry-pin-cell {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 100%;
+	min-width: 0;
+	height: 58px;
+	border: 2px solid rgba(7, 134, 76, 0.24);
+	border-radius: 13px;
+	background: #f6fff9;
+	color: #043b2c;
+	font-size: 28px;
+	font-weight: 900;
+}
+
+.lingry-auth-card[data-lingry-auth-screen="unlock"] .lingry-pin-cell,
+.lingry-auth-card[data-lingry-auth-screen="pin-create"] .lingry-pin-cell,
+.lingry-auth-card[data-lingry-auth-screen="pin-confirm"] .lingry-pin-cell {
+	border-color: rgba(255, 255, 255, 0.44);
+	background: rgba(246, 255, 249, 0.94);
+}
+
+.lingry-pin-cell.filled {
+	border-color: #07864c;
+	background: #ebfff2;
+}
+
+.lingry-auth-card[data-lingry-auth-screen="unlock"] .lingry-pin-cell.filled,
+.lingry-auth-card[data-lingry-auth-screen="pin-create"] .lingry-pin-cell.filled,
+.lingry-auth-card[data-lingry-auth-screen="pin-confirm"] .lingry-pin-cell.filled {
+	border-color: #ffffff;
+	background: #ffffff;
+}
+
+.lingry-pin-native {
+	position: absolute;
+	inset: 0;
+	z-index: 2;
+	width: 100%;
+	height: 100%;
+	border: 0;
+	opacity: 0.01;
+	color: transparent;
+	background: transparent;
+	caret-color: transparent;
+	font-size: 16px;
+}
+
+.lingry-auth-progress {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 96px;
+	color: #386352;
+	font-size: 14px;
+	font-weight: 700;
+}
+
+@media (max-width: 350px) {
+	.lingry-auth-card {
+		padding: 14px 12px;
+	}
+
+	.lingry-pin-cells {
+		grid-template-columns: repeat(4, minmax(44px, 54px));
+		gap: 8px;
+	}
+
+	.lingry-pin-cell {
+		height: 54px;
+	}
+}
