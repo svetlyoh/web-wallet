@@ -73,6 +73,13 @@ test('valid legacy wallet proof can restore an identity without preexisting loca
 	assert.doesNotMatch(authSource, /error\.code === 'existing_identity_not_found'/);
 });
 
+test('wallet recovery repairs a missing D1 identity table before retrying', () => {
+	assert.match(apiSource, /async function ensureLingryIdentitySchema/);
+	assert.match(apiSource, /CREATE TABLE IF NOT EXISTS lingry_identities/);
+	assert.match(apiSource, /no such table:\\s\*lingry_identities/);
+	assert.match(apiSource, /await ensureLingryIdentitySchema\(env\)/);
+});
+
 test('wallet identities have a unique normalized address and stable user id', async () => {
 	const mixedBech32 = 'SuGaR1QExampleAddress';
 	assert.equal(normalizeLingryWalletAddress(mixedBech32), mixedBech32.toLowerCase());

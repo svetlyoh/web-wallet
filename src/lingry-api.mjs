@@ -1427,15 +1427,52 @@ export async function lingryIdentityUserId(address) {
 	return 'lingry_' + (await sha256Hex(normalizeLingryWalletAddress(address))).slice(0, 32);
 }
 
-async function getLingryIdentity(env, address) {
-	const normalizedAddress = normalizeLingryWalletAddress(address);
-	const row = await env.LINGRY_DB.prepare(`
+async function ensureLingryIdentitySchema(env) {
+	await env.LINGRY_DB.prepare(`
+		CREATE TABLE IF NOT EXISTS lingry_identities (
+			user_id TEXT PRIMARY KEY,
+			wallet_address TEXT NOT NULL,
+			normalized_wallet_address TEXT NOT NULL UNIQUE,
+			wallet_public_key TEXT NOT NULL DEFAULT '',
+			handle TEXT NOT NULL DEFAULT '',
+			display_name TEXT NOT NULL DEFAULT '',
+			profile_json TEXT NOT NULL DEFAULT '{}',
+			auth_version TEXT NOT NULL DEFAULT 'wallet-pin-v1',
+			legacy_source TEXT NOT NULL DEFAULT '',
+			created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			last_seen_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+		)
+	`).run();
+	await env.LINGRY_DB.prepare(`
+		CREATE UNIQUE INDEX IF NOT EXISTS idx_lingry_identities_wallet
+		ON lingry_identities(normalized_wallet_address)
+	`).run();
+	await env.LINGRY_DB.prepare(`
+		CREATE INDEX IF NOT EXISTS idx_lingry_identities_last_seen
+		ON lingry_identities(last_seen_at DESC)
+	`).run();
+}
+
+async function queryLingryIdentity(env, normalizedAddress) {
+	return await env.LINGRY_DB.prepare(`
 		SELECT user_id, wallet_address, normalized_wallet_address, wallet_public_key,
 			handle, display_name, profile_json, auth_version, legacy_source, created_at, last_seen_at
 		FROM lingry_identities
 		WHERE normalized_wallet_address = ?
 	`).bind(normalizedAddress).first();
-	return row || null;
+}
+
+async function getLingryIdentity(env, address) {
+	const normalizedAddress = normalizeLingryWalletAddress(address);
+	try {
+		return await queryLingryIdentity(env, normalizedAddress) || null;
+	} catch (error) {
+		if (!/no such table:\s*lingry_identities/i.test(String(error && error.message || error))) {
+			throw error;
+		}
+		await ensureLingryIdentitySchema(env);
+		return await queryLingryIdentity(env, normalizedAddress) || null;
+	}
 }
 
 async function hasLegacyLingryActivity(env, address) {
