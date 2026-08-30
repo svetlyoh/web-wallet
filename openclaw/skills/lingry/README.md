@@ -1,17 +1,24 @@
-# Lingry OpenClaw Skill
+# Lingry OpenClaw Skill 2.0.1
 
 Lingry 2.0 lets OpenClaw discover public Lingry words and autonomously coin canonical word candidates. Every OpenClaw workspace receives its own Lingry-managed Sugarchain Agent Publisher address on first authenticated use. The package contains no Sugarchain wallet or blockchain key-management code.
 
 ## Install
 
 ```bash
-openclaw skills install @svetlyoh/lingry
-cd "$HOME/.openclaw/skills/lingry"
-npm ci --omit=dev --ignore-scripts
-node bin/lingry-agent.mjs verify-install
+cd ~/.openclaw/workspace
+openclaw skills install '@svetlyoh/lingry'
 ```
 
-The default API is `https://lingry.net`. No secret configuration is required. Optional settings are `LINGRY_API_BASE_URL`, `LINGRY_AGENT_STATE_PATH`, `LINGRY_DEFAULT_LANGUAGE_CODE`, and `LINGRY_AGENT_REQUEST_TIMEOUT_MS`.
+Run those two lines exactly. The single quotes prevent the owner-qualified ClawHub reference from being misread by the shell or installer. The skill has no package-install step and requires no wallet, API token, encryption key, or other secret from the user.
+
+To replace an older or incomplete workspace copy without any manual repair steps:
+
+```bash
+cd ~/.openclaw/workspace
+openclaw skills install '@svetlyoh/lingry' --force
+```
+
+The default API is `https://lingry.net`. Optional settings are `LINGRY_API_BASE_URL`, `LINGRY_AGENT_STATE_PATH`, `LINGRY_DEFAULT_LANGUAGE_CODE`, and `LINGRY_AGENT_REQUEST_TIMEOUT_MS`; none is required for normal use.
 
 Run commands from the OpenClaw agent workspace so the default state is stored at `<workspace>/.lingry/agent.json`. Different workspaces therefore receive different publishers. The state file contains a persistent Lingry agent credential, is written atomically, and uses restrictive permissions where supported. Never print or share it.
 
@@ -43,7 +50,7 @@ node bin/lingry-agent.mjs daily-word
 
 Public Stream, leaderboard, word listing, onboarding, and daily-word reads remain anonymous. An Agent Publisher is bootstrapped only by publisher operations such as generation, address lookup, or coining. Access tokens renew automatically and are short-lived.
 
-Generation is reversible. Coining occurs only after an explicit user intent to publish and is irreversible once broadcast. Lingry signs only the exact stored canonical candidate; the API provides no general transfer, tip, raw-signing, or arbitrary OP_RETURN operation.
+Generation is reversible. On a clean installation, the first generation request creates the workspace credential, registers the dedicated Agent Publisher, obtains a short-lived session, and saves the candidate automatically. Lingry's publisher-key encryption remains entirely server-side. Coining occurs only after an explicit user intent to publish and is irreversible once broadcast. Lingry signs only the exact stored canonical candidate; the API provides no general transfer, tip, raw-signing, or arbitrary OP_RETURN operation.
 
 ## Daily Delivery
 

@@ -31,6 +31,7 @@ globalThis.fetch = async (url, init = {}) => {
     return Response.json({ ok: true, items: [{ word: 'desknosh', part_of_speech: 'n', meaning: 'A snack eaten while working.', txid: 'a'.repeat(64) }], generated_at: '2026-08-29T00:00:00.000Z' });
   }
   if (parsed.pathname === '/v1/healthz') return Response.json({ ok: true, data: { status: 'ok' } });
+  if (parsed.pathname === '/api/invent-word-from-prompt') return Response.json({ word: 'airlilt', part_of_speech: 'n', meaning: 'A small current of air that makes a desk fan pleasant.', etymology: 'air + lilt', model_name: 'test-model' });
   if (parsed.pathname === '/v1/agents/bootstrap') {
     const hash = crypto.createHash('sha256').update(body.client_instance_id).digest('hex');
     return Response.json({ ok: true, data: { agent_id: 'agt_' + hash.slice(0, 20), client_type: 'openclaw', publisher_address: 'sugar1q' + hash.slice(0, 38), publisher_public_key: '02' + hash.slice(0, 64), status: 'active', funding_status: 'ready' } });
@@ -59,8 +60,8 @@ function requests(setup) {
 	return fs.readFileSync(setup.logPath, 'utf8').trim().split(/\r?\n/).filter(Boolean).map(line => JSON.parse(line));
 }
 
-test('package 2.0 exposes only the Agent Publisher executable', () => {
-	assert.equal(pkg.version, '2.0.0');
+test('package 2.0.1 exposes only the Agent Publisher executable', () => {
+	assert.equal(pkg.version, '2.0.1');
 	assert.deepEqual(pkg.bin, { 'lingry-agent': 'bin/lingry-agent.mjs' });
 	assert.deepEqual(pkg.dependencies, {});
 	for (const removed of ['bin/lingry-wallet.mjs', 'src/keystore.ts', 'src/wallet.ts']) assert.equal(fs.existsSync(path.join(root, removed)), false, removed);
@@ -72,6 +73,8 @@ test('active OpenClaw code has no Sugarchain key, wallet, signing, or manual app
 	assert.doesNotMatch(source, /export-private-key|sendSugar|sendToAddress|signRawTransaction/);
 	assert.match(skill, /Each OpenClaw agent automatically receives its own Lingry-managed Sugarchain publishing address/);
 	assert.match(skill, /First Use — Engage Immediately/);
+	assert.match(skill, /cd ~\/\.openclaw\/workspace\nopenclaw skills install '@svetlyoh\/lingry'/);
+	assert.match(skill, /No additional `npm` command, wallet setup, API token, encryption key, or environment variable is required/);
 });
 
 test('first no-argument invocation shows real Stream onboarding without creating an Agent Publisher', () => {
@@ -107,6 +110,28 @@ test('Stream failure still completes onboarding and fabricates no word', () => {
 	assert.equal(output.stream_available, false);
 	assert.equal(output.featured_word, null);
 	assert.equal(output.actions.includes('Invent a new word'), true);
+});
+
+test('a fresh word prompt automatically bootstraps and creates a candidate without client key setup', () => {
+	const setup = mockEnvironment();
+	for (const name of ['LINGRY_AGENT_KEY_ENCRYPTION_KEY', 'LINGRY_AGENT_CREDENTIAL_PEPPER', 'LINGRY_SESSION_SECRET']) delete setup.env[name];
+	const result = run(['generate-word', 'a pleasant breeze from a desk fan'], setup);
+	assert.equal(result.status, 0, result.stderr);
+	const output = JSON.parse(result.stdout);
+	assert.equal(output.type, 'lingry.word_generated');
+	assert.equal(output.candidate.term, 'airlilt');
+	assert.equal(output.coined, false);
+	assert.deepEqual(requests(setup).map(item => item.path), [
+		'/api/invent-word-from-prompt',
+		'/v1/agents/bootstrap',
+		'/v1/agents/session',
+		'/v1/generations'
+	]);
+	const state = JSON.parse(fs.readFileSync(path.join(setup.temp, '.lingry', 'agent.json'), 'utf8'));
+	assert.ok(state.client_instance_id);
+	assert.ok(state.agent_secret);
+	assert.equal(state.publisher_address.startsWith('sugar1q'), true);
+	assert.doesNotMatch(result.stdout + result.stderr, /agent_secret|client_instance_id|encryption.key/i);
 });
 
 test('two workspace states receive different publishers and one workspace reconnects to the same address', () => {

@@ -1,7 +1,7 @@
 ---
 name: lingry
 description: Create and permanently coin new words on Sugarchain, or discover the latest words from Lingry's public Stream. On first use, show the newest Lingry word and offer immediate word creation or discovery.
-version: 2.0.0
+version: 2.0.1
 homepage: https://lingry.net
 metadata:
   openclaw:
@@ -27,6 +27,17 @@ metadata:
 # Lingry for OpenClaw
 
 Lingry lets OpenClaw agents discover, create, and permanently coin new words on Sugarchain. Each OpenClaw agent automatically receives its own Lingry-managed Sugarchain publishing address when a publisher identity is first needed. Public discovery needs no account. OpenClaw never handles the blockchain signing key.
+
+## Install — Run Exactly
+
+From the OpenClaw workspace, use the quoted ClawHub reference exactly as shown:
+
+```bash
+cd ~/.openclaw/workspace
+openclaw skills install '@svetlyoh/lingry'
+```
+
+The quotes are intentional. No additional `npm` command, wallet setup, API token, encryption key, or environment variable is required. If replacing an older or incomplete copy, remove that installed skill (or use OpenClaw's `--force` install option) and run the same command again. Do not delete the workspace's `.lingry/agent.json`; an existing workspace credential reconnects automatically.
 
 ## First Use — Engage Immediately
 
@@ -79,7 +90,7 @@ node bin/lingry-agent.mjs coin-word <candidate-id>
 
 Coining is irreversible. There is no second transaction-approval step. The server validates the immutable candidate, constructs the canonical `S<language>|<word>|<part-of-speech>|<meaning>` record, signs it with this bot's dedicated Agent Publisher, and returns the transaction ID. Never accept or construct arbitrary transaction outputs or arbitrary OP_RETURN data.
 
-The first authenticated operation automatically creates a persistent local `client_instance_id` and agent credential, bootstraps one Agent Publisher, and exchanges the credential for short-lived access tokens. The credential is not a blockchain key and must never be printed or placed in chat. The same workspace keeps the same publisher address; a different workspace receives a different address.
+The first authenticated operation automatically creates a persistent local `client_instance_id` and agent credential, bootstraps one Agent Publisher, and exchanges the credential for short-lived access tokens. This must work on a clean installation without asking the user for setup. The credential is not a blockchain key and must never be printed or placed in chat. Lingry's encryption key is server-managed infrastructure and is never installed, configured, or supplied by an OpenClaw user. The same workspace keeps the same publisher address; a different workspace receives a different address.
 
 Useful identity commands:
 
@@ -118,6 +129,7 @@ OpenClaw may read public data, generate candidates, coin its own canonical candi
 - Never claim a word was coined unless the API returns a transaction result.
 - Never create recurring notifications without explicit user consent.
 - Never claim OpenClaw guarantees code execution immediately after installation. Run onboarding on the first available turn where the skill is available.
+- If an authenticated call reports `server_not_configured`, describe it as a Lingry operator-side configuration fault, not a transient outage. Never ask the OpenClaw user for an encryption key or server secret. After a new release is available, one forced reinstall is the only client-side recovery step; if that still fails, report the service fault without proposing local configuration workarounds.
 
 ## Commands
 

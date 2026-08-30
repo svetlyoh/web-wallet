@@ -60,7 +60,7 @@ async function hmacBytes(secret, value) {
 async function credentialHash(env, clientInstanceId, agentSecret) {
 	const pepper = normalize(env.LINGRY_AGENT_CREDENTIAL_PEPPER || env.LINGRY_AGENT_KEY_ENCRYPTION_KEY);
 	if (!pepper) {
-		throw agentError('server_not_configured', 'Agent credential protection is not configured.', 503, true);
+		throw agentError('server_not_configured', 'Agent credential protection is not configured.', 503);
 	}
 	return Buffer.from(await hmacBytes(pepper, `${clientInstanceId}\n${agentSecret}`)).toString('hex');
 }
@@ -77,7 +77,7 @@ function safeEqualHex(left, right) {
 async function rootEncryptionKey(env) {
 	const configured = normalize(env.LINGRY_AGENT_KEY_ENCRYPTION_KEY);
 	if (!configured) {
-		throw agentError('server_not_configured', 'LINGRY_AGENT_KEY_ENCRYPTION_KEY is required for Agent Publishers.', 503, true);
+		throw agentError('server_not_configured', 'LINGRY_AGENT_KEY_ENCRYPTION_KEY is required for Agent Publishers.', 503);
 	}
 	let raw;
 	try {
@@ -242,7 +242,7 @@ export async function verifyAgentCredential(env, body) {
 
 export async function mintAgentAccessToken(env, publisher) {
 	const secret = normalize(env.LINGRY_SESSION_SECRET);
-	if (!secret) throw agentError('server_not_configured', 'LINGRY_SESSION_SECRET is required.', 503, true);
+	if (!secret) throw agentError('server_not_configured', 'LINGRY_SESSION_SECRET is required.', 503);
 	const payload = {
 		typ: 'lingry-agent',
 		sub: publisher.agent_id,

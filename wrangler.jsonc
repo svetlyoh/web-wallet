@@ -13,6 +13,15 @@
 		"LINGRY_GRANT_MONTHLY_BUDGET_SUGAR": "30",
 		"LINGRY_GRANT_MAX_PER_IP_DAY": "10"
 	},
+	"secrets": {
+		"required": [
+			"LINGRY_SESSION_SECRET",
+			"MINIMAX_API_KEY",
+			"LINGRY_FUNDING_WIF",
+			"LINGRY_AGENT_KEY_ENCRYPTION_KEY",
+			"LINGRY_AGENT_CREDENTIAL_PEPPER"
+		]
+	},
 	"observability": {
 		"enabled": true
 	},

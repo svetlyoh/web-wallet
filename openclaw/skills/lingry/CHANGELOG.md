@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.0.1
+
+- Documented the exact workspace-scoped, quoted ClawHub install command shown to users.
+- Removed unnecessary post-install `npm` and manual verification steps.
+- Confirmed clean-install word generation automatically creates the workspace credential, bootstraps the Agent Publisher, and opens a short-lived session without user-provided keys or secrets.
+- Clarified that publisher-key encryption is server-managed and operator configuration errors are not transient client failures.
+
 ## 2.0.0
 
 - Removed the OpenClaw local Sugarchain wallet, private-key import, browser API Session copy/paste, and manual transaction approval workflow.

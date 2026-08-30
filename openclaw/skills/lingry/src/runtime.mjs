@@ -200,5 +200,17 @@ export function verifyInstall(skillRoot) {
 	const pkg = JSON.parse(fs.readFileSync(path.join(skillRoot, 'package.json'), 'utf8'));
 	const bins = pkg.bin || {};
 	const binOk = bins['lingry-agent'] === 'bin/lingry-agent.mjs' && !Object.hasOwn(bins, 'lingry-wallet');
-	return { ok: missing.length === 0 && binOk && pkg.name === '@svetlyoh/lingry', package_name: pkg.name, version: pkg.version, required_files: files, missing, bins, standalone: true, plugin_fallback_enabled: false };
+	return {
+		ok: missing.length === 0 && binOk && pkg.name === '@svetlyoh/lingry',
+		package_name: pkg.name,
+		version: pkg.version,
+		required_files: files,
+		missing,
+		bins,
+		standalone: true,
+		plugin_fallback_enabled: false,
+		manual_client_secrets_required: false,
+		first_authenticated_use_bootstraps_publisher: true,
+		publisher_key_encryption: 'lingry-server-managed'
+	};
 }
