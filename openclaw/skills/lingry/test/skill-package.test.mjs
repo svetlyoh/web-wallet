@@ -7,264 +7,164 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const agentPath = path.join(root, 'bin', 'lingry-agent.mjs');
 const skill = fs.readFileSync(path.join(root, 'SKILL.md'), 'utf8');
-const readme = fs.readFileSync(path.join(root, 'README.md'), 'utf8');
-const agent = fs.readFileSync(path.join(root, 'bin/lingry-agent.mjs'), 'utf8');
-const wallet = fs.readFileSync(path.join(root, 'bin/lingry-wallet.mjs'), 'utf8');
+const runtime = fs.readFileSync(path.join(root, 'src', 'runtime.mjs'), 'utf8');
+const agent = fs.readFileSync(agentPath, 'utf8');
 const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
 
-function isolatedEnv(extra = {}) {
-	const home = fs.mkdtempSync(path.join(os.tmpdir(), 'lingry-test-home-'));
-	return {
-		...process.env,
-		HOME: home,
-		USERPROFILE: home,
-		LINGRY_API_BASE_URL: 'https://127.0.0.1:9',
-		LINGRY_KEYSTORE_PATH: path.join(home, '.lingry', 'keystore.json'),
-		LINGRY_AGENT_REQUEST_TIMEOUT_MS: '1000',
-		LINGRY_SESSION_TOKEN: '',
-		...extra
-	};
-}
-
-function runNode(args, options = {}) {
-	return spawnSync(process.execPath, args, {
-		cwd: options.cwd || root,
-		env: options.env || isolatedEnv(),
-		encoding: 'utf8',
-		timeout: options.timeout || 10000
-	});
-}
-
-function mockFetchEnv(routePayloads) {
-	const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'lingry-fetch-mock-'));
-	const mockPath = path.join(dir, 'mock-fetch.mjs');
-	fs.writeFileSync(mockPath, `
-const payloads = ${JSON.stringify(routePayloads)};
-globalThis.fetch = async (url) => {
-	const parsed = new URL(String(url));
-	const payload = payloads[parsed.pathname] || payloads.default;
-	if (payload && payload.status) {
-		return new Response(JSON.stringify(payload.body), { status: payload.status, headers: { 'content-type': 'application/json' } });
-	}
-	return new Response(JSON.stringify(payload), { status: 200, headers: { 'content-type': 'application/json' } });
+function mockEnvironment(options = {}) {
+	const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'lingry-openclaw-test-'));
+	const logPath = path.join(temp, 'requests.log');
+	const preload = path.join(temp, 'mock-fetch.mjs');
+	fs.writeFileSync(preload, `
+import fs from 'node:fs';
+import crypto from 'node:crypto';
+const log = ${JSON.stringify(logPath)};
+const failStream = ${Boolean(options.failStream)};
+globalThis.fetch = async (url, init = {}) => {
+  const parsed = new URL(String(url));
+  const body = init.body ? JSON.parse(String(init.body)) : {};
+  fs.appendFileSync(log, JSON.stringify({ path: parsed.pathname, method: init.method || 'GET' }) + '\\n');
+  if (parsed.pathname === '/v1/stream') {
+    if (failStream) return new Response(JSON.stringify({ ok: false, error: { code: 'unavailable', message: 'Stream unavailable' } }), { status: 503, headers: { 'content-type': 'application/json' } });
+    return Response.json({ ok: true, items: [{ word: 'desknosh', part_of_speech: 'n', meaning: 'A snack eaten while working.', txid: 'a'.repeat(64) }], generated_at: '2026-08-29T00:00:00.000Z' });
+  }
+  if (parsed.pathname === '/v1/healthz') return Response.json({ ok: true, data: { status: 'ok' } });
+  if (parsed.pathname === '/v1/agents/bootstrap') {
+    const hash = crypto.createHash('sha256').update(body.client_instance_id).digest('hex');
+    return Response.json({ ok: true, data: { agent_id: 'agt_' + hash.slice(0, 20), client_type: 'openclaw', publisher_address: 'sugar1q' + hash.slice(0, 38), publisher_public_key: '02' + hash.slice(0, 64), status: 'active', funding_status: 'ready' } });
+  }
+  if (parsed.pathname === '/v1/agents/session') return Response.json({ ok: true, data: { access_token: 'test.access', expires_at: '2099-01-01T00:00:00.000Z', scopes: ['words:create','words:coin'] } });
+  if (parsed.pathname === '/v1/agents/me') return Response.json({ ok: true, data: { agent_id: 'agt_test', publisher_address: 'sugar1qtest', status: 'active' } });
+  if (parsed.pathname === '/v1/generations') return Response.json({ ok: true, data: { candidate: { candidate_id: 'cand_test', language_code: 'W', candidate_hash: 'b'.repeat(64), term: body.term, meaning: body.meaning } } });
+  if (parsed.pathname === '/v1/agents/coin') return Response.json({ ok: true, data: { candidate_id: body.candidate_id, word: 'desknosh', meaning: 'Desk snack', publisher_address: 'sugar1qpublisher', intent_id: 'intent_test', txid: 'c'.repeat(64), status: 'pending' } });
+  if (parsed.pathname.startsWith('/v1/words')) return Response.json({ ok: true, data: { words: [] } });
+  return Response.json({ ok: true, data: {} });
 };
 `, 'utf8');
-	return isolatedEnv({ NODE_OPTIONS: `--import=${pathToFileURL(mockPath).href}` });
-}
-
-function copyCleanRoom() {
-	const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'lingry-clean-room-'));
-	fs.cpSync(root, temp, {
-		recursive: true,
-		filter: (source) => {
-			const base = path.basename(source);
-			return base !== 'node_modules' && base !== '.git' && !base.startsWith('.tmp-');
-		}
-	});
-	return temp;
-}
-
-test('SKILL.md has ClawHub frontmatter and optional auth metadata', () => {
-	assert.match(skill, /^---\nname: lingry\n/m);
-	assert.match(skill, /homepage: https:\/\/lingry\.net/);
-	assert.match(skill, /LINGRY_SESSION_TOKEN[\s\S]*required: false/);
-	assert.match(skill, /Defaults to https:\/\/lingry\.net/);
-	assert.doesNotMatch(skill, /LINGRY_GRANT_WALLET_WIF|LINGRY_FUNDING_WIF/);
-	assert.doesNotMatch(skill, /export\s+LINGRY_WALLET_PASSPHRASE|LINGRY_WALLET_PASSPHRASE=/);
-});
-
-test('README documents canonical package and no passphrase export', () => {
-	assert.match(readme, /openclaw skills install @svetlyoh\/lingry/);
-	assert.match(readme, /https:\/\/lingry\.net/);
-	assert.match(readme, /Optional Lingry Account Session/);
-	assert.match(readme, /node bin\/lingry-wallet\.mjs setup/);
-	assert.match(readme, /node bin\/lingry-agent\.mjs leaderboard/);
-	assert.match(readme, /node bin\/lingry-agent\.mjs stream/);
-	assert.doesNotMatch(readme, /export\s+LINGRY_WALLET_PASSPHRASE|LINGRY_WALLET_PASSPHRASE=|export-private-key|plugin-skills/);
-});
-
-test('package includes required standalone executable text-source files', () => {
-	assert.equal(pkg.name, '@svetlyoh/lingry');
-	assert.equal(pkg.version, '1.0.7');
-	assert.equal(pkg.bin['lingry-agent'], 'bin/lingry-agent.mjs');
-	assert.equal(pkg.bin['lingry-wallet'], 'bin/lingry-wallet.mjs');
-	for (const relativePath of [
-		'bin/lingry-agent.mjs',
-		'bin/lingry-wallet.mjs',
-		'src/runtime.mjs',
-		'package.json',
-		'package-lock.json'
-	]) {
-		assert.ok(fs.statSync(path.join(root, relativePath)).size > 0, relativePath);
-	}
-});
-
-test('agent has no wallet decryption, passphrase, fallback, or direct broadcast path', () => {
-	assert.doesNotMatch(agent, /LINGRY_WALLET_PASSPHRASE|createDecipher|loadEncryptedWallet|fromWIF|TransactionBuilder|signed_transaction_hex/);
-	assert.doesNotMatch(agent, /plugin-skills|web-wallet|localhost:8787|--confirm-broadcast/);
-	assert.match(agent, /prepare-coin/);
-	assert.match(agent, /prepare-starter-grant/);
-	assert.match(agent, /leaderboard/);
-	assert.match(agent, /stream/);
-});
-
-test('leaderboard and stream usage is listed', () => {
-	const result = runNode(['bin/lingry-agent.mjs', 'help']);
-	assert.equal(result.status, 0, result.stderr);
-	assert.match(result.stdout, /leaderboard \[limit\] \[--json\]/);
-	assert.match(result.stdout, /stream \[limit\] \[--json\]/);
-});
-
-test('wallet helper owns terminal-only signing commands', () => {
-	assert.match(wallet, /create-wallet/);
-	assert.match(wallet, /import-wallet/);
-	assert.match(wallet, /approve/);
-	assert.match(wallet, /claim-grant/);
-	assert.match(wallet, /BROADCAST/);
-	assert.match(wallet, /Lingry wallet commands must be run from an interactive local terminal/);
-});
-
-test('public leaderboard and stream commands are anonymous read-only commands', () => {
-	const source = agent;
-	const leaderboardBlock = source.slice(source.indexOf('async function runPublicRead'), source.indexOf('async function runStatus'));
-	assert.match(leaderboardBlock, /fetchJsonWithTimeout/);
-	assert.doesNotMatch(leaderboardBlock, /requireSessionToken|readKeystoreHeader|createPendingRequest|sugarApi|lingry-wallet|loadEncryptedWallet|WIF|passphrase|TransactionBuilder|broadcast/i);
-});
-
-test('leaderboard and stream format public snapshots and JSON', () => {
-	const snapshot = {
-		ok: true,
-		source: 'lingry-hourly-public-index',
-		generated_at: '2026-06-28T18:00:00.000Z',
-		stale: true,
-		scan: { start_height: 100, end_height: 820, scanned_blocks: 720 },
-		leaderboard: {
-			words: [{ word: 'desknosh', meaning: 'a snack eaten while working', language_code: 'W', part_of_speech: 'n', likes: 3, tips_amount: '0.02500000', creator_address: 'sugar1qabcdef1234567890' }],
-			addresses_by_likes: [{ address: 'sugar1qabcdef1234567890', likes_received: 3, words_count: 1 }],
-			addresses_by_tips: [{ address: 'sugar1qabcdef1234567890', tips_amount: '0.02500000', tips_count: 1 }],
-			addresses_by_words: [{ address: 'sugar1qabcdef1234567890', words_count: 1, likes_received: 3 }]
-		},
-		items: [{ word: 'desknosh', meaning: 'a snack eaten while working', language_code: 'W', part_of_speech: 'n', creator_address: 'sugar1qabcdef1234567890', block_height: 820, txid: 'a'.repeat(64), tx_time: '2026-06-28T17:54:12.000Z', likes: 3, tips_amount: '0.02500000' }]
+	return {
+		temp,
+		logPath,
+		env: { ...process.env, LINGRY_API_BASE_URL: 'https://lingry.test', LINGRY_AGENT_REQUEST_TIMEOUT_MS: '1000', NODE_OPTIONS: `--import=${pathToFileURL(preload).href}` }
 	};
-	const env = mockFetchEnv({ '/v1/leaderboard': snapshot, '/v1/stream': snapshot });
-	const leaderboard = runNode(['bin/lingry-agent.mjs', 'leaderboard'], { env });
-	assert.equal(leaderboard.status, 0, leaderboard.stderr);
-	assert.match(leaderboard.stdout, /Lingry Leaderboard/);
-	assert.match(leaderboard.stdout, /1\. desknosh/);
-	assert.match(leaderboard.stdout, /STALE/);
-	const stream = runNode(['bin/lingry-agent.mjs', 'stream', '20'], { env });
-	assert.equal(stream.status, 0, stream.stderr);
-	assert.match(stream.stdout, /Lingry Stream/);
-	assert.match(stream.stdout, /1\. desknosh/);
-	const json = runNode(['bin/lingry-agent.mjs', 'leaderboard', '--json'], { env });
-	assert.equal(json.status, 0, json.stderr);
-	assert.equal(JSON.parse(json.stdout).leaderboard.words[0].word, 'desknosh');
+}
+
+function run(args, setup, cwd = setup.temp) {
+	return spawnSync(process.execPath, [agentPath, ...args], { cwd, env: setup.env, encoding: 'utf8', timeout: 10000 });
+}
+
+function requests(setup) {
+	if (!fs.existsSync(setup.logPath)) return [];
+	return fs.readFileSync(setup.logPath, 'utf8').trim().split(/\r?\n/).filter(Boolean).map(line => JSON.parse(line));
+}
+
+test('package 2.0 exposes only the Agent Publisher executable', () => {
+	assert.equal(pkg.version, '2.0.0');
+	assert.deepEqual(pkg.bin, { 'lingry-agent': 'bin/lingry-agent.mjs' });
+	assert.deepEqual(pkg.dependencies, {});
+	for (const removed of ['bin/lingry-wallet.mjs', 'src/keystore.ts', 'src/wallet.ts']) assert.equal(fs.existsSync(path.join(root, removed)), false, removed);
 });
 
-test('leaderboard and stream limits are safe and snapshot-not-ready is clear', () => {
-	const env = mockFetchEnv({
-		'/v1/leaderboard': { ok: true, generated_at: '2026-06-28T18:00:00.000Z', stale: false, leaderboard: { words: [], addresses_by_likes: [], addresses_by_tips: [], addresses_by_words: [] } },
-		'/v1/stream': { status: 503, body: { ok: false, error: { code: 'hourly_snapshot_not_ready', message: 'Lingry public index has not completed its first hourly refresh yet.', retryable: true } } }
-	});
-	const capped = runNode(['bin/lingry-agent.mjs', 'leaderboard', '500', '--json'], { env });
-	assert.equal(capped.status, 0, capped.stderr);
-	const notReady = runNode(['bin/lingry-agent.mjs', 'stream'], { env });
-	assert.notEqual(notReady.status, 0);
-	assert.match(notReady.stderr, /hourly refresh/);
-	const invalid = runNode(['bin/lingry-agent.mjs', 'leaderboard', 'nope'], { env });
-	assert.equal(invalid.status, 0, invalid.stderr);
+test('active OpenClaw code has no Sugarchain key, wallet, signing, or manual approval path', () => {
+	const source = runtime + '\n' + agent;
+	for (const forbidden of ['bitcoinjs-lib', 'fromWIF', 'TransactionBuilder', 'LINGRY_SESSION_TOKEN', 'LINGRY_KEYSTORE_PATH', 'LINGRY_WALLET_PASSPHRASE', 'signed_transaction_hex']) assert.equal(source.includes(forbidden), false, forbidden);
+	assert.doesNotMatch(source, /export-private-key|sendSugar|sendToAddress|signRawTransaction/);
+	assert.match(skill, /Each OpenClaw agent automatically receives its own Lingry-managed Sugarchain publishing address/);
+	assert.match(skill, /First Use — Engage Immediately/);
 });
 
-test('leaderboard and stream default limits request 100 records', () => {
-	const env = mockFetchEnv({
-		'/v1/leaderboard': { ok: true, data: { limit: '100', generated_at: '2026-06-28T18:00:00.000Z', leaderboard: { words: [], addresses_by_likes: [], addresses_by_tips: [], addresses_by_words: [] } } },
-		'/v1/stream': { ok: true, data: { limit: '100', generated_at: '2026-06-28T18:00:00.000Z', items: [] } }
-	});
-	const leaderboard = runNode(['bin/lingry-agent.mjs', 'leaderboard', '--json'], { env });
-	assert.equal(leaderboard.status, 0, leaderboard.stderr);
-	assert.equal(JSON.parse(leaderboard.stdout).limit, '100');
-	const stream = runNode(['bin/lingry-agent.mjs', 'stream', '--json'], { env });
-	assert.equal(stream.status, 0, stream.stderr);
-	assert.equal(JSON.parse(stream.stdout).limit, '100');
-});
-
-test('verify-install succeeds without network or repository fallback', () => {
-	const result = runNode(['bin/lingry-agent.mjs', 'verify-install']);
+test('first no-argument invocation shows real Stream onboarding without creating an Agent Publisher', () => {
+	const setup = mockEnvironment();
+	const result = run([], setup);
 	assert.equal(result.status, 0, result.stderr);
-	const parsed = JSON.parse(result.stdout);
-	assert.equal(parsed.ok, true);
-	assert.equal(parsed.package_name, '@svetlyoh/lingry');
-	assert.equal(parsed.plugin_fallback_enabled, false);
-	assert.deepEqual(parsed.missing, []);
+	const output = JSON.parse(result.stdout);
+	assert.equal(output.type, 'lingry.first_use');
+	assert.equal(output.featured_word.word, 'desknosh');
+	assert.equal(output.agent_publisher_created, false);
+	const state = JSON.parse(fs.readFileSync(path.join(setup.temp, '.lingry', 'agent.json'), 'utf8'));
+	assert.equal(state.onboarding_completed, true);
+	assert.equal(Object.hasOwn(state, 'client_instance_id'), false);
+	assert.deepEqual(requests(setup).map(item => item.path), ['/v1/stream']);
 });
 
-test('doctor probes public and authenticated endpoints independently', () => {
-	const result = runNode(['bin/lingry-agent.mjs', 'doctor']);
+test('completed onboarding is idempotent across later invocations', () => {
+	const setup = mockEnvironment();
+	assert.equal(run([], setup).status, 0);
+	const second = run([], setup);
+	assert.equal(second.status, 0, second.stderr);
+	const output = JSON.parse(second.stdout);
+	assert.equal(output.type, undefined);
+	assert.equal(output.onboarding_completed, true);
+	assert.equal(requests(setup).filter(item => item.path === '/v1/stream').length, 1);
+});
+
+test('Stream failure still completes onboarding and fabricates no word', () => {
+	const setup = mockEnvironment({ failStream: true });
+	const result = run([], setup);
 	assert.equal(result.status, 0, result.stderr);
-	const parsed = JSON.parse(result.stdout);
-	assert.equal(parsed.ok, true);
-	assert.equal(parsed.checks.api.baseUrl, 'https://127.0.0.1:9');
-	assert.equal(parsed.checks.session_token_configured, false);
-	assert.equal(parsed.checks.agent_decrypts_wallet, false);
-	assert.equal(parsed.public_list_words_access.available, false);
-	assert.equal(parsed.public_list_words_access.note, 'This public read check is independent of LINGRY_SESSION_TOKEN.');
-	assert.equal(parsed.auth_status.token_configured, false);
-	assert.equal(parsed.authenticated_candidate_generation_access.ok, false);
-	assert.equal(parsed.authenticated_candidate_coin_preparation_access.ok, false);
-	assert.doesNotMatch(result.stdout + result.stderr, /[KL5][1-9A-HJ-NP-Za-km-z]{50,51}/);
+	const output = JSON.parse(result.stdout);
+	assert.equal(output.stream_available, false);
+	assert.equal(output.featured_word, null);
+	assert.equal(output.actions.includes('Invent a new word'), true);
 });
 
-test('default status and auth-status are safe and non-secret', () => {
-	const env = isolatedEnv();
-	const status = runNode(['bin/lingry-agent.mjs'], { env });
-	assert.equal(status.status, 0, status.stderr);
-	const parsedStatus = JSON.parse(status.stdout);
-	assert.equal(parsedStatus.ok, true);
-	assert.equal(parsedStatus.wallet.configured, false);
-	assert.equal(parsedStatus.session_token.token_configured, false);
-	assert.equal(parsedStatus.session_token.token_accepted, 'unknown');
-	assert.ok(Object.hasOwn(parsedStatus, 'last_saved_candidate'));
-	assert.ok(Object.hasOwn(parsedStatus, 'last_local_coin_result'));
-
-	const auth = runNode(['bin/lingry-agent.mjs', 'auth-status'], { env });
-	assert.equal(auth.status, 0, auth.stderr);
-	const parsedAuth = JSON.parse(auth.stdout);
-	assert.equal(parsedAuth.token_configured, false);
-	assert.equal(parsedAuth.token_accepted, 'unknown');
-	assert.doesNotMatch(status.stdout + status.stderr + auth.stdout + auth.stderr, /[KL5][1-9A-HJ-NP-Za-km-z]{50,51}/);
+test('two workspace states receive different publishers and one workspace reconnects to the same address', () => {
+	const setup = mockEnvironment();
+	const workspaceA = path.join(setup.temp, 'agent-a');
+	const workspaceB = path.join(setup.temp, 'agent-b');
+	fs.mkdirSync(workspaceA); fs.mkdirSync(workspaceB);
+	const a1 = run(['address'], setup, workspaceA);
+	const a2 = run(['address'], setup, workspaceA);
+	const b = run(['address'], setup, workspaceB);
+	assert.equal(a1.status, 0, a1.stderr); assert.equal(a2.status, 0, a2.stderr); assert.equal(b.status, 0, b.stderr);
+	const addressA1 = JSON.parse(a1.stdout).publisher_address;
+	const addressA2 = JSON.parse(a2.stdout).publisher_address;
+	const addressB = JSON.parse(b.stdout).publisher_address;
+	assert.equal(addressA1, addressA2);
+	assert.notEqual(addressA1, addressB);
+	assert.doesNotMatch(a1.stdout + a2.stdout + b.stdout, /agent_secret|client_instance_id/);
 });
 
-test('wallet helper refuses non-interactive runs and passphrase environment input', () => {
-	const nonInteractive = runNode(['bin/lingry-wallet.mjs', 'inspect'], { timeout: 3000 });
-	assert.notEqual(nonInteractive.status, 0);
-	assert.match(nonInteractive.stderr, /interactive local terminal/);
-
-	const withEnvPassphrase = runNode(['bin/lingry-wallet.mjs', 'inspect'], {
-		env: isolatedEnv({ LINGRY_WALLET_PASSPHRASE: 'not-used' }),
-		timeout: 3000
-	});
-	assert.notEqual(withEnvPassphrase.status, 0);
-	assert.match(withEnvPassphrase.stdout + withEnvPassphrase.stderr, /Do not provide a Lingry wallet passphrase through an environment variable/);
+test('coin-word is autonomous and contains no human approval step', () => {
+	const setup = mockEnvironment();
+	fs.mkdirSync(path.join(setup.temp, '.lingry'), { recursive: true });
+	fs.writeFileSync(path.join(setup.temp, '.lingry', 'agent.json'), JSON.stringify({ onboarding_completed: true, onboarding_version: 1, active_candidate_id: 'cand_test', active_candidate_language_code: 'W' }));
+	const result = run(['coin-word', 'cand_test'], setup);
+	assert.equal(result.status, 0, result.stderr);
+	const output = JSON.parse(result.stdout);
+	assert.equal(output.type, 'lingry.word_coined');
+	assert.equal(output.txid, 'c'.repeat(64));
+	assert.equal(output.publisher_address, 'sugar1qpublisher');
+	assert.doesNotMatch(result.stdout + result.stderr, /passphrase|approval|required_user_command/i);
+	assert.ok(requests(setup).some(item => item.path === '/v1/agents/coin'));
 });
 
-test('clean-room install works with no checkout fallback', () => {
-	const clean = copyCleanRoom();
-	const npmCommand = process.platform === 'win32' ? 'npm ci --omit=dev --ignore-scripts' : 'npm';
-	const npmArgs = process.platform === 'win32' ? [] : ['ci', '--omit=dev', '--ignore-scripts'];
-	const install = spawnSync(npmCommand, npmArgs, {
-		cwd: clean,
-		encoding: 'utf8',
-		shell: process.platform === 'win32',
-		timeout: 60000
-	});
-	assert.equal(install.status, 0, install.stderr);
-	const verify = runNode(['bin/lingry-agent.mjs', 'verify-install'], { cwd: clean });
+test('daily-word is a public read with no blockchain or publisher side effects', () => {
+	const setup = mockEnvironment();
+	const result = run(['daily-word'], setup);
+	assert.equal(result.status, 0, result.stderr);
+	const output = JSON.parse(result.stdout);
+	assert.equal(output.read_only, true);
+	assert.equal(output.agent_publisher_created, false);
+	assert.equal(output.blockchain_transaction_created, false);
+	assert.deepEqual(requests(setup).map(item => item.path), ['/v1/stream']);
+});
+
+test('verify-install succeeds and help lists the 2.0 command surface', () => {
+	const setup = mockEnvironment();
+	const verify = run(['verify-install'], setup);
 	assert.equal(verify.status, 0, verify.stderr);
-	const parsedVerify = JSON.parse(verify.stdout);
-	assert.equal(parsedVerify.ok, true);
-	assert.equal(parsedVerify.package_name, '@svetlyoh/lingry');
-	const status = runNode(['bin/lingry-agent.mjs', 'status'], { cwd: clean });
-	assert.equal(status.status, 0, status.stderr);
-	assert.equal(JSON.parse(status.stdout).api.baseUrl, 'https://127.0.0.1:9');
+	assert.equal(JSON.parse(verify.stdout).ok, true);
+	const help = run(['help'], setup);
+	assert.match(help.stdout, /coin-word <candidate-id>/);
+	assert.doesNotMatch(help.stdout, /lingry-wallet|prepare-coin|claim-grant/);
+});
+
+test('Daily Lingry Word guidance requires consent, duplicate checks, native automation, and easy disable', () => {
+	assert.match(skill, /explicitly agrees/);
+	assert.match(skill, /check whether an active `lingry-daily-word` job already exists/);
+	assert.match(skill, /native persistent automation interface/);
+	assert.match(skill, /disable or remove the existing job/);
+	assert.doesNotMatch(skill, /silently enable|installation is consent/i);
 });

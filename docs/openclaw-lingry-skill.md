@@ -1,132 +1,31 @@
-# OpenClaw Lingry Skill
+# OpenClaw Lingry Skill 2.0
 
-The OpenClaw integration lives in `openclaw/skills/lingry`.
+The standalone package at `openclaw/skills/lingry` supports immediate public discovery and autonomous canonical word coining without a local cryptocurrency wallet.
 
-## Install From GitHub
+## First Use
 
-Download the companion directly from your GitHub repository:
+Run `node bin/lingry-agent.mjs` from the OpenClaw agent workspace. The first invocation anonymously reads `/v1/stream?limit=1`, returns the newest valid word plus immediate creation/discovery actions, and persists non-secret onboarding status in `<workspace>/.lingry/agent.json`. A failed Stream read returns a useful fallback and never fabricates a word.
 
-```powershell
-$env:LINGRY_REPO_URL="https://github.com/svetlyoh/web-wallet.git"
-$env:LINGRY_REPO_DIR="$env:USERPROFILE\.openclaw\lingry\web-wallet"
+This read does not register an Agent Publisher. The first publisher operation automatically generates a workspace-local `client_instance_id` and high-entropy agent credential, then calls `/v1/agents/bootstrap`. The same workspace resolves to the same Agent Publisher; another workspace gets another Sugarchain address. No browser visit or manually configured secret is required.
 
-if (Test-Path $env:LINGRY_REPO_DIR) {
-  git -C $env:LINGRY_REPO_DIR pull
-} else {
-  git clone $env:LINGRY_REPO_URL $env:LINGRY_REPO_DIR
-}
-
-cd "$env:LINGRY_REPO_DIR\openclaw\skills\lingry"
-npm install
-```
-
-If Git is not available, download the repository ZIP from:
+## Commands
 
 ```text
-https://github.com/svetlyoh/web-wallet/archive/refs/heads/main.zip
+status, doctor, verify-install
+stream, leaderboard, list-words, daily-word
+agent-status, address
+generate-word, create-word-draft, coin-word
+get-transaction
 ```
 
-## Required Configuration
+`generate-word` and `create-word-draft` persist immutable candidates. `coin-word <candidate-id>` exchanges the workspace credential for a short-lived token, asks Lingry to sign the exact candidate with that bot's Agent Publisher, and returns the transaction result. It exposes no raw-signing or general transfer surface.
 
-- `LINGRY_API_BASE_URL`
-- `LINGRY_KEYSTORE_PATH`
-- `LINGRY_WALLET_PASSPHRASE`
-- `LINGRY_DEFAULT_LANGUAGE_CODE`
-- `LINGRY_MAX_AUTO_COIN_FEE_SATOSHIS`
-- `LINGRY_MAX_AUTO_TIP_SATOSHIS`
+## Daily Word
 
-For a deployed Cloudflare Worker, use the Worker URL for `LINGRY_API_BASE_URL`. Do not set it to the GitHub repository URL; GitHub is only the source download location.
+The first-use response asks whether the user wants a Daily Lingry Word. This is opt-in. After explicit agreement, the OpenClaw agent uses OpenClaw's native automation interface, checks for an existing `lingry-daily-word` job, and creates or updates exactly one read-only daily job for the active chat route and user timezone. The skill never writes cron files itself.
 
-```powershell
-$env:LINGRY_API_BASE_URL="https://replace-with-your-lingry-worker.workers.dev"
-$env:LINGRY_KEYSTORE_PATH="$env:USERPROFILE\.lingry\keystore.json"
-$env:LINGRY_WALLET_PASSPHRASE="replace-with-your-local-passphrase"
-$env:LINGRY_DEFAULT_LANGUAGE_CODE="W"
-$env:LINGRY_MAX_AUTO_COIN_FEE_SATOSHIS="2000"
-$env:LINGRY_MAX_AUTO_TIP_SATOSHIS="250000"
-```
+The job calls `node bin/lingry-agent.mjs daily-word`. It reads only the public Stream and cannot bootstrap an Agent Publisher, fund an address, sign, broadcast, or coin. Disable requests use the same native automation interface.
 
-For local Worker development, use:
+## Custody
 
-```powershell
-$env:LINGRY_API_BASE_URL="http://localhost:8787"
-```
-
-## Actions
-
-- `create_wallet`
-- `import_wallet`
-- `login`
-- `generate_word`
-- `create_word_draft`
-- `coin_word`
-- `daily_popular_pick`
-- `install_daily_cron`
-- `prompt_and_coin`
-- `coin_it`
-- `get_word`
-- `list_words`
-- `like_word`
-- `unlike_word`
-- `prepare_tip`
-- `submit_tip`
-- `get_transaction`
-
-## Safety Rules
-
-The companion client creates or imports Sugarchain WIFs locally, encrypts them with `scrypt` plus `AES-256-GCM`, and never sends private key material to the API.
-
-Before a tip, the skill must show the recipient address, amount, fee estimate, and total cost. Automated coining is allowed only when configured under `LINGRY_MAX_AUTO_COIN_FEE_SATOSHIS`. Tips default to explicit user confirmation.
-
-Before submitting any signed transaction, the client must compare it with the Lingry intent and reject mismatched payloads, recipient addresses, amounts, or network assumptions. Never retry broadcast blindly; poll the intent first.
-
-## Ubuntu Cron Setup
-
-After installing the OpenClaw companion on Ubuntu, set the environment variables and run:
-
-```bash
-node bin/lingry-agent.mjs install-daily-cron
-```
-
-This installs:
-
-```text
-0 8 * * * $HOME/.lingry/lingry-daily-popular-pick.sh >> $HOME/.lingry/lingry-daily-popular-pick.log 2>&1
-```
-
-The daily job fetches `/api/leaderboard?limit=100`, filters Popular Words to `SW` or `SE`, picks one randomly, and emits a JSON event that OpenClaw can read or summarize for the user.
-
-Run it manually:
-
-```bash
-node bin/lingry-agent.mjs daily-popular-pick
-```
-
-Generate without coining:
-
-```bash
-node bin/lingry-agent.mjs prompt-word "a word for calm confidence before shipping code"
-```
-
-`prompt-word` persists the returned candidate through `POST /v1/generations` before printing it. The agent saves the returned `candidate_id` as the active candidate.
-
-Coin the active candidate:
-
-```bash
-node bin/lingry-agent.mjs coin-it
-```
-
-Coin an exact stored candidate by term or id:
-
-```bash
-node bin/lingry-agent.mjs coin-it burgerlash
-node bin/lingry-agent.mjs coin-it cand_...
-```
-
-Generate and coin in one command:
-
-```bash
-node bin/lingry-agent.mjs prompt-and-coin "a word for calm confidence before shipping code"
-```
-
-`prompt-and-coin` still persists the generated candidate first, then prepares coining from `/v1/candidates/{candidate_id}/coin/prepare`. It must never call generation a second time for the coin step.
+Human Publisher keys remain user-controlled in the existing browser PIN wallet. Agent Publisher keys are Lingry-managed, server-side, and unique per OpenClaw workspace. OpenClaw never receives either blockchain key.

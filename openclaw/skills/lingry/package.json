@@ -1,6 +1,6 @@
 {
   "name": "@svetlyoh/lingry",
-  "version": "1.0.7",
+  "version": "2.0.0",
   "type": "module",
   "files": [
     ".clawhubignore",
@@ -13,18 +13,16 @@
     "bin/",
     "src/",
     "test/",
-    "package-lock.json"
+    "package-lock.json",
+    "npm-shrinkwrap.json"
   ],
   "bin": {
-    "lingry-agent": "bin/lingry-agent.mjs",
-    "lingry-wallet": "bin/lingry-wallet.mjs"
+    "lingry-agent": "bin/lingry-agent.mjs"
   },
   "scripts": {
     "test": "node --test"
   },
-  "dependencies": {
-    "bitcoinjs-lib": "^4.0.3"
-  },
+  "dependencies": {},
   "engines": {
     "node": ">=18"
   }

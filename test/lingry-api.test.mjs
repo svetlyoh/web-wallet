@@ -260,6 +260,10 @@ test('R2 metadata hashes match stored metadata', async () => {
 
 test('OpenAPI specification reflects implemented routes', () => {
 	const required = [
+		'/v1/agents/bootstrap',
+		'/v1/agents/session',
+		'/v1/agents/me',
+		'/v1/agents/coin',
 		'/v1/auth/challenge',
 		'/v1/auth/verify',
 		'/v1/generations',

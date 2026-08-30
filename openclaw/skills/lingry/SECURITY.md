@@ -1,9 +1,19 @@
 # Security
 
-This ClawHub skill keeps user wallet keys local and encrypted. It must never print, inspect, summarize, export, transmit, or log private keys, WIFs, seed phrases, wallet passphrases, keystore contents, API tokens, environment dumps, Cloudflare secrets, funding-wallet WIFs, or RPC credentials.
+## OpenClaw Never Receives Blockchain Secrets
 
-The skill does not include a private-key export command.
+This package must never receive, request, display, inspect, transmit, or log human private keys, Agent Publisher private keys, WIF values, mnemonics, seeds, recovery phrases, or Lingry funding-wallet secrets. It contains no blockchain wallet, key import, key export, transaction-signing, or general SUGAR-transfer command.
 
-Money-moving commands must require explicit user confirmation. The agent can only run `prepare-coin`, which creates a non-secret pending request. The local wallet helper signs and submits only after the user reviews the action, wallet address, network, fee, and payload summary in a private terminal and types `BROADCAST`.
+The workspace state contains a high-entropy Lingry agent credential, not a blockchain key. It is persisted atomically with restrictive permissions where supported and must never be printed or included in command JSON, chat, documentation examples, or logs. The server stores only its protected hash.
 
-The starter grant preparation command sends only a public address and public key. The local wallet helper creates the proof-of-control signature only after terminal approval.
+## Lingry Controls Agent Publisher Keys
+
+Each OpenClaw workspace receives a distinct Agent Publisher address. Lingry generates its Sugarchain key server-side and stores it using per-publisher envelope encryption with AES-GCM. This is a custodial service identity and is separate from human Lingry wallets, whose keys remain local in the browser/device.
+
+## Deliberately Constrained Authority
+
+OpenClaw can read public Lingry data, generate candidates, coin its own stored canonical candidates, view its publisher address, and view transaction results.
+
+OpenClaw cannot send arbitrary SUGAR, tip, export a key, sign arbitrary transactions, create arbitrary OP_RETURN records, select a payment recipient, or change the transaction change address. Server policy restricts a coin transaction to one zero-value canonical Lingry OP_RETURN, change to the same Agent Publisher, a capped fee, idempotency, and rate/budget limits.
+
+Coining is irreversible and happens only when the user asks to publish. Discovery and Daily Lingry Word are anonymous, read-only operations and cannot create an Agent Publisher or blockchain side effect. Recurring delivery requires explicit opt-in and OpenClaw's normal automation permissions.

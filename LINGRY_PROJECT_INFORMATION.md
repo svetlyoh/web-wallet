@@ -45,7 +45,7 @@ Lingry turns new ideas into discoverable words. Users can generate a word with A
 - **Integrated Wallet:** Create or open a Sugarchain wallet, view keys and balance, and send SUGAR from the same experience.
 - **Wallet-first access:** Start with a locally generated Sugarchain identity or bring an existing Lingry back with its private key, then unlock the device with a fixed 4-digit PIN.
 - **Non-custodial Transaction Flow:** Private keys remain local; coining and tipping are prepared, signed locally, submitted, and then broadcast.
-- **Agent and Developer Access:** A REST/OpenAPI interface and OpenClaw integration support word discovery, generation, candidate storage, coining preparation, streams, and leaderboards.
+- **Agent and Developer Access:** A REST/OpenAPI interface and OpenClaw 2.0 integration support public discovery, candidate storage, and autonomous canonical coining from one unique Lingry-managed Sugarchain address per OpenClaw workspace.
 - **Exportable Work:** Download generated-word session records for personal archiving or later verification.
 - **Responsive Experience:** Designed as a lightweight browser application for desktop and mobile use.
 
@@ -84,7 +84,26 @@ Lingry uses the **Sugarchain blockchain** as a public timestamp ledger and verif
 - **Public indexing:** Scheduled blockchain scanning with Cloudflare Cron Triggers and D1/R2-backed snapshots
 - **Local development:** Node.js 18+
 - **API:** REST endpoints with an OpenAPI specification, bearer sessions, and idempotency protection for state-changing requests
-- **Security model:** Local private-key handling and transaction signing; the public API rejects private keys, WIFs, seeds, and mnemonics. A non-extractable browser device key and a PIN-derived key protect the encrypted local wallet vault.
+- **Security model:** Human private keys and signing remain local. OpenClaw Agent Publisher keys are generated server-side, protected with per-agent AES-GCM envelope encryption, and restricted to canonical word coining. The public API rejects private-key input. A non-extractable browser device key and a PIN-derived key protect the human local wallet vault.
+
+## OpenClaw Agent Publishers (2.0)
+
+Lingry now has two explicit publisher custody models:
+
+- **Human Publisher:** user-controlled Sugarchain private key, existing browser PIN vault, local signing, and existing recovery behavior.
+- **Agent Publisher:** one Lingry-managed Sugarchain key and address for one OpenClaw agent workspace. OpenClaw stores only a high-entropy Lingry agent credential and never receives the blockchain key.
+
+The first publisher operation calls `POST /v1/agents/bootstrap`. Bootstrap is idempotent for the same workspace credential and isolated across workspaces. The server stores a hashed client identifier, a protected credential hash, and an envelope-encrypted WIF in `lingry_agent_publishers`. A random data-encryption key protects each WIF; the versioned `LINGRY_AGENT_KEY_ENCRYPTION_KEY` wraps that key with AES-GCM.
+
+`POST /v1/agents/session` issues a short-lived token limited to public reads, candidate creation/generation, canonical coining, and publisher identity reads. `POST /v1/agents/coin` accepts only an immutable candidate id. It constructs one exact zero-value Lingry OP_RETURN, returns all change to the same Agent Publisher, enforces fee/rate/idempotency policy, and submits through the existing broadcast intent path. It cannot send SUGAR, tip, select recipients, sign arbitrary transactions, or write arbitrary OP_RETURN data.
+
+Initial Agent Publisher fee funding uses the existing Lingry funding wallet as a separate funding source. It is limited to one initial event per publisher and guarded by a circuit breaker, hashed-IP velocity limits, a global daily budget, and capped funding/fee values. A missing or paused funding configuration produces a non-secret funding status; low-balance coining returns a structured error.
+
+OpenClaw state defaults to `<agent-workspace>/.lingry/agent.json`, with `LINGRY_AGENT_STATE_PATH` as an explicit override. First invocation anonymously reads the public Stream, shows a real newest word when available, records onboarding completion, and does not create a publisher. Daily Lingry Word remains a public read and is enabled only after explicit consent through OpenClaw's native automation interface.
+
+Deployment requires D1 migration `0007_lingry_agent_publishers.sql` plus Cloudflare secrets `LINGRY_AGENT_KEY_ENCRYPTION_KEY` and `LINGRY_AGENT_CREDENTIAL_PEPPER`. Existing `LINGRY_SESSION_SECRET` signs short-lived agent sessions. Agent funding additionally uses the existing funding-wallet secret and must be explicitly enabled. No production deployment or ClawHub publication was performed as part of this change.
+
+Verification on 2026-08-29: the root `npm test` suite passed all 83 tests, including Agent Publisher isolation/reconnect, protected credentials and keys, constrained token scopes, API response secrecy, server-side decrypt/sign/broadcast attribution, canonical transaction shape/fee/rate enforcement, idempotent replay, first-use onboarding, Stream failure fallback, multi-workspace isolation, autonomous client coining, read-only daily delivery, existing human PIN wallet authentication, and the existing public-index/crossword suites. The standalone OpenClaw package passed all 10 tests, and all seven D1 migrations applied successfully to a clean local database.
 
 ## Authentication and Recovery
 

@@ -1,6 +1,13 @@
 import bitcoin from 'bitcoinjs-lib';
 import { Buffer } from 'node:buffer';
 import { parseSugarWordPayload } from './lingry-protocol.mjs';
+import {
+	bootstrapAgentPublisher,
+	coinLingryWord,
+	mintAgentAccessToken,
+	verifyAgentAccessToken,
+	verifyAgentCredential
+} from './lingry-agent-publishers.mjs';
 
 export const LINGRY_LANGUAGES = [
 	{ code: 'W', name: 'American English' },
@@ -33,7 +40,7 @@ export const LINGRY_LANGUAGES = [
 
 export const LINGRY_LANGUAGE_CODES = new Set(LINGRY_LANGUAGES.map(language => language.code));
 const WRITE_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
-const WRITE_ROUTES_WITHOUT_AUTH = new Set(['/v1/auth/challenge', '/v1/auth/verify', '/v1/auth/wallet', '/v1/internal/indexer/ingest']);
+const WRITE_ROUTES_WITHOUT_AUTH = new Set(['/v1/auth/challenge', '/v1/auth/verify', '/v1/auth/wallet', '/v1/agents/bootstrap', '/v1/agents/session', '/v1/internal/indexer/ingest']);
 const SUGAR_DECIMALS = 8;
 const SESSION_TOKEN_TTL_SECONDS = 30 * 24 * 60 * 60;
 const SUGAR_API_BASES = ['https://api.sugar.wtf', 'https://api.sugarchain.org'];
@@ -1550,6 +1557,14 @@ async function authenticate(request, env) {
 	if (!match) {
 		throw apiError('unauthorized', 'Bearer session token is required.', 401);
 	}
+	const agentSession = await verifyAgentAccessToken(env, match[1]);
+	if (agentSession) {
+		return {
+			...agentSession,
+			sid: agentSession.agent_id,
+			auth_kind: 'agent_publisher'
+		};
+	}
 	const session = await verifySessionToken(env, match[1]);
 	if (!session) {
 		throw apiError('unauthorized', 'Session is invalid or expired.', 401);
@@ -1595,6 +1610,27 @@ async function handleApi(request, env) {
 		}
 		if (url.pathname === '/openapi.json') {
 			return new Response(JSON.stringify(OPENAPI), { status: 200, headers: { ...headers, 'content-type': 'application/json; charset=utf-8' } });
+		}
+		if (url.pathname === '/v1/agents/bootstrap' && request.method === 'POST') {
+			const body = await readJson(request);
+			assertNoPrivateKeyFields(body);
+			const result = await bootstrapAgentPublisher(env, body, {
+				ipAddress: request.headers.get('cf-connecting-ip') || request.headers.get('x-forwarded-for') || ''
+			});
+			return envelope(result.publisher, result.created ? 201 : 200, headers, id);
+		}
+		if (url.pathname === '/v1/agents/session' && request.method === 'POST') {
+			const body = await readJson(request);
+			assertNoPrivateKeyFields(body);
+			const publisher = await verifyAgentCredential(env, body);
+			const token = await mintAgentAccessToken(env, publisher);
+			return envelope({
+				agent_id: publisher.agent_id,
+				client_type: publisher.client_type,
+				publisher_address: publisher.publisher_address,
+				publisher_public_key: publisher.publisher_public_key,
+				...token
+			}, 200, headers, id);
 		}
 		if (url.pathname === '/v1/auth/challenge' && request.method === 'POST') {
 			const body = await readJson(request);
@@ -1681,6 +1717,41 @@ async function handleApi(request, env) {
 			session = session || await authenticate(request, env);
 			await callDo(env.LINGRY_ACTOR, session.address, '/session/' + encodeURIComponent(session.sid || ''), { method: 'DELETE' });
 			return envelope({ logged_out: true }, 200, headers, id);
+		}
+		if (url.pathname === '/v1/agents/me' && request.method === 'GET') {
+			session = session || await authenticate(request, env);
+			if (session.auth_kind !== 'agent_publisher') throw apiError('forbidden', 'Agent Publisher session is required.', 403);
+			return envelope({
+				agent_id: session.agent_id,
+				client_type: session.client_type,
+				publisher_address: session.address,
+				publisher_public_key: session.publisher.publisher_public_key,
+				status: session.publisher.status,
+				funding_status: session.publisher.funding_status,
+				scopes: session.scopes
+			}, 200, headers, id);
+		}
+		if (url.pathname === '/v1/agents/coin' && request.method === 'POST') {
+			session = session || await authenticate(request, env);
+			if (session.auth_kind !== 'agent_publisher') throw apiError('forbidden', 'Agent Publisher session is required.', 403);
+			requireScopes(session, ['words:coin']);
+			const body = await readJson(request);
+			assertNoPrivateKeyFields(body);
+			const idempotencyKey = requireIdempotency(request);
+			const result = await coinLingryWord(env, session, { ...body, idempotency_key: idempotencyKey }, async (operation, input) => {
+				const shard = shardName(input.language_code || 'W');
+				if (operation === 'get-candidate') {
+					return callDo(env.LINGRY_LEXICON, shard, '/candidates/' + encodeURIComponent(input.candidate_id) + '?actor_address=' + encodeURIComponent(input.actor_address), { method: 'GET' });
+				}
+				if (operation === 'prepare-candidate') {
+					return callDo(env.LINGRY_LEXICON, shard, '/candidates/' + encodeURIComponent(input.candidate_id) + '/coin/prepare', { method: 'POST', body: JSON.stringify(input) });
+				}
+				if (operation === 'submit-transaction') {
+					return callDo(env.LINGRY_LEXICON, shard, '/transactions/' + encodeURIComponent(input.intent_id) + '/submit', { method: 'POST', body: JSON.stringify(input) });
+				}
+				throw apiError('internal_error', 'Unsupported Agent Publisher operation.', 500);
+			});
+			return envelope(result, 200, headers, id);
 		}
 		if (url.pathname === '/v1/me' && request.method === 'GET') {
 			session = session || await authenticate(request, env);
@@ -1853,13 +1924,17 @@ export const OPENAPI = {
 	openapi: '3.1.0',
 	info: {
 		title: 'Lingry Agent API',
-		version: '1.0.0-mvp'
+		version: '2.0.0'
 	},
 	paths: {
 		'/v1/auth/challenge': { post: { summary: 'Create a Sugarchain wallet-signature challenge.' } },
 		'/v1/auth/verify': { post: { summary: 'Verify a signed challenge and mint a scoped session.' } },
 		'/v1/auth/wallet': { post: { summary: 'Resolve a Lingry wallet identity after a purpose-bound ownership challenge.' } },
 		'/v1/auth/logout': { post: { summary: 'Revoke the current API session token.' } },
+		'/v1/agents/bootstrap': { post: { summary: 'Idempotently create one Lingry-managed Sugarchain Agent Publisher for an OpenClaw workspace.' } },
+		'/v1/agents/session': { post: { summary: 'Exchange an OpenClaw Agent Publisher credential for a short-lived scoped token.' } },
+		'/v1/agents/me': { get: { summary: 'Return the authenticated Agent Publisher public identity.' } },
+		'/v1/agents/coin': { post: { summary: 'Sign and broadcast one stored canonical Lingry candidate through its Agent Publisher.' } },
 		'/v1/me': { get: { summary: 'Return the authenticated wallet identity.' } },
 		'/v1/wallets/register': { post: { summary: 'Register public wallet metadata.' } },
 		'/v1/wallets/me': { get: { summary: 'Return registered wallet metadata.' } },

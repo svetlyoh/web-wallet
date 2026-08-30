@@ -23,6 +23,7 @@ node_modules/
 *.keystore
 keystore.json
 lingry-agent-state.json
+.lingry/
 wallet*
 *.wif
 *.key

@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.0.0
+
+- Removed the OpenClaw local Sugarchain wallet, private-key import, browser API Session copy/paste, and manual transaction approval workflow.
+- Added automatic workspace-scoped Agent Publisher registration and short-lived session renewal.
+- Added one unique Lingry-managed Sugarchain publishing address per OpenClaw agent workspace.
+- Added autonomous, policy-constrained coining of immutable canonical Lingry candidates.
+- Added first-use public Stream onboarding and read-only Daily Lingry Word automation guidance.
+
 ## 1.0.7
 
 - Change default public leaderboard and stream command limits to 100 records.
