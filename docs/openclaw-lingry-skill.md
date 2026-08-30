@@ -1,4 +1,4 @@
-# OpenClaw Lingry Skill 2.0.1
+# OpenClaw Lingry Skill 2.0.2
 
 The standalone package at `openclaw/skills/lingry` supports immediate public discovery and autonomous canonical word coining without a local cryptocurrency wallet.
 
@@ -29,7 +29,7 @@ generate-word, create-word-draft, coin-word
 get-transaction
 ```
 
-`generate-word` and `create-word-draft` persist immutable candidates. `coin-word <candidate-id>` exchanges the workspace credential for a short-lived token, asks Lingry to sign the exact candidate with that bot's Agent Publisher, and returns the transaction result. It exposes no raw-signing or general transfer surface.
+`generate-word` and `create-word-draft` persist immutable candidates and return two visible next actions: coin this term or prompt for another. The latter leaves the saved candidate uncoined and creates no publication authority. `coin-word <candidate-id>` exchanges the workspace credential for a short-lived token, asks Lingry to sign the exact candidate with that bot's Agent Publisher, and returns the transaction result. It exposes no raw-signing or general transfer surface.
 
 ## Daily Word
 

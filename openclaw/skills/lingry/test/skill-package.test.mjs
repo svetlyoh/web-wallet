@@ -60,8 +60,8 @@ function requests(setup) {
 	return fs.readFileSync(setup.logPath, 'utf8').trim().split(/\r?\n/).filter(Boolean).map(line => JSON.parse(line));
 }
 
-test('package 2.0.1 exposes only the Agent Publisher executable', () => {
-	assert.equal(pkg.version, '2.0.1');
+test('package 2.0.2 exposes only the Agent Publisher executable', () => {
+	assert.equal(pkg.version, '2.0.2');
 	assert.deepEqual(pkg.bin, { 'lingry-agent': 'bin/lingry-agent.mjs' });
 	assert.deepEqual(pkg.dependencies, {});
 	for (const removed of ['bin/lingry-wallet.mjs', 'src/keystore.ts', 'src/wallet.ts']) assert.equal(fs.existsSync(path.join(root, removed)), false, removed);
@@ -121,6 +121,10 @@ test('a fresh word prompt automatically bootstraps and creates a candidate witho
 	assert.equal(output.type, 'lingry.word_generated');
 	assert.equal(output.candidate.term, 'airlilt');
 	assert.equal(output.coined, false);
+	assert.equal(output.next_prompt, 'Coin this term, or prompt for another?');
+	assert.deepEqual(output.next_actions.map(action => action.id), ['coin_term', 'prompt_another']);
+	assert.equal(output.next_actions[0].requires_explicit_publication_intent, true);
+	assert.equal(output.next_actions[1].coins_current_candidate, false);
 	assert.deepEqual(requests(setup).map(item => item.path), [
 		'/api/invent-word-from-prompt',
 		'/v1/agents/bootstrap',

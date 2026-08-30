@@ -1,7 +1,7 @@
 ---
 name: lingry
 description: Create and permanently coin new words on Sugarchain, or discover the latest words from Lingry's public Stream. On first use, show the newest Lingry word and offer immediate word creation or discovery.
-version: 2.0.1
+version: 2.0.2
 homepage: https://lingry.net
 metadata:
   openclaw:
@@ -79,6 +79,13 @@ Generate a reversible candidate:
 node bin/lingry-agent.mjs generate-word "a concept that needs a word"
 node bin/lingry-agent.mjs create-word-draft <term> <part-of-speech> <meaning>
 ```
+
+After every generated candidate, show the term, part of speech, and meaning, then ask: “Coin this term, or prompt for another?” Present both actions clearly:
+
+- **Coin this term** — use the saved immutable candidate and proceed only when the user explicitly chooses permanent publication.
+- **Prompt for another** — leave the current candidate uncoined and generate a new candidate from the user's new or refined concept.
+
+Do not silently choose either action. A request for another term is not permission to coin the current or replacement term.
 
 Do not put a generated candidate on Sugarchain unless the user's request clearly includes coin, publish, post, or record on Sugarchain.
 

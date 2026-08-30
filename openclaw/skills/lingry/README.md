@@ -1,4 +1,4 @@
-# Lingry OpenClaw Skill 2.0.1
+# Lingry OpenClaw Skill 2.0.2
 
 Lingry 2.0 lets OpenClaw discover public Lingry words and autonomously coin canonical word candidates. Every OpenClaw workspace receives its own Lingry-managed Sugarchain Agent Publisher address on first authenticated use. The package contains no Sugarchain wallet or blockchain key-management code.
 
@@ -50,7 +50,7 @@ node bin/lingry-agent.mjs daily-word
 
 Public Stream, leaderboard, word listing, onboarding, and daily-word reads remain anonymous. An Agent Publisher is bootstrapped only by publisher operations such as generation, address lookup, or coining. Access tokens renew automatically and are short-lived.
 
-Generation is reversible. On a clean installation, the first generation request creates the workspace credential, registers the dedicated Agent Publisher, obtains a short-lived session, and saves the candidate automatically. Lingry's publisher-key encryption remains entirely server-side. Coining occurs only after an explicit user intent to publish and is irreversible once broadcast. Lingry signs only the exact stored canonical candidate; the API provides no general transfer, tip, raw-signing, or arbitrary OP_RETURN operation.
+Generation is reversible. On a clean installation, the first generation request creates the workspace credential, registers the dedicated Agent Publisher, obtains a short-lived session, and saves the candidate automatically. Lingry's publisher-key encryption remains entirely server-side. After generating a candidate, OpenClaw presents two explicit choices: **Coin this term** or **Prompt for another**. Asking for another candidate leaves the current one uncoined and never implies permission to publish the replacement. Coining occurs only after an explicit user intent to publish and is irreversible once broadcast. Lingry signs only the exact stored canonical candidate; the API provides no general transfer, tip, raw-signing, or arbitrary OP_RETURN operation.
 
 ## Daily Delivery
 

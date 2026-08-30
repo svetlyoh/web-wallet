@@ -120,6 +120,29 @@ function candidateBody(generated, concept) {
 	};
 }
 
+function candidateNextActions(candidateId) {
+	return {
+		next_prompt: 'Coin this term, or prompt for another?',
+		next_step: `node bin/lingry-agent.mjs coin-word ${candidateId}`,
+		next_actions: [
+			{
+				id: 'coin_term',
+				label: 'Coin this term',
+				command: `node bin/lingry-agent.mjs coin-word ${candidateId}`,
+				irreversible: true,
+				requires_explicit_publication_intent: true
+			},
+			{
+				id: 'prompt_another',
+				label: 'Prompt for another',
+				command: 'node bin/lingry-agent.mjs generate-word "<new or refined concept>"',
+				irreversible: false,
+				coins_current_candidate: false
+			}
+		]
+	};
+}
+
 async function persistCandidate(body) {
 	const data = await authenticatedApi('/v1/generations', { method: 'POST', body: JSON.stringify(body) });
 	const candidate = data.candidate;
@@ -134,7 +157,7 @@ async function generateWord() {
 		method: 'POST', body: JSON.stringify({ generation_mode: 'prompt', concept_prompt: concept, used_words: [], used_meanings: [], language_code: languageCode, language_instruction: languageInstruction(languageCode) })
 	});
 	const candidate = await persistCandidate(candidateBody(generated, concept));
-	printJson({ ok: true, type: 'lingry.word_generated', candidate, reversible: true, coined: false, next_step: `node bin/lingry-agent.mjs coin-word ${candidate.candidate_id}` });
+	printJson({ ok: true, type: 'lingry.word_generated', candidate, reversible: true, coined: false, ...candidateNextActions(candidate.candidate_id) });
 }
 
 async function createWordDraft() {
@@ -142,7 +165,7 @@ async function createWordDraft() {
 	const meaning = meaningParts.join(' ').trim();
 	if (!term || !partOfSpeech || !meaning) throw new Error('Usage: node bin/lingry-agent.mjs create-word-draft <term> <part-of-speech> <meaning>');
 	const candidate = await persistCandidate({ language_code: languageCode, term, part_of_speech: partOfSpeech, meaning, source: 'openclaw-draft' });
-	printJson({ ok: true, candidate, reversible: true, coined: false, next_step: `node bin/lingry-agent.mjs coin-word ${candidate.candidate_id}` });
+	printJson({ ok: true, candidate, reversible: true, coined: false, ...candidateNextActions(candidate.candidate_id) });
 }
 
 async function resolveCandidateId(value) {

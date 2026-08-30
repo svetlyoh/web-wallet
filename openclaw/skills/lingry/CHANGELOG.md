@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.0.2
+
+- Added two explicit actions after every generated candidate: coin this term or prompt for another.
+- Kept both the current and replacement candidate uncoined until the user explicitly requests publication.
+
 ## 2.0.1
 
 - Documented the exact workspace-scoped, quoted ClawHub install command shown to users.
