@@ -9,7 +9,7 @@
 	var PENDING_VAULT_ID = 'wallet-vault-pending'
 	var THROTTLE_ID = 'pin-throttle'
 	var PBKDF2_ITERATIONS = 250000
-	var AUTO_LOCK_MS = 5 * 60 * 1000
+	var AUTO_LOCK_MS = 5 * 60 * 60 * 1000
 	var LEGACY_WALLET_KEYS = ['lingry.wallet.v1', 'lingry.wallet', 'lingry.wallet.wif']
 	var bridge = null
 	var databasePromise = null
