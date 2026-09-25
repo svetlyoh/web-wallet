@@ -19,6 +19,8 @@ Use Lingry to discover public words and generate candidate terms. At runtime, th
 
 Lingry is a multi-file Node.js skill. `SKILL.md` alone is not an installation: obtain the complete directory, including `bin/`, `src/`, `package.json`, and `INSTALL.json`. Node.js >= 18 is required. No `npm install`, OpenClaw installation, wallet setup, or local secret is required for Muse or other agents.
 
+The [complete clean Lingry folder on GitHub](https://github.com/svetlyoh/web-wallet/tree/master/skills/lingry) contains the same runnable files as the ClawHub package. Open that folder—not only its `SKILL.md`—when installing from GitHub.
+
 ### OpenClaw
 
 From the OpenClaw workspace, use the ClawHub package:
