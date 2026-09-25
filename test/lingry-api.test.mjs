@@ -264,6 +264,8 @@ test('OpenAPI specification reflects implemented routes', () => {
 		'/v1/agents/session',
 		'/v1/agents/me',
 		'/v1/agents/coin',
+		'/v1/openclaw/generations',
+		'/v1/openclaw/candidates/{candidate_id}/coin',
 		'/v1/auth/challenge',
 		'/v1/auth/verify',
 		'/v1/generations',

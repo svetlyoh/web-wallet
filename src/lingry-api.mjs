@@ -4,6 +4,7 @@ import { parseSugarWordPayload } from './lingry-protocol.mjs';
 import {
 	bootstrapAgentPublisher,
 	coinLingryWord,
+	getAgentPublisher,
 	mintAgentAccessToken,
 	verifyAgentAccessToken,
 	verifyAgentCredential
@@ -333,11 +334,27 @@ function corsHeaders(request, env) {
 }
 
 async function readJson(request, maxBytes = 65536) {
-	const text = await request.text();
-	if (text.length > maxBytes) {
-		throw apiError('payload_too_large', 'Request body is too large.', 413);
+	const declaredSize = Number(request.headers.get('content-length'));
+	if (Number.isFinite(declaredSize) && declaredSize > maxBytes) throw apiError('payload_too_large', 'Request body is too large.', 413);
+	if (!request.body) return {};
+	const reader = request.body.getReader();
+	const chunks = [];
+	let size = 0;
+	while (true) {
+		const { done, value } = await reader.read();
+		if (done) break;
+		size += value.byteLength;
+		if (size > maxBytes) {
+			await reader.cancel();
+			throw apiError('payload_too_large', 'Request body is too large.', 413);
+		}
+		chunks.push(value);
 	}
-	return text ? JSON.parse(text) : {};
+	const bytes = new Uint8Array(size);
+	let offset = 0;
+	for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
+	try { return size ? JSON.parse(new TextDecoder().decode(bytes)) : {}; }
+	catch { throw apiError('validation_error', 'Request body must be valid JSON.', 400); }
 }
 
 export function assertNoPrivateKeyFields(body) {
@@ -739,6 +756,10 @@ export class LexiconShardDO extends SqlDoBase {
 			if (candidateMatch && request.method === 'GET') {
 				return responseData({ candidate: this.getCandidate(candidateMatch[1], url.searchParams.get('actor_address')) });
 			}
+			const candidateClaimMatch = url.pathname.match(/^\/candidates\/([^/]+)\/claim$/);
+			if (candidateClaimMatch && request.method === 'POST') {
+				return responseData({ candidate: this.claimClawhubCandidate(candidateClaimMatch[1], body) });
+			}
 			const candidateCoinMatch = url.pathname.match(/^\/candidates\/([^/]+)\/coin\/prepare$/);
 			if (candidateCoinMatch && request.method === 'POST') {
 				return responseData(this.prepareCandidateCoin(candidateCoinMatch[1], body), 201);
@@ -784,7 +805,9 @@ export class LexiconShardDO extends SqlDoBase {
 
 	async createGeneratedCandidate(body) {
 		const actorAddress = normalizeText(body.actor_address);
-		if (!actorAddress) {
+		const serverGenerated = body.source === 'openclaw-server' && !actorAddress &&
+			/^cand_[A-Z][a-f0-9]{32}$/.test(body.candidate_id || '') && body.candidate_id[5] === body.language_code;
+		if (!actorAddress && !serverGenerated) {
 			throw apiError('validation_error', 'Authenticated wallet address is required.', 400);
 		}
 		const candidate = await createGeneratedCandidateRecord({ ...body, actor_address: actorAddress });
@@ -853,6 +876,24 @@ export class LexiconShardDO extends SqlDoBase {
 			throw apiError('forbidden', 'Generated candidate belongs to a different wallet.', 403);
 		}
 		return this.rowToCandidate(row);
+	}
+
+	claimClawhubCandidate(candidateId, body) {
+		const actorAddress = normalizeText(body.actor_address);
+		const candidate = this.getCandidate(candidateId);
+		if (!actorAddress || candidate.source !== 'openclaw-server' || !/^cand_[A-Z][a-f0-9]{32}$/.test(candidateId) ||
+			!LINGRY_LANGUAGE_CODES.has(candidateId[5]) || candidate.language_code !== candidateId[5] ||
+			!Number.isFinite(Date.parse(candidate.expires_at)) || Date.parse(candidate.expires_at) <= Date.now()) {
+			throw apiError('candidate_not_publishable', 'This candidate can no longer be coined.', 409);
+		}
+		if (candidate.actor_address === actorAddress) return candidate;
+		if (candidate.actor_address || candidate.status !== 'available') {
+			throw apiError('candidate_not_publishable', 'This candidate can no longer be coined.', 409);
+		}
+		sqlRun(this.state.storage, 'UPDATE generated_candidates SET actor_address = ? WHERE candidate_id = ? AND actor_address = ? AND status = ?', actorAddress, candidateId, '', 'available');
+		const claimed = this.getCandidate(candidateId);
+		if (claimed.actor_address !== actorAddress) throw apiError('candidate_not_publishable', 'This candidate can no longer be coined.', 409);
+		return claimed;
 	}
 
 	prepareCandidateCoin(candidateId, body) {
@@ -1591,6 +1632,94 @@ function shardName(languageCode) {
 	return 'language:' + normalizeLanguageCode(languageCode || 'W');
 }
 
+function requireClawhubCandidateId(value) {
+	if (typeof value !== 'string' || !/^cand_[A-Za-z0-9_-]{16,128}$/.test(value) || !LINGRY_LANGUAGE_CODES.has(value[5])) {
+		throw apiError('validation_error', 'Invalid candidate ID.', 400);
+	}
+	return { candidateId: value, languageCode: value[5] };
+}
+
+export async function createClawhubCandidate(env, generated, conceptPrompt, languageCode) {
+	const code = normalizeLanguageCode(languageCode);
+	if (!code) throw apiError('validation_error', 'Unsupported Lingry language code.', 400);
+	const body = {
+		candidate_id: `cand_${code}${crypto.randomUUID().replace(/-/g, '')}`,
+		language_code: code,
+		term: generated.word,
+		part_of_speech: generated.part_of_speech,
+		meaning: generated.meaning,
+		etymology: generated.etymology_meaning || generated.etymology || '',
+		newness_confidence: generated.confidence_not_existing,
+		model_name: generated.model_name || '',
+		concept_prompt: conceptPrompt,
+		source: 'openclaw-server',
+		actor_address: ''
+	};
+	buildLingryPayload(body);
+	const data = await callDo(env.LINGRY_LEXICON, shardName(code), '/candidates', { method: 'POST', body: JSON.stringify(body) });
+	const candidate = data.candidate;
+	return {
+		candidate_id: candidate.candidate_id,
+		candidate_hash: candidate.candidate_hash,
+		term: candidate.term,
+		meaning: candidate.meaning,
+		part_of_speech: candidate.part_of_speech,
+		language_code: candidate.language_code,
+		language_name: candidate.language_name,
+		etymology: candidate.etymology,
+		created_at: candidate.created_at,
+		expires_at: candidate.expires_at
+	};
+}
+
+async function requireStoredClawhubCandidate(candidate, candidateId, languageCode) {
+	if (!candidate || candidate.candidate_id !== candidateId || candidate.source !== 'openclaw-server' || candidate.language_code !== languageCode) {
+		throw apiError('candidate_not_publishable', 'This candidate can no longer be coined.', 409);
+	}
+	const payload = buildLingryPayload(candidate);
+	let canonical;
+	try { canonical = JSON.parse(candidate.canonical_payload); }
+	catch { throw apiError('candidate_not_publishable', 'This candidate can no longer be coined.', 409); }
+	if (payload.op_return_payload !== candidate.op_return_payload || payload.op_return_hex !== candidate.op_return_hex ||
+		canonical.language_code !== candidate.language_code || canonical.term !== candidate.term ||
+		canonical.part_of_speech !== candidate.part_of_speech || canonical.meaning !== candidate.meaning ||
+		await sha256Hex(candidate.canonical_payload) !== candidate.candidate_hash) {
+		throw apiError('candidate_not_publishable', 'This candidate can no longer be coined.', 409);
+	}
+	return candidate;
+}
+
+async function coinClawhubCandidate(env, candidateId) {
+	const { languageCode } = requireClawhubCandidateId(candidateId);
+	const shard = shardName(languageCode);
+	const candidatePath = '/candidates/' + candidateId;
+	const existing = (await callDo(env.LINGRY_LEXICON, shard, candidatePath, { method: 'GET' })).candidate;
+	await requireStoredClawhubCandidate(existing, candidateId, languageCode);
+	if (['submitted', 'confirmed'].includes(existing.status) && /^[a-fA-F0-9]{64}$/.test(existing.txid || '')) {
+		return { candidate_id: candidateId, word: existing.term, meaning: existing.meaning, publisher_address: existing.actor_address, txid: existing.txid, status: existing.status };
+	}
+	if (existing.status !== 'available' || !Number.isFinite(Date.parse(existing.expires_at)) || Date.parse(existing.expires_at) <= Date.now()) {
+		throw apiError('candidate_not_publishable', 'This candidate can no longer be coined.', 409);
+	}
+	// This credential is derived and used only inside Lingry's Worker. No client credential is created.
+	const serverSecret = String(env.LINGRY_AGENT_CREDENTIAL_PEPPER || env.LINGRY_AGENT_KEY_ENCRYPTION_KEY || '').trim();
+	if (!serverSecret) throw apiError('server_not_configured', 'Lingry publication is unavailable.', 503);
+	const { publisher } = await bootstrapAgentPublisher(env, {
+		client_type: 'openclaw',
+		client_instance_id: 'lingry-clawhub-server-publisher-v1',
+		agent_secret: await sha256Hex(`lingry-clawhub:${serverSecret}`)
+	}, { ipAddress: 'lingry-clawhub-server' });
+	const publisherRow = await getAgentPublisher(env, publisher.agent_id);
+	await callDo(env.LINGRY_LEXICON, shard, candidatePath + '/claim', { method: 'POST', body: JSON.stringify({ actor_address: publisher.publisher_address }) });
+	const session = { agent_id: publisher.agent_id, address: publisher.publisher_address, publisher: publisherRow };
+	return coinLingryWord(env, session, { candidate_id: candidateId, language_code: languageCode, idempotency_key: `clawhub-${candidateId}` }, async (operation, input) => {
+		if (operation === 'get-candidate') return callDo(env.LINGRY_LEXICON, shard, candidatePath + '?actor_address=' + encodeURIComponent(input.actor_address), { method: 'GET' });
+		if (operation === 'prepare-candidate') return callDo(env.LINGRY_LEXICON, shard, candidatePath + '/coin/prepare', { method: 'POST', body: JSON.stringify(input) });
+		if (operation === 'submit-transaction') return callDo(env.LINGRY_LEXICON, shard, '/transactions/' + encodeURIComponent(input.intent_id) + '/submit', { method: 'POST', body: JSON.stringify(input) });
+		throw apiError('internal_error', 'Unsupported publication operation.', 500);
+	});
+}
+
 async function handleApi(request, env) {
 	const url = new URL(request.url);
 	if (request.method === 'OPTIONS') {
@@ -1709,9 +1838,18 @@ async function handleApi(request, env) {
 			return envelope({ ingested_languages: results.length, persisted_records: persistedRecords, results }, 200, headers, id);
 		}
 
+		const clawhubCoinMatch = url.pathname.match(/^\/v1\/openclaw\/candidates\/([^/]+)\/coin$/);
 		let session = null;
-		if (!WRITE_ROUTES_WITHOUT_AUTH.has(url.pathname) && (url.pathname.startsWith('/v1/me') || url.pathname.startsWith('/v1/wallets') || (WRITE_METHODS.has(request.method) && !url.pathname.startsWith('/v1/webhooks')))) {
+		if (!WRITE_ROUTES_WITHOUT_AUTH.has(url.pathname) && !clawhubCoinMatch && (url.pathname.startsWith('/v1/me') || url.pathname.startsWith('/v1/wallets') || (WRITE_METHODS.has(request.method) && !url.pathname.startsWith('/v1/webhooks')))) {
 			session = await authenticate(request, env);
+		}
+		if (clawhubCoinMatch && request.method === 'POST') {
+			const body = await readJson(request, 1024);
+			if (!body || typeof body !== 'object' || Array.isArray(body) || Object.keys(body).length) {
+				throw apiError('validation_error', 'Coining accepts only the stored candidate ID.', 400);
+			}
+			const result = await coinClawhubCandidate(env, clawhubCoinMatch[1]);
+			return envelope(result, 200, headers, id);
 		}
 		if (url.pathname === '/v1/auth/logout' && request.method === 'POST') {
 			session = session || await authenticate(request, env);
@@ -1780,7 +1918,7 @@ async function handleApi(request, env) {
 			const payload = buildLingryPayload(body);
 			const data = await callDo(env.LINGRY_LEXICON, shardName(payload.language_code), '/candidates', {
 				method: 'POST',
-				body: JSON.stringify({ ...body, actor_address: session.address, session_id: session.sid || '', source: body.source || 'generation' })
+				body: JSON.stringify({ ...body, actor_address: session.address, session_id: session.sid || '', source: 'generation' })
 			});
 			return envelope(data, 201, headers, id);
 		}
@@ -1924,7 +2062,7 @@ export const OPENAPI = {
 	openapi: '3.1.0',
 	info: {
 		title: 'Lingry Agent API',
-		version: '2.0.0'
+		version: '2.1.0'
 	},
 	paths: {
 		'/v1/auth/challenge': { post: { summary: 'Create a Sugarchain wallet-signature challenge.' } },
@@ -1935,6 +2073,8 @@ export const OPENAPI = {
 		'/v1/agents/session': { post: { summary: 'Exchange an OpenClaw Agent Publisher credential for a short-lived scoped token.' } },
 		'/v1/agents/me': { get: { summary: 'Return the authenticated Agent Publisher public identity.' } },
 		'/v1/agents/coin': { post: { summary: 'Sign and broadcast one stored canonical Lingry candidate through its Agent Publisher.' } },
+		'/v1/openclaw/generations': { post: { summary: 'Generate and store a server-issued OpenClaw candidate without publication or client credentials.' } },
+		'/v1/openclaw/candidates/{candidate_id}/coin': { post: { summary: 'Publish only the exact stored candidate; an empty body and explicit client action are required.' } },
 		'/v1/me': { get: { summary: 'Return the authenticated wallet identity.' } },
 		'/v1/wallets/register': { post: { summary: 'Register public wallet metadata.' } },
 		'/v1/wallets/me': { get: { summary: 'Return registered wallet metadata.' } },

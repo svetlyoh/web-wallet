@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.1.0
+
+- Removed local publisher credentials, candidate files, state-path and API-origin overrides from the ClawHub client.
+- Added server-generated, expiring candidate capabilities and a candidate-only publication endpoint.
+- Replaced executable next-action strings with structured intents and strict candidate ID validation.
+- Added a minimal ClawHub staging build that excludes tests and development files.
+- Added portable Muse/generic-agent install instructions, Git sparse checkout, and read-only local verification.
+- Added deterministic ZIP, SHA256 and file manifests from the same staged ClawHub payload, plus a deliberate GitHub Release workflow.
+
 ## 2.0.2
 
 - Added two explicit actions after every generated candidate: coin this term or prompt for another.

@@ -428,12 +428,18 @@ export async function coinLingryWord(env, session, input, lexicon) {
 	const candidateId = normalize(input.candidate_id);
 	const languageCode = normalize(input.language_code || 'W').toUpperCase().charAt(0);
 	const idempotencyKey = normalize(input.idempotency_key);
-	if (!/^cand_[A-Za-z0-9_-]+$/.test(candidateId)) throw agentError('validation_error', 'candidate_id is required.', 400);
+	if (!/^cand_[A-Za-z0-9_-]{16,128}$/.test(candidateId)) throw agentError('validation_error', 'candidate_id is invalid.', 400);
 	if (!idempotencyKey || idempotencyKey.length > 200) throw agentError('idempotency_required', 'Idempotency-Key is required.', 400);
 	const prior = await first(db, 'SELECT * FROM lingry_agent_coin_operations WHERE agent_id = ? AND idempotency_key = ?', session.agent_id, idempotencyKey);
 	if (prior) {
+		if (prior.candidate_id !== candidateId) throw agentError('idempotency_conflict', 'Idempotency key belongs to another candidate.', 409);
 		if (prior.status === 'broadcasted' && prior.response_json) return JSON.parse(prior.response_json);
 		throw agentError('agent_coin_in_progress', 'This coin operation is already in progress.', 409, true);
+	}
+	const priorCandidate = await first(db, 'SELECT * FROM lingry_agent_coin_operations WHERE agent_id = ? AND candidate_id = ? ORDER BY created_at DESC LIMIT 1', session.agent_id, candidateId);
+	if (priorCandidate) {
+		if (priorCandidate.status === 'broadcasted' && priorCandidate.response_json) return JSON.parse(priorCandidate.response_json);
+		throw agentError('agent_coin_in_progress', 'This candidate publication is already in progress.', 409, true);
 	}
 	const candidateResult = await lexicon('get-candidate', { candidate_id: candidateId, language_code: languageCode, actor_address: session.address });
 	const candidate = candidateResult.candidate;

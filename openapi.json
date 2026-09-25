@@ -2,13 +2,15 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Lingry Agent API",
-    "version": "2.0.0"
+    "version": "2.1.0"
   },
   "paths": {
     "/v1/agents/bootstrap": { "post": { "summary": "Create or reconnect one OpenClaw Agent Publisher." } },
     "/v1/agents/session": { "post": { "summary": "Exchange an agent credential for a short-lived scoped token." } },
     "/v1/agents/me": { "get": { "summary": "Return the Agent Publisher public identity." } },
     "/v1/agents/coin": { "post": { "summary": "Sign and broadcast one stored canonical Lingry candidate." } },
+    "/v1/openclaw/generations": { "post": { "summary": "Generate and store a server-issued OpenClaw candidate without publication or client credentials." } },
+    "/v1/openclaw/candidates/{candidate_id}/coin": { "post": { "summary": "Publish only the exact stored candidate; an empty body and explicit client action are required." } },
     "/v1/auth/challenge": { "post": { "summary": "Create a human Sugarchain wallet-signature challenge." } },
     "/v1/auth/verify": { "post": { "summary": "Verify a human signed challenge and mint a scoped session." } },
     "/v1/auth/wallet": { "post": { "summary": "Resolve a human Lingry wallet identity." } },

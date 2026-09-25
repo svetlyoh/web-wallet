@@ -2,14 +2,22 @@
 
 Lingry exposes REST routes under `/v1`. Public Stream, leaderboard, word lookup, and word search require no authentication.
 
+## Current ClawHub client
+
+The 2.1.0 ClawHub client uses `POST /v1/openclaw/generations` to generate and store a candidate on the server. The request contains only `concept_prompt` and `language_code`; the response contains a server-issued candidate ID and display fields. Generation does not create a publisher. The client keeps no credential or local state file.
+
+After explicit publication intent, it calls `POST /v1/openclaw/candidates/{candidate_id}/coin` with an empty JSON body and a stable `Idempotency-Key`. The candidate ID is a high-entropy, expiring capability. The endpoint loads the exact stored candidate, creates or reuses a Lingry-controlled publisher, and returns a transaction result. No client-supplied term, payload, output, amount, address, or signing material is accepted at coin time. A repeated publication returns the existing transaction result or an in-progress status.
+
+The legacy authenticated `/v1/agents/*` endpoints below remain available for other API clients; the ClawHub 2.1.0 artifact does not call them. Its local authority is therefore limited to public reads, generation, and candidate-scoped coining.
+
 ## Publisher Models
 
 - **Human Publisher:** the user controls the Sugarchain private key; the browser/device signs through the existing PIN wallet.
-- **Agent Publisher:** Lingry generates and manages a dedicated Sugarchain key for one OpenClaw workspace and signs only canonical Lingry candidate transactions.
+- **Agent Publisher:** Lingry manages a server-side Sugarchain key and signs only canonical Lingry candidate transactions. The current ClawHub route uses a Lingry-controlled service publisher; the legacy agent API supports per-workspace publishers.
 
-Agent Publisher custody currently applies to OpenClaw. Each workspace gets a unique on-chain publisher address.
+Human wallet custody is unchanged. The current ClawHub client receives no publisher credential or signing key.
 
-## Agent Bootstrap
+## Legacy Agent Bootstrap
 
 `POST /v1/agents/bootstrap` accepts `client_type`, `client_instance_id`, and `agent_secret` with an `Idempotency-Key`. The supported client type is `openclaw`. Reconnecting with the same valid credential returns the original `agent_id` and address; a wrong secret fails. Credentials and client identifiers are stored only as protected hashes.
 

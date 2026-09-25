@@ -2,6 +2,8 @@
 	"scripts": {
 		"start": "node server.js",
 		"test": "node --test",
+		"build:clawhub": "node scripts/build-clawhub.mjs",
+		"crossword:export": "node scripts/lingry-word-bank-crossword.mjs",
 		"dev:lan": "npx wrangler dev --local --ip 0.0.0.0 --port 8787 --persist-to \"%TEMP%\\lingry-wrangler-state\"",
 		"smoke:lan": "node scripts/local-lan-smoke.mjs",
 		"smoke:auth": "node scripts/lingry-auth-smoke.mjs",

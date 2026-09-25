@@ -31,6 +31,7 @@ class MemoryAgentDb {
 					if (/COUNT\(\*\).*FROM lingry_agent_publishers WHERE bootstrap_ip_hash/.test(query)) return { total: db.publishers.filter(row => row.bootstrap_ip_hash === bindings[0]).length };
 					if (/FROM lingry_agent_funding_events/.test(query)) return db.fundingEvents.find(row => row.agent_id === bindings[0]) || null;
 					if (/FROM lingry_agent_coin_operations WHERE agent_id = \? AND idempotency_key/.test(query)) return db.coinOperations.find(row => row.agent_id === bindings[0] && row.idempotency_key === bindings[1]) || null;
+					if (/FROM lingry_agent_coin_operations WHERE agent_id = \? AND candidate_id/.test(query)) return db.coinOperations.find(row => row.agent_id === bindings[0] && row.candidate_id === bindings[1]) || null;
 					if (/COUNT\(\*\).*lingry_agent_coin_operations/.test(query)) return { total: 0, fees: 0 };
 					if (/SUM\(amount_satoshis\)/.test(query)) return { total: 0 };
 					throw new Error(`Unhandled first query: ${query}`);
@@ -176,12 +177,12 @@ test('agent coin API rejects arbitrary outputs and returns a completed idempoten
 	const publisher = { agent_id: 'agt_test', publisher_address: 'sugar1qpublisher' };
 	const session = { agent_id: publisher.agent_id, address: publisher.publisher_address, publisher };
 	await assert.rejects(
-		() => coinLingryWord(testEnv, session, { candidate_id: 'cand_test', idempotency_key: 'idem-1', recipient_address: 'sugar1qexternal' }, async () => { throw new Error('must not reach signer'); }),
+		() => coinLingryWord(testEnv, session, { candidate_id: 'cand_abcdefghijklmnop', idempotency_key: 'idem-1', recipient_address: 'sugar1qexternal' }, async () => { throw new Error('must not reach signer'); }),
 		error => error.code === 'agent_transaction_policy_violation'
 	);
-	const completed = { candidate_id: 'cand_test', publisher_address: publisher.publisher_address, txid: 'd'.repeat(64), status: 'pending' };
-	testEnv.LINGRY_DB.coinOperations.push({ agent_id: publisher.agent_id, idempotency_key: 'idem-2', status: 'broadcasted', response_json: JSON.stringify(completed) });
-	const replay = await coinLingryWord(testEnv, session, { candidate_id: 'cand_test', idempotency_key: 'idem-2' }, async () => { throw new Error('must not broadcast twice'); });
+	const completed = { candidate_id: 'cand_abcdefghijklmnop', publisher_address: publisher.publisher_address, txid: 'd'.repeat(64), status: 'pending' };
+	testEnv.LINGRY_DB.coinOperations.push({ agent_id: publisher.agent_id, candidate_id: completed.candidate_id, idempotency_key: 'idem-2', status: 'broadcasted', response_json: JSON.stringify(completed) });
+	const replay = await coinLingryWord(testEnv, session, { candidate_id: completed.candidate_id, idempotency_key: 'idem-3' }, async () => { throw new Error('must not broadcast twice'); });
 	assert.deepEqual(replay, completed);
 });
 
@@ -192,7 +193,7 @@ test('coinLingryWord decrypts the dedicated publisher key, signs the canonical c
 	const session = { agent_id: publisher.agent_id, address: publisher.publisher_address, publisher };
 	const script = bitcoin.address.toOutputScript(publisher.publisher_address, sugarNetwork).toString('hex');
 	const utxos = [{ txid: '22'.repeat(32), vout: 1, script, value: 5000 }];
-	const candidate = { candidate_id: 'cand_signed', actor_address: publisher.publisher_address, language_code: 'W', candidate_hash: 'e'.repeat(64), term: 'desknosh', meaning: 'Desk snack', op_return_payload: 'SW|desknosh|n|Desk snack' };
+	const candidate = { candidate_id: 'cand_signedcandidate123', actor_address: publisher.publisher_address, language_code: 'W', candidate_hash: 'e'.repeat(64), term: 'desknosh', meaning: 'Desk snack', op_return_payload: 'SW|desknosh|n|Desk snack' };
 	const originalFetch = globalThis.fetch;
 	let submittedRaw = '';
 	globalThis.fetch = async url => {

@@ -1,26 +1,17 @@
-# Lingry Agent Candidate Lifecycle
+# Lingry Candidate Lifecycle
 
-Generated Lingry words must be preserved before an agent shows them to a user.
+## Current OpenClaw flow
 
-## Lifecycle
+1. `POST /v1/openclaw/generations` runs the generator and stores the exact candidate server-side before returning its high-entropy ID and display fields.
+2. OpenClaw displays the candidate and offers **Coin this term** and **Prompt for another**. It keeps the ID only in the active conversation. Generation and prompting for another do not publish.
+3. Only after explicit user publication intent, `POST /v1/openclaw/candidates/{candidate_id}/coin` submits the ID with an empty body.
+4. The server verifies the candidate is unaltered, unexpired, and eligible; creates or reuses a server-controlled publisher; constructs the canonical `S<language>|<word>|<part-of-speech>|<meaning>` record; signs and broadcasts the fixed transaction.
+5. The candidate status and transaction ID are stored. A repeated request returns the existing publication or an in-progress status without broadcasting a second transaction.
 
-1. The generator returns one candidate.
-2. The agent immediately persists it with `POST /v1/generations`.
-3. The API stores a `GeneratedCandidate` record with `candidate_id`, `generation_id`, owner wallet, status, language, term, part of speech, meaning, etymology, canonical payload, and `candidate_hash`.
-4. The agent saves `active_candidate_id` locally.
-5. When the user says "coin it", the agent calls `POST /v1/candidates/{candidate_id}/coin/prepare`.
-6. The prepare route never calls MiniMax and never accepts prompt fields.
-7. The signed transaction must contain the exact OP_RETURN payload from the stored candidate. A mismatch returns `candidate_transaction_mismatch`.
+The ID is an expiring, one-candidate capability. The ClawHub client has no blockchain key, persistent credential, arbitrary transaction, or general signing interface.
 
-## Statuses
+## Existing authenticated API flow
 
-- `available`: generated and ready to coin.
-- `reserved`: a coin intent has been prepared.
-- `submitted`: the signed transaction was accepted for broadcast.
-- `confirmed`: the indexer found the matching OP_RETURN on chain.
-- `failed`: reserved for failed candidate workflows.
-- `expired`: the candidate was not coined before expiry.
+Human and older authenticated API clients may still use `POST /v1/generations` and `/v1/candidates/{candidate_id}/coin/prepare`. Their session and transaction signing flows remain separate from the stateless ClawHub client. The server checks the exact stored candidate and OP_RETURN payload at submission.
 
-## Direct Custom Words
-
-Direct user-authored words remain a separate flow through `POST /v1/words`. They are not generated candidates unless the agent first stores them through `/v1/generations`.
+Candidate statuses include `available`, `reserved`, `submitted`, `confirmed`, `failed`, and `expired`.

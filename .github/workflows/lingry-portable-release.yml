@@ -1,0 +1,47 @@
+name: Lingry portable release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing lingry-v<version> tag to release
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  portable-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate deliberate release tag
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: node -e "const p=require('./openclaw/skills/lingry/package.json'); if (process.env.RELEASE_TAG !== 'lingry-v'+p.version) throw new Error('Release tag and Lingry package version differ')"
+      - name: Test skill and build identical ClawHub and portable packages
+        run: |
+          node --test openclaw/skills/lingry/test/skill-package.test.mjs
+          npm run build:clawhub
+          if [ -n "$(git status --porcelain -- skills/lingry)" ]; then
+            echo 'Committed GitHub import folder differs from the release payload.' >&2
+            exit 1
+          fi
+      - name: Create GitHub Release with portable assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          version="${RELEASE_TAG#lingry-v}"
+          gh release create "$RELEASE_TAG" \
+            "dist/lingry-skill-${version}.zip" \
+            "dist/lingry-skill-${version}.zip.sha256" \
+            "dist/lingry-skill-${version}.manifest.json" \
+            --verify-tag --generate-notes

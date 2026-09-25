@@ -3,9 +3,11 @@ import { Buffer } from 'node:buffer';
 import nodeCrypto from 'node:crypto';
 import {
 	ActorDO,
+	createClawhubCandidate,
 	FeedDO,
 	handleLingryV1Request,
 	LexiconShardDO,
+	LINGRY_LANGUAGE_CODES,
 	WebhookDO
 } from './lingry-api.mjs';
 import { parseSugarWordPayload } from './lingry-protocol.mjs';
@@ -1515,6 +1517,50 @@ async function handleGenerateWord(request, env, forcedGenerationMode) {
 		throw lastError || new Error('Unable to generate a unique word.');
 	} catch (error) {
 		return jsonResponse({ error: error.message || 'Unable to generate word.' }, 400);
+	}
+}
+
+async function handleClawhubGeneration(request, env) {
+	if (request.method !== 'POST') return jsonResponse({ ok: false, error: { code: 'method_not_allowed' } }, 405);
+	try {
+		if (Number(request.headers.get('content-length')) > 2048) return jsonResponse({ ok: false, error: { code: 'payload_too_large' } }, 413);
+		const reader = request.body?.getReader();
+		if (!reader) return jsonResponse({ ok: false, error: { code: 'validation_error' } }, 400);
+		const chunks = [];
+		let size = 0;
+		while (true) {
+			const { done, value } = await reader.read();
+			if (done) break;
+			size += value.byteLength;
+			if (size > 2048) {
+				await reader.cancel();
+				return jsonResponse({ ok: false, error: { code: 'payload_too_large' } }, 413);
+			}
+			chunks.push(value);
+		}
+		const bytes = new Uint8Array(size);
+		let offset = 0;
+		for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
+		let body;
+		try { body = JSON.parse(new TextDecoder().decode(bytes)); }
+		catch { return jsonResponse({ ok: false, error: { code: 'validation_error' } }, 400); }
+		if (!body || typeof body !== 'object' || Array.isArray(body) ||
+			Object.keys(body).some(key => !['concept_prompt', 'language_code'].includes(key)) ||
+			typeof body.concept_prompt !== 'string' || !body.concept_prompt.trim() || body.concept_prompt.length > 500 ||
+			typeof body.language_code !== 'string' || !LINGRY_LANGUAGE_CODES.has(body.language_code)) {
+			return jsonResponse({ ok: false, error: { code: 'validation_error' } }, 400);
+		}
+		const generationRequest = new Request('https://lingry.internal/api/invent-word-from-prompt', {
+			method: 'POST', headers: { 'content-type': 'application/json' },
+			body: JSON.stringify({ generation_mode: 'prompt', concept_prompt: body.concept_prompt.trim(), language_code: body.language_code, used_words: [], used_meanings: [] })
+		});
+		const generatedResponse = await handleGenerateWord(generationRequest, env, 'prompt');
+		if (!generatedResponse.ok) return jsonResponse({ ok: false, error: { code: 'generation_failed' } }, 502);
+		const generated = await generatedResponse.json();
+		const candidate = await createClawhubCandidate(env, generated, body.concept_prompt.trim(), body.language_code);
+		return jsonResponse({ ok: true, data: { candidate } }, 201);
+	} catch {
+		return jsonResponse({ ok: false, error: { code: 'generation_failed' } }, 502);
 	}
 }
 
@@ -3067,6 +3113,9 @@ export default {
 			}
 			if (url.pathname === '/v1/stream') {
 				return handlePublicSnapshotRoute(request, env, 'stream');
+			}
+			if (url.pathname === '/v1/openclaw/generations') {
+				return handleClawhubGeneration(request, env);
 			}
 			traceRequest(env, requestId, 'v1:before');
 			const lingryApiResponse = await Promise.race([

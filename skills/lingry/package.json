@@ -2,18 +2,8 @@
   "name": "@svetlyoh/lingry",
   "version": "2.1.0",
   "type": "module",
-  "files": [
-    "INSTALL.json",
-    "README.md",
-    "SKILL.md",
-    "bin/",
-    "src/"
-  ],
   "bin": {
     "lingry-agent": "bin/lingry-agent.mjs"
-  },
-  "scripts": {
-    "test": "node --test"
   },
   "dependencies": {},
   "engines": {

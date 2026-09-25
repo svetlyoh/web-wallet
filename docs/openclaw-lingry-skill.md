@@ -1,42 +1,11 @@
-# OpenClaw Lingry Skill 2.0.2
+# OpenClaw Lingry Skill 2.1.0
 
-The standalone package at `openclaw/skills/lingry` supports immediate public discovery and autonomous canonical word coining without a local cryptocurrency wallet.
+The ClawHub client is a stateless API client for public discovery, server-generated candidates, and explicit publication of the selected candidate. Its complete user and security instructions are in `openclaw/skills/lingry/SKILL.md` and `README.md`.
 
-## Install
+Build the publishable directory with `npm run build:clawhub`. The output at `dist/clawhub-lingry/` contains only four approved files; tests, source repository documents, configuration files, and the repository license remain outside it.
 
-Run exactly from the OpenClaw workspace:
+`generate-word` and `prompt-another` call `POST /v1/openclaw/generations`. The server runs generation and stores a high-entropy, expiring, immutable candidate before returning it. Neither operation creates a publisher or a blockchain transaction. The client retains the returned candidate ID only in the active conversation.
 
-```bash
-cd ~/.openclaw/workspace
-openclaw skills install '@svetlyoh/lingry'
-```
+`coin-word <candidate-id> --publish` is available only after explicit user publication intent. It calls `POST /v1/openclaw/candidates/{candidate_id}/coin` with an empty body. The server uses the stored canonical candidate, creates or reuses its server-side publisher, applies fee and transaction policy, and returns the transaction result. Repeating the same candidate ID cannot create a second publication.
 
-The owner-qualified ClawHub reference is intentionally quoted. No `npm` step, wallet, API token, encryption key, or environment variable is required. Replace an older copy with the same command plus `--force`; no state-file or secret repair is needed.
-
-## First Use
-
-Run `node bin/lingry-agent.mjs` from the OpenClaw agent workspace. The first invocation anonymously reads `/v1/stream?limit=1`, returns the newest valid word plus immediate creation/discovery actions, and persists non-secret onboarding status in `<workspace>/.lingry/agent.json`. A failed Stream read returns a useful fallback and never fabricates a word.
-
-This read does not register an Agent Publisher. The first publisher operation automatically generates a workspace-local `client_instance_id` and high-entropy agent credential, calls `/v1/agents/bootstrap`, and obtains a short-lived session. The same workspace resolves to the same Agent Publisher; another workspace gets another Sugarchain address. Lingry encrypts the publisher key server-side. No browser visit or manually configured client secret is required.
-
-## Commands
-
-```text
-status, doctor, verify-install
-stream, leaderboard, list-words, daily-word
-agent-status, address
-generate-word, create-word-draft, coin-word
-get-transaction
-```
-
-`generate-word` and `create-word-draft` persist immutable candidates and return two visible next actions: coin this term or prompt for another. The latter leaves the saved candidate uncoined and creates no publication authority. `coin-word <candidate-id>` exchanges the workspace credential for a short-lived token, asks Lingry to sign the exact candidate with that bot's Agent Publisher, and returns the transaction result. It exposes no raw-signing or general transfer surface.
-
-## Daily Word
-
-The first-use response asks whether the user wants a Daily Lingry Word. This is opt-in. After explicit agreement, the OpenClaw agent uses OpenClaw's native automation interface, checks for an existing `lingry-daily-word` job, and creates or updates exactly one read-only daily job for the active chat route and user timezone. The skill never writes cron files itself.
-
-The job calls `node bin/lingry-agent.mjs daily-word`. It reads only the public Stream and cannot bootstrap an Agent Publisher, fund an address, sign, broadcast, or coin. Disable requests use the same native automation interface.
-
-## Custody
-
-Human Publisher keys remain user-controlled in the existing browser PIN wallet. Agent Publisher keys are Lingry-managed, server-side, and unique per OpenClaw workspace. OpenClaw never receives either blockchain key.
+The client has no local credential, no state file, no API-origin override, and no access to blockchain keys. `W` is the default American English code; `E` is British English. Other language codes are selected explicitly with `--language=<code>`.

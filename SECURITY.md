@@ -1,25 +1,13 @@
 # Lingry Security
 
-## Wallet Private Key And WIF Backup
+## Human wallet
 
-Lingry OpenClaw wallets are created locally and encrypted in `~/.lingry/keystore.json` with the local passphrase. The WIF private key is never sent to the Lingry API and is never printed in normal `create-wallet` output.
+The existing browser wallet keeps human signing authority on the user's device. No OpenClaw skill command accepts a human wallet private key, WIF, seed phrase, mnemonic, or passphrase. Never commit or log wallet material, Cloudflare secrets, RPC credentials, or funding keys.
 
-Supported terminal-only recovery:
+## OpenClaw skill
 
-```bash
-lingry-openclaw export-private-key --confirm
-```
+The ClawHub client at `openclaw/skills/lingry` stores no credentials or candidate state on disk. It communicates only with `https://lingry.net`. Generation creates a server-held, expiring candidate and no transaction. Coining requires an explicit user publication request and a validated candidate ID; the API request has no arbitrary outputs, amount, destination, record, or signing key.
 
-This command requires an interactive private terminal and the exact typed confirmation `DISPLAY-WIF`. It is not supported through Telegram, OpenClaw chat, cron, or any remote API endpoint.
+Lingry's server constructs the canonical word record, signs a fixed publication transaction, and broadcasts it. Its publisher key and funding key remain server-side. Per-candidate operation records and the stored candidate status prevent a repeated coin request from creating another publication.
 
-Secure offline backup options:
-
-- Keep the encrypted keystore and passphrase in separate places.
-- Store an offline encrypted USB backup.
-- Write an offline recovery record and store it securely.
-
-## Starter Grant
-
-The 0.025 SUGAR starter grant uses a server-side Cloudflare Worker flow. The local wallet signs a challenge with its new key, but the user WIF never leaves the computer. The grant wallet WIF must only exist as a Cloudflare secret named `LINGRY_GRANT_WALLET_WIF`.
-
-Never commit or log WIFs, passphrases, Cloudflare tokens, `.dev.vars`, user keystores, or production secrets.
+The source repository includes tests and documentation. The ClawHub artifact is built from an allowlist with `npm run build:clawhub`; review `dist/clawhub-lingry/` before publication.
