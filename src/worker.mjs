@@ -39,6 +39,7 @@ const LINGRY_PUBLIC_INDEX_STALE_MS = 2 * LINGRY_HOURLY_REFRESH_MS;
 const LINGRY_PUBLIC_INDEX_LEASE_MS = 20 * 60 * 1000;
 const LINGRY_PUBLIC_INDEX_MAX_BLOCKS_PER_RUN = 1000;
 const LINGRY_PUBLIC_INDEX_RECENT_BLOCKS = 1800;
+const LINGRY_PUBLIC_INDEX_RECOVERY_CRON = '5,20,35,50 * * * *';
 const SUGAR_RANGE_VALIDATION_ATTEMPTS = 4;
 const SUGAR_RANGE_SPLIT_SIZE = 25;
 const SUGAR_HEIGHT_FALLBACK_ATTEMPTS = 5;
@@ -2410,6 +2411,7 @@ export async function scanRecentPublicWords(safeTip) {
 	}
 	recent.warnings = recent.warnings.slice(0, 20);
 	recent.errors = recent.errors.slice(0, 20);
+	recent.scanned_at = new Date().toISOString();
 	return { records, summary: recent };
 }
 
@@ -2592,7 +2594,8 @@ async function readSafeChainTip() {
 	return Math.max(0, currentHeight - LINGRY_PUBLIC_INDEX_CONFIRMATION_DEPTH);
 }
 
-async function refreshLingryPublicIndex(env) {
+async function refreshLingryPublicIndex(env, options = {}) {
+	const includeRecent = options.includeRecent !== false;
 	if (!(await ensureLingrySocialDb(env))) {
 		throw new Error('Lingry social database is not configured.');
 	}
@@ -2601,7 +2604,11 @@ async function refreshLingryPublicIndex(env) {
 		return { skipped: true, reason: 'refresh lease is already active' };
 	}
 	try {
-		await setLingryIndexMeta(env, 'public_index_last_attempt_at', new Date().toISOString());
+		const attemptedAt = new Date().toISOString();
+		await setLingryIndexMeta(env, 'public_index_last_attempt_at', attemptedAt);
+		if (!includeRecent) {
+			await setLingryIndexMeta(env, 'public_index_last_recovery_attempt_at', attemptedAt);
+		}
 		const previousSnapshot = await readPublicIndexSnapshot(env).catch(() => null);
 		const previousCheckpoint = previousSnapshot && previousSnapshot.checkpoint || {};
 		const safeTip = await readSafeChainTip();
@@ -2626,9 +2633,12 @@ async function refreshLingryPublicIndex(env) {
 			lastScannedHeight = LINGRY_WORD_START_HEIGHT - 1;
 			storedHash = '';
 		}
+		if (!includeRecent && lastScannedHeight >= safeTip) {
+			return { skipped: true, reason: 'historical index is caught up' };
+		}
 		// Keep the shared feed current while a historical gap is being repaired.
 		// This window never advances the contiguous historical checkpoint.
-		const recentScan = safeTip - lastScannedHeight > LINGRY_PUBLIC_INDEX_MAX_BLOCKS_PER_RUN
+		const recentScan = includeRecent && safeTip - lastScannedHeight > LINGRY_PUBLIC_INDEX_MAX_BLOCKS_PER_RUN
 			? await scanRecentPublicWords(safeTip)
 			: null;
 		if (recentScan) {
@@ -2650,7 +2660,7 @@ async function refreshLingryPublicIndex(env) {
 		scan.summary.safe_tip_height = safeTip;
 		await persistLingrySocialWords(env, scan.records);
 		const snapshot = await buildPublicIndexSnapshot(env, previousSnapshot, scan, safeTip);
-		snapshot.scan.recent = recentScan ? recentScan.summary : null;
+		snapshot.scan.recent = recentScan ? recentScan.summary : previousSnapshot?.scan?.recent || null;
 		const snapshotKey = await writePublicIndexSnapshot(env, snapshot);
 		await setLingryIndexMeta(env, 'public_index_last_snapshot_key', snapshotKey);
 		await setLingryIndexMeta(env, 'public_index_last_scanned_height', String(snapshot.checkpoint.last_scanned_height || 0));
@@ -2726,14 +2736,16 @@ function publicSnapshotEnvelope(snapshot, body) {
 async function handlePublicIndexHealth(env) {
 	const snapshot = await readPublicIndexSnapshot(env).catch(() => null);
 	const observedSafeTip = await readSafeChainTip().catch(() => null);
-	const [lastSuccessAt, lastError, lastScannedHeightText, lastScannedHash, safeTipText, blocksBehindText, failedHeight] = await Promise.all([
+	const [lastSuccessAt, lastError, lastScannedHeightText, lastScannedHash, safeTipText, blocksBehindText, failedHeight, lastAttemptAt, lastRecoveryAttemptAt] = await Promise.all([
 		getLingryIndexMeta(env, 'public_index_last_success_at'),
 		getLingryIndexMeta(env, 'public_index_last_error'),
 		getLingryIndexMeta(env, 'public_index_last_scanned_height'),
 		getLingryIndexMeta(env, 'public_index_last_scanned_block_hash'),
 		getLingryIndexMeta(env, 'public_index_safe_tip_height'),
 		getLingryIndexMeta(env, 'public_index_blocks_behind'),
-		getLingryIndexMeta(env, 'public_index_last_failed_height')
+		getLingryIndexMeta(env, 'public_index_last_failed_height'),
+		getLingryIndexMeta(env, 'public_index_last_attempt_at'),
+		getLingryIndexMeta(env, 'public_index_last_recovery_attempt_at')
 	]);
 	const lastScannedHeight = Number(lastScannedHeightText || snapshot?.checkpoint?.last_scanned_height || 0);
 	const recordedSafeTip = Number(safeTipText || snapshot?.checkpoint?.safe_tip_height || 0);
@@ -2741,13 +2753,15 @@ async function handlePublicIndexHealth(env) {
 	const blocksBehind = Math.max(0, Number(blocksBehindText || 0), safeTipHeight - lastScannedHeight);
 	const stale = !snapshot || snapshotStale(snapshot);
 	const checkpointInvalid = lastScannedHeight < 0 || safeTipHeight < lastScannedHeight || (lastScannedHeight > 0 && !lastScannedHash && !snapshot?.checkpoint?.last_scanned_block_hash);
-	const unhealthy = Boolean(lastError || failedHeight || stale || checkpointInvalid || observedSafeTip == null);
+	const unhealthy = Boolean(lastError || failedHeight || stale || checkpointInvalid || observedSafeTip == null || snapshot?.scan?.recent?.complete === false);
 	const status = unhealthy ? 'unhealthy' : blocksBehind > 0 ? 'catching_up' : 'healthy';
 	return jsonResponse({
 		ok: !unhealthy,
 		status,
 		source: 'lingry-hourly-public-index',
 		last_success_at: lastSuccessAt || '',
+		last_attempt_at: lastAttemptAt || '',
+		last_recovery_attempt_at: lastRecoveryAttemptAt || '',
 		last_error: lastError || '',
 		last_snapshot_at: snapshot?.generated_at || '',
 		last_scanned_height: lastScannedHeight,
@@ -2759,7 +2773,8 @@ async function handlePublicIndexHealth(env) {
 		snapshot_stale: stale,
 		failed_height: failedHeight ? Number(failedHeight) : null,
 		recent_scan: snapshot?.scan?.recent || null,
-		cron_expected_every_minutes: 60
+		cron_expected_every_minutes: 60,
+		historical_retry_every_minutes: 15
 	});
 }
 
@@ -3018,16 +3033,22 @@ async function handleTxWord(request, env, txid) {
 	}
 }
 
+export function publicIndexScheduleMode(cron) {
+	return cron === LINGRY_PUBLIC_INDEX_RECOVERY_CRON ? 'recovery' : 'hourly';
+}
+
 export default {
 	async scheduled(controller, env, ctx) {
+		const mode = publicIndexScheduleMode(controller?.cron);
+		const refresh = refreshLingryPublicIndex(env, { includeRecent: mode !== 'recovery' });
 		if (ctx && typeof ctx.waitUntil === 'function') {
-			ctx.waitUntil(refreshLingryPublicIndex(env).catch(error => {
-				console.error(JSON.stringify({ service: 'lingry-public-index', status: 'refresh_failed', error: sanitizePublicIndexError(error) }));
+			ctx.waitUntil(refresh.catch(error => {
+				console.error(JSON.stringify({ service: 'lingry-public-index', mode, status: 'refresh_failed', error: sanitizePublicIndexError(error) }));
 				throw error;
 			}));
 			return;
 		}
-		await refreshLingryPublicIndex(env);
+		await refresh;
 	},
 	async fetch(request, env, ctx) {
 		const requestId = createRequestId();

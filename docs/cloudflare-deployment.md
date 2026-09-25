@@ -32,9 +32,11 @@ The public Lingry leaderboard/stream index can use an optional private R2 bucket
 
 ## Hourly public index
 
-The `0 * * * *` Cron Trigger invokes the Worker's `scheduled()` handler, which refreshes the public Stream and leaderboard. A Deploy Hook only builds and deploys the Git branch; it does not refresh the index hourly. Keep the full `master` configuration, including the Cron, D1 binding, and Durable Object bindings.
+The `0 * * * *` Cron Trigger invokes the Worker's `scheduled()` handler, which refreshes the public Stream and leaderboard. A second trigger, `5,20,35,50 * * * *`, retries only the historical checkpoint every 15 minutes. A Deploy Hook only builds and deploys the Git branch; it does not refresh the index hourly. Keep the full `master` configuration, including both Cron triggers, the D1 binding, and Durable Object bindings.
 
 Each run scans at most 1,000 confirmed blocks from the historical checkpoint. If the safe tip is farther ahead, the snapshot reports `catchup: true` and the next Cron continues from the persisted checkpoint. The checkpoint is advanced only through blocks retrieved and inspected contiguously. Malformed or empty Sugarchain range responses are retried before per-height fallback; the first unresolved block stops the historical scan and leaves the cursor at the preceding verified block.
+
+The 15-minute recovery invocation starts again at that persisted checkpoint. It does not repeat the separate recent-feed scan, and it preserves the prior recent-scan result in the shared snapshot. A failed batch can therefore recover on a later invocation when the Sugarchain API responds, without skipping an unverified height. The index lease prevents overlapping scheduled invocations. `GET /v1/index-health` exposes `last_attempt_at` and `last_recovery_attempt_at` for monitoring.
 
 When the historical checkpoint is far behind, the same hourly run also scans a separate 1,800-block window at the confirmed chain tip and persists verified words into the shared feed. It publishes the recent snapshot before attempting the slower historical scan. This pass does not move the historical checkpoint or conceal an older gap. Inspect `scan.recent` in `/v1/stream` or `recent_scan` in `/v1/index-health`: `complete: false` means an upstream range was missed and must be retried. `status: "unhealthy"` still signals the unresolved historical gap.
 
@@ -49,7 +51,7 @@ GET /v1/leaderboard?limit=100
 GET /api/words/latest?limit=100&filter=all
 ```
 
-After deployment, confirm the `web-wallet` Cron remains `0 * * * *`, inspect structured Worker logs, and verify a subsequent hourly invocation advances only the real contiguous checkpoint.
+After deployment, confirm the `web-wallet` Cron has both `0 * * * *` and `5,20,35,50 * * * *`, inspect structured Worker logs, and verify a subsequent recovery invocation advances only the real contiguous checkpoint.
 
 For local development, copy `.dev.vars.example` to `.dev.vars` and replace placeholders locally.
 

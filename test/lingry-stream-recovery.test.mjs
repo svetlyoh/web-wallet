@@ -5,6 +5,7 @@ import worker, {
 	derivePublicIndexCheckpoint,
 	fetchSugarBlockBatch,
 	publicStreamItem,
+	publicIndexScheduleMode,
 	publicIndexRewindHeight,
 	scanSugarBlockRange
 } from '../src/worker.mjs';
@@ -18,6 +19,12 @@ function block(height) {
 function range(start, end) {
 	return Array.from({ length: end - start + 1 }, (_, index) => block(start + index));
 }
+
+test('recovery cron retries history without running the hourly recent-feed scan', () => {
+	assert.equal(publicIndexScheduleMode('5,20,35,50 * * * *'), 'recovery');
+	assert.equal(publicIndexScheduleMode('0 * * * *'), 'hourly');
+	assert.equal(publicIndexScheduleMode(undefined), 'hourly');
+});
 
 test('complete range advances the contiguous checkpoint to its final block', async () => {
 	const result = await scanSugarBlockRange(100, 199, {

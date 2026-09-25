@@ -303,8 +303,8 @@ test('starter grant deployment config is enabled with funding limits', () => {
 	assert.doesNotMatch(source, /This funding route has moved/);
 });
 
-test('cron configuration and public index constants are hourly', () => {
-	assert.deepEqual(wrangler.triggers.crons, ['0 * * * *']);
+test('cron configuration keeps hourly feed refresh and retries historical gaps every 15 minutes', () => {
+	assert.deepEqual(wrangler.triggers.crons, ['0 * * * *', '5,20,35,50 * * * *']);
 	const source = fs.readFileSync(new URL('../src/worker.mjs', import.meta.url), 'utf8');
 	assert.match(source, /const LINGRY_BLOCK_SECONDS = 5/);
 	assert.match(source, /const LINGRY_HOURLY_SCAN_BLOCKS = Math\.ceil\(LINGRY_HOURLY_REFRESH_MS \/ \(LINGRY_BLOCK_SECONDS \* 1000\)\)/);
