@@ -16,7 +16,7 @@ const migrationSource = fs.readFileSync(new URL('../migrations/0006_lingry_walle
 
 test('normal Lingry entry has no legacy account authentication controls', () => {
 	assert.match(indexSource, /id="lingry-auth-card"/);
-	assert.match(indexSource, /src="lingry-auth\.js\?2"/);
+	assert.match(indexSource, /src="lingry-auth\.js\?3"/);
 	for (const obsolete of [
 		'Continue with Google',
 		'Sign up by Key',
@@ -40,6 +40,13 @@ test('PIN entry is exactly four numeric digits and auto-submits', () => {
 	assert.match(authSource, /if \(value\.length === 4\)/);
 	assert.match(authSource, /handlePinComplete\(value\)/);
 	assert.match(authSource, /\^\\d\{4\}\$/);
+});
+
+test('switching tabs keeps the wallet open until five hours of inactivity', () => {
+	assert.match(authSource, /AUTO_LOCK_MS = 5 \* 60 \* 60 \* 1000/);
+	assert.match(authSource, /lastActivityReset = Date\.now\(\)/);
+	assert.match(authSource, /!document\.hidden && bridge && bridge\.isOpen\(\) && Date\.now\(\) - lastActivityReset >= AUTO_LOCK_MS/);
+	assert.doesNotMatch(authSource, /document\.hidden && bridge && bridge\.isOpen\(\)\)\s*\{\s*lock\(/);
 });
 
 test('local vault combines a non-extractable device key with PIN-derived encryption', () => {

@@ -579,6 +579,7 @@
 		if (!bridge || !bridge.isOpen()) {
 			return
 		}
+		lastActivityReset = Date.now()
 		autoLockTimer = window.setTimeout(function() {
 			lock('Lingry locked after inactivity.')
 		}, AUTO_LOCK_MS)
@@ -601,10 +602,13 @@
 
 	function noteActivity() {
 		var now = Date.now()
+		if (bridge && bridge.isOpen() && now - lastActivityReset >= AUTO_LOCK_MS) {
+			lock('Lingry locked after inactivity.')
+			return
+		}
 		if (now - lastActivityReset < 1000) {
 			return
 		}
-		lastActivityReset = now
 		resetAutoLock()
 	}
 
@@ -667,8 +671,8 @@
 		})
 		$(document).on('pointerdown keydown touchstart', noteActivity)
 		document.addEventListener('visibilitychange', function() {
-			if (document.hidden && bridge && bridge.isOpen()) {
-				lock()
+			if (!document.hidden && bridge && bridge.isOpen() && Date.now() - lastActivityReset >= AUTO_LOCK_MS) {
+				lock('Lingry locked after inactivity.')
 			}
 		})
 		initialize()
