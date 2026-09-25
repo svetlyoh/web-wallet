@@ -4019,11 +4019,49 @@
 			}
 
 			function lingryStreamLatestProtocolRecords(blocks) {
-				return wordExplorerApiGet('/api/words/latest?limit=100&filter=all&address=' + encodeURIComponent(globalData.address || ''), { 'timeout': 60000 }).then(function(data) {
-					return (data.records || [])
+				var snapshotPromise = wordExplorerApiGet('/v1/stream?limit=100', { 'timeout': 30000 }).then(function(data) {
+					return data.items || []
+				}).catch(function() {
+					return []
+				})
+				var latestPromise = wordExplorerApiGet('/api/words/latest?limit=100&filter=all&address=' + encodeURIComponent(globalData.address || ''), { 'timeout': 60000 }).then(function(data) {
+					return data.records || []
+				}).catch(function() {
+					return []
+				})
+				return Promise.all([snapshotPromise, latestPromise]).then(function(results) {
+					return results[0].concat(results[1])
 						.filter(lingryStreamIsProtocolRecord)
 						.map(lingryStreamNormalizeOnChainRecord)
 				})
+			}
+
+			function indexCoinedSugarWord(txid, attempt) {
+				txid = String(txid || '').trim().toLowerCase()
+				attempt = Math.max(0, Number(attempt) || 0)
+				var retryDelays = [0, 2000, 5000, 15000, 30000]
+				if (!/^[0-9a-f]{64}$/.test(txid) || attempt >= retryDelays.length) {
+					return
+				}
+				var run = function() {
+					wordExplorerApiGet('/api/tx/' + encodeURIComponent(txid) + '/word', { 'timeout': 15000 }).then(function(data) {
+						var records = data && Array.isArray(data.records) ? data.records : []
+						if (!records.length) {
+							indexCoinedSugarWord(txid, attempt + 1)
+							return
+						}
+						mergeLingryStreamRecords(records)
+						wordExplorerAddLocalRecords(records)
+						renderLingryStream()
+					}).catch(function() {
+						indexCoinedSugarWord(txid, attempt + 1)
+					})
+				}
+				if (retryDelays[attempt]) {
+					window.setTimeout(run, retryDelays[attempt])
+				} else {
+					run()
+				}
 			}
 
 			function scanLingryStreamBlocks(blocks, offset) {
@@ -5362,6 +5400,7 @@
 					record.address = globalData.address
 					record.creator_address = globalData.address
 					sugarWordsState.postedWords.add(record.word)
+					indexCoinedSugarWord(txid, 0)
 					renderSugarWords()
 					walletBalance()
 					$('#sugarwords-confirm-title').text('Coined')

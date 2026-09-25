@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import worker, {
 	derivePublicIndexCheckpoint,
 	fetchSugarBlockBatch,
+	publicStreamItem,
 	publicIndexRewindHeight,
 	scanSugarBlockRange
 } from '../src/worker.mjs';
@@ -26,6 +27,34 @@ test('complete range advances the contiguous checkpoint to its final block', asy
 	assert.equal(result.complete, true);
 	assert.deepEqual(result.checkpoint, { height: 199, hash: 'hash-199' });
 	assert.equal(result.summary.scanned_blocks, 100);
+});
+
+test('malformed upstream range is retried before falling back to individual heights', async () => {
+	let attempts = 0;
+	const result = await fetchSugarBlockBatch(100, 199, true, {
+		fetchRange: async () => ++attempts === 1 ? [] : range(100, 199),
+		fetchHeight: async () => { throw new Error('height fallback should not be needed'); },
+		rangeAttempts: 2
+	});
+	assert.equal(attempts, 2);
+	assert.equal(result.complete, true);
+	assert.equal(result.fallbackUsed, false);
+});
+
+test('transient height error is retried without skipping its block', async () => {
+	let attempts = 0;
+	const result = await fetchSugarBlockBatch(100, 100, true, {
+		fetchRange: async () => [],
+		fetchHeight: async height => {
+			if (++attempts === 1) throw new Error('temporary upstream failure');
+			return block(height);
+		},
+		rangeAttempts: 1,
+		heightAttempts: 2
+	});
+	assert.equal(result.complete, true);
+	assert.equal(result.blocks[0].height, 100);
+	assert.equal(attempts, 2);
 });
 
 test('failed range uses per-height fallback and can still complete contiguously', async () => {
@@ -165,6 +194,35 @@ test('trusted indexer persistence is idempotent by transaction id', async () => 
 		assert.equal(response.status, 200);
 	}
 	assert.equal(rows.size, 1);
+});
+
+test('sparse social updates cannot erase verified OP_RETURN data', () => {
+	const workerSource = fs.readFileSync(new URL('../src/worker.mjs', import.meta.url), 'utf8');
+	assert.match(workerSource, /op_return_payload = CASE WHEN excluded\.op_return_payload != '' THEN excluded\.op_return_payload ELSE lingry_words\.op_return_payload END/);
+	assert.match(workerSource, /op_return_hex = CASE WHEN excluded\.op_return_hex != '' THEN excluded\.op_return_hex ELSE lingry_words\.op_return_hex END/);
+});
+
+test('public stream snapshot carries the verified protocol payload needed by fresh browsers', () => {
+	const item = publicStreamItem({
+		txid: 'a'.repeat(64),
+		word: 'desknosh',
+		meaning: 'Desk snack',
+		language_code: 'W',
+		part_of_speech: 'n',
+		op_return_payload: 'SW|desknosh|n|Desk snack',
+		op_return_hex: '53577c6465736b6e6f73687c6e7c4465736b20736e61636b'
+	});
+	assert.equal(item.op_return_payload, 'SW|desknosh|n|Desk snack');
+	assert.equal(item.verified_status, 'verified_on_chain');
+	assert.equal(item.source, 'lingry-hourly-public-index');
+});
+
+test('browser requests immediate verified indexing after a successful coin broadcast', () => {
+	const source = fs.readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
+	assert.match(source, /wordExplorerApiGet\('\/v1\/stream\?limit=100'/);
+	assert.match(source, /function indexCoinedSugarWord\(txid, attempt\)/);
+	assert.match(source, /'\/api\/tx\/' \+ encodeURIComponent\(txid\) \+ '\/word'/);
+	assert.match(source, /indexCoinedSugarWord\(txid, 0\)/);
 });
 
 test('index health compares a legacy snapshot checkpoint with the live safe tip', async () => {
