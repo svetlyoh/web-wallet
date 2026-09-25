@@ -26,7 +26,7 @@ function lookupWith(ajax, primary = 'https://api.sugar.wtf') {
 	return vm.runInNewContext('(' + lookupSource + ')', context);
 }
 
-test('Coin It reads unspent outputs without the broken amount query', async () => {
+test('Coin It uses a successful full unspent lookup first', async () => {
 	const urls = [];
 	const lookup = lookupWith(async options => {
 		urls.push(options.url);
@@ -37,18 +37,34 @@ test('Coin It reads unspent outputs without the broken amount query', async () =
 	assert.deepEqual(urls, ['https://api.sugar.wtf/unspent/sugar1qtestaddress']);
 });
 
-test('Coin It tries the second Sugarchain host after an invalid primary response', async () => {
+test('Coin It tries the amount-filtered lookup when the full lookup fails', async () => {
+	const urls = [];
+	const lookup = lookupWith(async options => {
+		urls.push(options.url);
+		return options.url.includes('?amount=1001')
+			? { result: [{ txid: 'b'.repeat(64), value: 3000 }] }
+			: { error: { message: 'Invalid Request' } };
+	});
+	const result = await lookup(1000);
+	assert.equal(result.result[0].value, 3000);
+	assert.deepEqual(urls, [
+		'https://api.sugar.wtf/unspent/sugar1qtestaddress',
+		'https://api.sugar.wtf/unspent/sugar1qtestaddress?amount=1001'
+	]);
+});
+
+test('Coin It tries the second Sugarchain host after both primary lookup forms fail', async () => {
 	const urls = [];
 	const lookup = lookupWith(async options => {
 		urls.push(options.url);
 		return options.url.startsWith('https://api.sugar.wtf')
 			? { error: { message: 'Invalid Request' } }
-			: { result: [{ txid: 'b'.repeat(64), value: 3000 }] };
+			: { result: [{ txid: 'c'.repeat(64), value: 3000 }] };
 	});
 	const result = await lookup(1000);
 	assert.equal(result.result[0].value, 3000);
-	assert.equal(urls.length, 2);
-	assert.ok(urls[1].startsWith('https://api.sugarchain.org/unspent/'));
+	assert.equal(urls.length, 3);
+	assert.ok(urls[2].startsWith('https://api.sugarchain.org/unspent/'));
 });
 
 test('Coin It distinguishes an empty wallet from unavailable UTXO services', async () => {
