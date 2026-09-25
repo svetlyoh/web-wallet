@@ -40,7 +40,9 @@ const LINGRY_PUBLIC_INDEX_LEASE_MS = 20 * 60 * 1000;
 const LINGRY_PUBLIC_INDEX_MAX_BLOCKS_PER_RUN = 1000;
 const LINGRY_PUBLIC_INDEX_RECENT_BLOCKS = 1800;
 const SUGAR_RANGE_VALIDATION_ATTEMPTS = 4;
-const SUGAR_HEIGHT_FALLBACK_ATTEMPTS = 3;
+const SUGAR_RANGE_SPLIT_SIZE = 25;
+const SUGAR_HEIGHT_FALLBACK_ATTEMPTS = 5;
+const SUGAR_TX_LOOKUP_ATTEMPTS = 5;
 const LINGRY_PUBLIC_INDEX_SCHEMA_VERSION = 1;
 const LINGRY_LEADERBOARD_REFRESH_MS = LINGRY_HOURLY_REFRESH_MS;
 const LINGRY_LEADERBOARD_REFRESH_LOCK_MS = LINGRY_PUBLIC_INDEX_LEASE_MS;
@@ -2094,7 +2096,16 @@ async function handleFaucetFund(request, env) {
 }
 
 async function indexSugarTxid(txid, knownBlock = null) {
-	const txInfo = await fetchSugarJson('/transaction/' + txid);
+	let txInfo;
+	for (let attempt = 0; attempt < SUGAR_TX_LOOKUP_ATTEMPTS; attempt++) {
+		try {
+			txInfo = await fetchSugarJson('/transaction/' + txid);
+			break;
+		} catch (error) {
+			if (attempt + 1 === SUGAR_TX_LOOKUP_ATTEMPTS) throw error;
+			await delay(100 * (attempt + 1));
+		}
+	}
 	const tx = txInfo && txInfo.txid ? txInfo : (txInfo && txInfo.result ? txInfo.result : txInfo);
 	const payloads = extractOpReturnPayloadsFromTxInfo(tx);
 	const records = [];
@@ -2217,6 +2228,22 @@ export async function fetchSugarBlockBatch(startHeight, endHeight, allowHeightFa
 		if (!allowHeightFallback) {
 			return { blocks: [], rangeError, fallbackUsed: false, complete: false, failedHeight: startHeight };
 		}
+		if (count > SUGAR_RANGE_SPLIT_SIZE && !options.skipSplit) {
+			const parts = [];
+			for (let segmentStart = startHeight; segmentStart <= endHeight; segmentStart += SUGAR_RANGE_SPLIT_SIZE) {
+				const segmentEnd = Math.min(endHeight, segmentStart + SUGAR_RANGE_SPLIT_SIZE - 1);
+				parts.push(await fetchSugarBlockBatch(segmentStart, segmentEnd, true, { ...options, skipSplit: true }));
+			}
+			const blocks = parts.flatMap(part => part.blocks);
+			const failed = blocks.find(item => item.error);
+			return {
+				blocks,
+				rangeError,
+				fallbackUsed: true,
+				complete: parts.every(part => part.complete),
+				failedHeight: failed ? failed.height : null
+			};
+		}
 		const heights = [];
 		for (let current = startHeight; current <= endHeight; current++) {
 			heights.push(current);
@@ -2287,7 +2314,7 @@ async function scanLatestSugarBlocks(startHeight, blockCount, word = '', offsetB
 	const batchSize = WORKER_RANGE_BATCH_SIZE;
 	for (let batchStart = start; batchStart <= end; batchStart += batchSize) {
 		const batchEnd = Math.min(end, batchStart + batchSize - 1);
-		const batch = await fetchSugarBlockBatch(batchStart, batchEnd, Boolean(options.allowHeightFallback) || safeCount <= 25);
+		const batch = await fetchSugarBlockBatch(batchStart, batchEnd, Boolean(options.allowHeightFallback) || safeCount <= 25, options.blockFetchOptions || {});
 		const blocks = batch.blocks;
 		if (batch.rangeError) {
 			const detail = { start_height: batchStart, end_height: batchEnd, error: 'Range lookup failed' + (batch.fallbackUsed ? '; fell back to individual blocks' : '') + ': ' + (batch.rangeError.message || 'Sugarchain range failed.') };
@@ -2352,7 +2379,7 @@ async function scanLatestSugarBlocks(startHeight, blockCount, word = '', offsetB
 	return { records: matches, summary };
 }
 
-async function scanRecentPublicWords(safeTip) {
+export async function scanRecentPublicWords(safeTip) {
 	const totalBlocks = Math.min(LINGRY_PUBLIC_INDEX_RECENT_BLOCKS, Math.max(0, safeTip - LINGRY_WORD_START_HEIGHT + 1));
 	const recent = {
 		start_height: Math.max(LINGRY_WORD_START_HEIGHT, safeTip - totalBlocks + 1),
@@ -2369,7 +2396,10 @@ async function scanRecentPublicWords(safeTip) {
 		const count = Math.min(WORKER_LIVE_SCAN_LIMIT, totalBlocks - offset);
 		const result = await scanLatestSugarBlocks(LINGRY_WORD_START_HEIGHT - 1, count, '', offset, {
 			tipHeight: safeTip,
-			allowHeightFallback: true
+			// Best-effort recent coverage must not spend the Cron budget on 100
+			// individual height requests when one upstream batch is malformed.
+			allowHeightFallback: false,
+			blockFetchOptions: { rangeAttempts: 8 }
 		});
 		records.push(...result.records);
 		recent.scanned_blocks += result.summary.scanned_blocks;
@@ -2603,6 +2633,14 @@ async function refreshLingryPublicIndex(env) {
 			: null;
 		if (recentScan) {
 			await persistLingrySocialWords(env, recentScan.records);
+			// Publish verified recent words before historical repair, which can be
+			// delayed by an unreliable upstream height or transaction lookup.
+			const interim = await buildPublicIndexSnapshot(env, previousSnapshot, {
+				checkpoint: { height: lastScannedHeight, hash: storedHash },
+				summary: { start_height: lastScannedHeight + 1, end_height: lastScannedHeight, complete: false }
+			}, safeTip);
+			interim.scan.recent = recentScan.summary;
+			await setLingryIndexMeta(env, 'public_index_last_snapshot_key', await writePublicIndexSnapshot(env, interim));
 		}
 		const startHeight = Math.min(safeTip + 1, lastScannedHeight + 1);
 		const requestedEndHeight = Math.min(safeTip, startHeight + LINGRY_PUBLIC_INDEX_MAX_BLOCKS_PER_RUN - 1);

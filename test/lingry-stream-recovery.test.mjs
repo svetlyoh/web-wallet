@@ -57,6 +57,22 @@ test('transient height error is retried without skipping its block', async () =>
 	assert.equal(attempts, 2);
 });
 
+test('failed 100-block range recovers through smaller verified ranges', async () => {
+	const calls = [];
+	const result = await fetchSugarBlockBatch(100, 199, true, {
+		fetchRange: async (start, end) => {
+			calls.push([start, end]);
+			return end - start + 1 > 25 ? [] : range(start, end);
+		},
+		fetchHeight: async () => { throw new Error('individual lookup should not be needed'); },
+		rangeAttempts: 1
+	});
+	assert.equal(result.complete, true);
+	assert.equal(result.fallbackUsed, true);
+	assert.equal(result.blocks.length, 100);
+	assert.equal(calls.length, 5);
+});
+
 test('failed range uses per-height fallback and can still complete contiguously', async () => {
 	const result = await fetchSugarBlockBatch(100, 199, true, {
 		fetchRange: async () => { throw new Error('range unavailable'); },
