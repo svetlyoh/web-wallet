@@ -5162,29 +5162,47 @@
 				})
 			}
 
-			function sugarWordsGetSpendableUtxos(feeSatoshis, attempt) {
-				attempt = attempt || 1
-				return getUnspent(globalData.address, feeSatoshis + 1).then(function(data) {
-					if (data && data.error == undefined && data.result && Array.isArray(data.result) && data.result.length > 0) {
-						return data
+			async function sugarWordsGetSpendableUtxos(feeSatoshis) {
+				// The Sugar API's ?amount= selector can return "Invalid Request" for a
+				// funded address. Read its unspent outputs and choose inputs locally.
+				var backends = Array.from(new Set([getBackend(), getConfig()['api'], 'https://api.sugarchain.org'].filter(Boolean).map(function(base) {
+					return String(base).replace(/\/+$/, '')
+				})))
+				var sawValidResponse = false
+				for (var attempt = 0; attempt < 3; attempt++) {
+					for (var i = 0; i < backends.length; i++) {
+						try {
+							var data = await $.ajax({
+								'url': backends[i] + '/unspent/' + encodeURIComponent(globalData.address),
+								'timeout': 10000
+							})
+							if (!data || data.error != undefined || !Array.isArray(data.result)) {
+								continue
+							}
+							sawValidResponse = true
+							var available = data.result.reduce(function(total, utxo) {
+								return total + Math.max(0, Number(utxo && utxo.value) || 0)
+							}, 0)
+							if (available > feeSatoshis) {
+								return data
+							}
+						} catch (error) {
+							// Try the other public backend before declaring a wallet failure.
+						}
 					}
-					if (attempt < 3) {
-						return lingryDelay(1600).then(function() {
-							return sugarWordsGetSpendableUtxos(feeSatoshis, attempt + 1)
-						})
+					if (attempt < 2) {
+						await lingryDelay(1600)
 					}
-					return data
-				}).catch(function(error) {
-					if (attempt < 3) {
-						return lingryDelay(1600).then(function() {
-							return sugarWordsGetSpendableUtxos(feeSatoshis, attempt + 1)
-						})
-					}
-					return {
-						'error': error || true,
-						'result': []
-					}
-				})
+				}
+				return {
+					'error': {
+						'code': sawValidResponse ? 'lingry_no_spendable_outputs' : 'lingry_utxo_service_unavailable',
+						'message': sawValidResponse
+							? 'This wallet has no spendable SUGAR available for the network fee. Fund it or wait for recent funding to confirm. No transaction was sent.'
+							: 'Sugarchain is not returning spendable outputs for this wallet. No transaction was sent. Try Coin It again later.'
+					},
+					'result': []
+				}
 			}
 
 			function sugarWordsFindOnChainWordClaim(record) {
@@ -5309,8 +5327,8 @@
 				}).then(function(result) {
 					var data = result.data
 					var feeSatoshis = result.feeSatoshis
-					if (!data || data.error != undefined || !data.result || !Array.isArray(data.result) || data.result.length == 0) {
-						throw new Error('lingry_spendable_outputs_pending')
+					if (!data || data.error != undefined || !Array.isArray(data.result) || data.result.length == 0) {
+						throw new Error(data && data.error && data.error.message || 'Sugarchain did not return spendable outputs. No transaction was sent.')
 					}
 
 					sugarWordsState.utxos = data.result
@@ -5324,12 +5342,12 @@
 						return
 					}
 					var message = error && error.message ? error.message : ''
-					var looksLikeFundingLatency = message == 'lingry_spendable_outputs_pending' || /not.?enough|insufficient|utxo/i.test(message)
+					var looksLikeFundingLatency = /spendable|not.?enough|insufficient|utxo/i.test(message)
 					if (looksLikeFundingLatency) {
 						record.status = 'ready_to_post'
 						sugarWordsState.transaction = null
 						renderSugarWords()
-						sugarWordsSetStatus('The network is still catching up. Check Stream, or tap Coin It again in a few seconds.', 'info')
+						sugarWordsSetStatus(escapeHtml(message), 'warning')
 						return
 					}
 					record.status = 'failed'
@@ -5412,15 +5430,16 @@
 					$('#sugarwords-confirm-close').removeClass('d-none')
 					sugarWordsSetStatus('Coined "' + escapeHtml(record.word) + '".', 'success')
 				}).catch(function(error) {
-					var message = error && error.message ? error.message : messages.error['broadcast-failed']
+					var apiError = error && error.responseJSON && error.responseJSON.error
+					var message = error && error.message ? error.message : (apiError && (apiError.message || apiError) || messages.error['broadcast-failed'])
 					if (/not.?enough|insufficient|utxo|mempool|already|duplicate/i.test(message)) {
 						record.status = 'ready_to_post'
 						renderSugarWords()
 						$('#sugarwords-confirm-title').text('Coining Pending')
-						$('#sugarwords-confirm-content').html('The network is still catching up. Check Stream, or tap Coin It again in a few seconds.')
+						$('#sugarwords-confirm-content').html('The Sugarchain API reported: ' + escapeHtml(message) + '. Lingry did not receive a transaction ID. The draft is still queued; check Stream before retrying.')
 						$('#sugarwords-confirm-broadcast').addClass('d-none')
 						$('#sugarwords-confirm-close').removeClass('d-none')
-						sugarWordsSetStatus('The network is still catching up. Check Stream, or tap Coin It again in a few seconds.', 'info')
+						sugarWordsSetStatus('Coining was not confirmed: ' + escapeHtml(message) + '. No transaction ID was returned.', 'warning')
 						return
 					}
 					record.status = 'failed'
