@@ -1257,14 +1257,18 @@ export class LexiconShardDO extends SqlDoBase {
 		const confirmed = [];
 		for (const record of records) {
 			const parsed = parseLingryPayload(record.op_return_payload || record.raw_payload || '');
-			if (!parsed) {
+			const txid = normalizeHex(record.txid);
+			if (!parsed || !/^[a-f0-9]{64}$/.test(txid) || !Number.isInteger(Number(record.block_height)) || Number(record.block_height) <= 0 || !record.block_hash) {
 				continue;
 			}
 			const existing = sqlFirst(this.state.storage, 'SELECT * FROM words WHERE language_code = ? AND normalized_term = ?', parsed.language_code, parsed.normalized_word);
-			if (existing) {
-				sqlRun(this.state.storage, 'UPDATE words SET status = ?, txid = COALESCE(NULLIF(?, \'\'), txid), confirmation_json = ?, updated_at = ? WHERE word_id = ?', 'confirmed', normalizeHex(record.txid), JSON.stringify(record), nowIso(), existing.word_id);
-				sqlRun(this.state.storage, 'UPDATE generated_candidates SET status = ?, txid = COALESCE(NULLIF(?, \'\'), txid) WHERE word_id = ?', 'confirmed', normalizeHex(record.txid), existing.word_id);
-				this.emit('word.confirmed', { word_id: existing.word_id, txid: normalizeHex(record.txid) });
+			// A different transaction can use the same term. Only complete our own broadcast.
+			if (existing && normalizeHex(existing.txid) === txid && existing.payload === parsed.op_return_payload) {
+				const changed = existing.status !== 'confirmed';
+				sqlRun(this.state.storage, 'UPDATE words SET status = ?, confirmation_json = ?, updated_at = ? WHERE word_id = ?', 'confirmed', JSON.stringify(record), nowIso(), existing.word_id);
+				sqlRun(this.state.storage, 'UPDATE generated_candidates SET status = ? WHERE word_id = ? AND txid = ?', 'confirmed', existing.word_id, txid);
+				sqlRun(this.state.storage, 'UPDATE intents SET status = ?, updated_at = ? WHERE type = ? AND word_id = ? AND txid = ?', 'confirmed', nowIso(), 'coin', existing.word_id, txid);
+				if (changed) this.emit('word.confirmed', { word_id: existing.word_id, txid });
 				confirmed.push(existing.word_id);
 			}
 		}
@@ -1630,6 +1634,28 @@ function requireIdempotency(request) {
 
 function shardName(languageCode) {
 	return 'language:' + normalizeLanguageCode(languageCode || 'W');
+}
+
+// Called only after the Worker has fetched a transaction from a chain provider.
+// Keep this independent of the large historical feed scan so a single coin can
+// be reconciled even while an older block range is temporarily unavailable.
+export async function confirmLingryChainRecords(env, records) {
+	const byLanguage = new Map();
+	for (const record of records || []) {
+		const parsed = parseLingryPayload(record.op_return_payload || record.raw_payload || '');
+		if (!parsed || record.verified_status !== 'verified_on_chain' ||
+			!/^[a-f0-9]{64}$/.test(normalizeHex(record.txid)) ||
+			Number(record.confirmations || 0) < 6 || !Number(record.block_height) || !record.block_hash) continue;
+		const bucket = byLanguage.get(parsed.language_code) || [];
+		bucket.push({ ...record, op_return_payload: parsed.op_return_payload });
+		byLanguage.set(parsed.language_code, bucket);
+	}
+	const confirmed = [];
+	for (const [languageCode, bucket] of byLanguage) {
+		const result = await callDo(env.LINGRY_LEXICON, shardName(languageCode), '/indexer/ingest', { method: 'POST', body: JSON.stringify({ records: bucket }) });
+		confirmed.push(...(result.confirmed_word_ids || []));
+	}
+	return { confirmed_word_ids: confirmed };
 }
 
 function requireClawhubCandidateId(value) {

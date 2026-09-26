@@ -3,6 +3,7 @@ import { Buffer } from 'node:buffer';
 import nodeCrypto from 'node:crypto';
 import {
 	ActorDO,
+	confirmLingryChainRecords,
 	createClawhubCandidate,
 	FeedDO,
 	handleLingryV1Request,
@@ -2164,6 +2165,7 @@ async function indexSugarTxid(txid, knownBlock = null) {
 		records.push({
 			...parsed,
 			txid: tx.txid || txid,
+			confirmations: Number(tx.confirmations || 0),
 			block_height: tx.height != null ? tx.height : (knownBlock && knownBlock.height),
 			block_hash: tx.blockhash || (knownBlock && knownBlock.hash) || '',
 			tx_time: isoFromUnix(tx.blocktime || tx.time || (knownBlock && knownBlock.time)),
@@ -3072,10 +3074,42 @@ async function handleTxWord(request, env, txid) {
 				errors: []
 			});
 			await persistLingrySocialWords(env, records);
+			await reconcileConfirmedAgentCoin(env, records);
 		}
 		return jsonResponse({ records: await enrichLingryRecordsWithSocial(env, records, viewerAddress) });
 	} catch (error) {
 		return jsonResponse({ error: error.message || 'Transaction lookup failed.' }, 400);
+	}
+}
+
+export async function reconcileConfirmedAgentCoin(env, records) {
+	const result = await confirmLingryChainRecords(env, records);
+	if (!result.confirmed_word_ids.length || !env.LINGRY_DB) return result;
+	for (const record of records) {
+		if (Number(record.confirmations || 0) < LINGRY_PUBLIC_INDEX_CONFIRMATION_DEPTH) continue;
+		const txid = String(record.txid || '').toLowerCase();
+		if (!/^[a-f0-9]{64}$/.test(txid)) continue;
+		const row = await env.LINGRY_DB.prepare("SELECT operation_id, response_json FROM lingry_agent_coin_operations WHERE txid = ? AND status = 'broadcasted' LIMIT 1").bind(txid).first();
+		if (!row) continue;
+		let response = {};
+		try { response = JSON.parse(row.response_json || '{}'); } catch { /* Preserve the confirmed txid even if old response JSON was malformed. */ }
+		await env.LINGRY_DB.prepare("UPDATE lingry_agent_coin_operations SET status = 'confirmed', response_json = ?, updated_at = ? WHERE operation_id = ? AND status = 'broadcasted'").bind(JSON.stringify({ ...response, txid, status: 'confirmed' }), new Date().toISOString(), row.operation_id).run();
+	}
+	return result;
+}
+
+async function reconcilePendingAgentCoins(env) {
+	if (!env.LINGRY_DB || !env.LINGRY_LEXICON) return;
+	const rows = await env.LINGRY_DB.prepare("SELECT operation_id, txid FROM lingry_agent_coin_operations WHERE status = 'broadcasted' AND txid != '' ORDER BY updated_at ASC LIMIT 4").all();
+	for (const row of rows.results || []) {
+		try {
+			const records = await indexSugarTxid(row.txid);
+			await reconcileConfirmedAgentCoin(env, records);
+		} catch (error) {
+			console.error(JSON.stringify({ service: 'lingry-agent-coin-confirmation', status: 'lookup_failed', error: sanitizePublicIndexError(error) }));
+		}
+		// Rotate unresolved transactions so an unavailable provider cannot starve newer coins.
+		await env.LINGRY_DB.prepare("UPDATE lingry_agent_coin_operations SET updated_at = ? WHERE operation_id = ? AND status = 'broadcasted'").bind(new Date().toISOString(), row.operation_id).run();
 	}
 }
 
@@ -3086,7 +3120,9 @@ export function publicIndexScheduleMode(cron) {
 export default {
 	async scheduled(controller, env, ctx) {
 		const mode = publicIndexScheduleMode(controller?.cron);
-		const refresh = refreshLingryPublicIndex(env, { includeRecent: mode !== 'recovery' });
+		const refresh = reconcilePendingAgentCoins(env).catch(error => {
+			console.error(JSON.stringify({ service: 'lingry-agent-coin-confirmation', status: 'batch_failed', error: sanitizePublicIndexError(error) }));
+		}).then(() => refreshLingryPublicIndex(env, { includeRecent: mode !== 'recovery' }));
 		if (ctx && typeof ctx.waitUntil === 'function') {
 			ctx.waitUntil(refresh.catch(error => {
 				console.error(JSON.stringify({ service: 'lingry-public-index', mode, status: 'refresh_failed', error: sanitizePublicIndexError(error) }));

@@ -2,8 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import bitcoin from 'bitcoinjs-lib';
-import worker from '../src/worker.mjs';
-import { createClawhubCandidate, handleLingryV1Request, LexiconShardDO } from '../src/lingry-api.mjs';
+import worker, { reconcileConfirmedAgentCoin } from '../src/worker.mjs';
+import { confirmLingryChainRecords, createClawhubCandidate, handleLingryV1Request, LexiconShardDO } from '../src/lingry-api.mjs';
 
 let DatabaseSync;
 try { ({ DatabaseSync } = await import('node:sqlite')); } catch { /* Node 18 lacks the test-only SQLite adapter. */ }
@@ -44,8 +44,36 @@ function testEnvironment() {
 		LINGRY_AGENT_CREDENTIAL_PEPPER: 'test-only-server-pepper-with-high-entropy',
 		LINGRY_AGENT_FUNDING_ENABLED: 'false'
 	};
-	return { env, agentDb, lexiconDb };
+	return { env, agentDb, lexiconDb, lexicon };
 }
+
+test('confirmed chain lookup completes only the matching coin, candidate and intent', { skip: !DatabaseSync }, async () => {
+	const { env, agentDb, lexiconDb, lexicon } = testEnvironment();
+	await lexicon.fetch(new Request('https://lingry.internal/words'));
+	const txid = 'a'.repeat(64);
+	const payload = 'SW|mailboting|v|To have an AI agent triage email';
+	const wordId = 'word_test';
+	const candidate = await createClawhubCandidate(env, { word: 'mailboting', part_of_speech: 'v', meaning: 'To have an AI agent triage email' }, 'email triage', 'W');
+	lexiconDb.prepare(`INSERT INTO words (word_id, language_code, normalized_term, term, part_of_speech, meaning, creator_address, status, payload, payload_hex, txid, created_at, updated_at) VALUES (?, 'W', 'mailboting', 'mailboting', 'v', 'To have an AI agent triage email', 'sugar-test', 'pending', ?, '', ?, '2026-09-25', '2026-09-25')`).run(wordId, payload, txid);
+	lexiconDb.prepare(`UPDATE generated_candidates SET status = 'submitted', word_id = ?, txid = ? WHERE candidate_id = ?`).run(wordId, txid, candidate.candidate_id);
+	lexiconDb.prepare(`INSERT INTO intents (intent_id, type, word_id, actor_address, expected_json, status, txid, expires_at, created_at, updated_at) VALUES ('intent_test', 'coin', ?, 'sugar-test', '{}', 'pending', ?, 2000000000, '2026-09-25', '2026-09-25')`).run(wordId, txid);
+	agentDb.prepare(`INSERT INTO lingry_agent_publishers (agent_id, client_type, client_instance_id_hash, publisher_address, publisher_public_key, encrypted_private_key, private_key_nonce, wrapped_dek, dek_nonce, key_encryption_version, credential_hash, bootstrap_ip_hash, created_at, updated_at, last_seen_at) VALUES ('agent_test', 'openclaw', 'hash_test', 'sugar-test', 'pub_test', 'encrypted', 'nonce', 'wrapped', 'dek_nonce', 'v1', 'credential', 'ip_hash', '2026-09-25', '2026-09-25', '2026-09-25')`).run();
+	agentDb.prepare(`INSERT INTO lingry_agent_coin_operations (operation_id, agent_id, candidate_id, idempotency_key, status, fee_satoshis, txid, response_json, created_at, updated_at) VALUES ('operation_test', 'agent_test', ?, 'key_test', 'broadcasted', 1000, ?, ?, '2026-09-25', '2026-09-25')`).run(candidate.candidate_id, txid, JSON.stringify({ candidate_id: candidate.candidate_id, txid, status: 'pending' }));
+	const record = { txid, op_return_payload: payload, block_height: 44595989, block_hash: 'b'.repeat(64), confirmations: 47, verified_status: 'verified_on_chain' };
+	for (const invalid of [{ ...record, txid: 'c'.repeat(64) }, { ...record, op_return_payload: 'SW|mailboting|v|Different meaning' }, { ...record, confirmations: 5 }]) {
+		assert.deepEqual((await confirmLingryChainRecords(env, [invalid])).confirmed_word_ids, []);
+		assert.equal(lexiconDb.prepare('SELECT status FROM words WHERE word_id = ?').get(wordId).status, 'pending');
+	}
+	assert.deepEqual((await reconcileConfirmedAgentCoin(env, [record])).confirmed_word_ids, [wordId]);
+	assert.equal(lexiconDb.prepare('SELECT status FROM words WHERE word_id = ?').get(wordId).status, 'confirmed');
+	assert.equal(lexiconDb.prepare('SELECT status FROM generated_candidates WHERE candidate_id = ?').get(candidate.candidate_id).status, 'confirmed');
+	assert.equal(lexiconDb.prepare('SELECT status FROM intents WHERE intent_id = ?').get('intent_test').status, 'confirmed');
+	const operation = agentDb.prepare('SELECT status, response_json FROM lingry_agent_coin_operations WHERE operation_id = ?').get('operation_test');
+	assert.equal(operation.status, 'confirmed');
+	assert.equal(JSON.parse(operation.response_json).status, 'confirmed');
+	assert.deepEqual((await confirmLingryChainRecords(env, [record])).confirmed_word_ids, [wordId]);
+	assert.equal(lexiconDb.prepare("SELECT COUNT(*) AS count FROM events WHERE type = 'word.confirmed'").get().count, 1);
+});
 
 test('public OpenClaw generation runs on the server and creates no publisher', { skip: !DatabaseSync }, async () => {
 	const { env, agentDb, lexiconDb } = testEnvironment();
