@@ -40,5 +40,6 @@ else
   git clone --depth 1 --filter=blob:none --sparse --branch master "$repository" "$source_dir"
 fi
 git -C "$source_dir" sparse-checkout set "$folder"
+printf '\nDownload complete. OpenClaw installation and verification can take a couple more minutes. Please do not interrupt it.\n\n'
 node "$source_dir/$folder/scripts/install.mjs" install
 printf '\nSource and rollback command:\nnode "%s/%s/scripts/install.mjs" rollback\n' "$source_dir" "$folder"
