@@ -174,7 +174,7 @@ export class GearView extends LitElement {
         <p><strong>${a.scopeLabel}</strong><br>${this.status()}</p>
         <dl><dt>I · Input receipt</dt><dd>${a.recentInput ? 'Recent input receipt · 540 ms afterglow' : 'No recent receipt'}</dd>
           <dt>P · Reported session activity</dt><dd>${a.active} active; ${a.queued} queued. Active sessions can include provider waits.</dd>
-          <dt>D · UI update receipt</dt><dd>${a.recentUpdate ? 'Recent UI update' : 'No recent UI update'}. This does not confirm external channel delivery.</dd>
+          <dt>D · UI update receipt</dt><dd>${a.recentUpdate ? 'Recent UI update · 540 ms afterglow' : 'No recent UI update'}. This does not confirm external channel delivery.</dd>
           <dt>Token rates</dt><dd>Unavailable. Slow rotation indicates reported activity, not token throughput.</dd></dl>
         ${a.rows.length ? html`<ul>${a.rows.map(row => html`<li><strong>${row.label}</strong> — ${row.status}
           ${row.inputTokens !== undefined || row.outputTokens !== undefined ? html`<small>Last known tokens: input ${row.inputTokens ?? 'unavailable'} · output ${row.outputTokens ?? 'unavailable'}</small>` : nothing}</li>`)}</ul>` : nothing}

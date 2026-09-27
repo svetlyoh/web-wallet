@@ -4,7 +4,7 @@ const record = (x: unknown): Record<string, unknown> | null =>
   typeof x === 'object' && x !== null && !Array.isArray(x) ? x as Record<string, unknown> : null;
 const measured = (x: unknown) => typeof x === 'number' && Number.isFinite(x) && x >= 0 ? x : undefined;
 export const INPUT_RECEIPT_AFTERGLOW_MS = 540;
-export const UI_UPDATE_AFTERGLOW_MS = 180;
+export const UI_UPDATE_AFTERGLOW_MS = 540;
 
 /** Only presentation metadata is retained; no message bodies, tool data, or recipients. */
 export class ActivityModel {
