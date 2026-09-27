@@ -24,7 +24,7 @@ The gear accessory appears automatically on ordinary chat panes. Compact embedde
 |---|---|---|
 | I | Authorized `session.message` user receipt | 540 ms recent-input afterglow; not an upload progress meter |
 | P | Authorized session snapshot | Reported active sessions; queued sessions park; known approval events park the affected session |
-| D | Sequenced `chat` updates received by the browser | 180 ms UI-update afterglow; **not external channel delivery confirmation** |
+| D | Sequenced `chat` updates received by the browser | 540 ms UI-update afterglow; **not external channel delivery confirmation** |
 
 The widget observes up to 200 authorized sessions and flags truncated results. It uses OpenClaw's existing authenticated connection and session owner, with no extra socket, public port, model call, or telemetry server. It retains presentation metadata only. Session input/output token counts remain visible as last-known usage; token rates remain unavailable because this API does not provide per-call duration. Unknown/disconnected state freezes motion. Some provider waits are not exposed by the host, so reported active sessions can include those waits.
 

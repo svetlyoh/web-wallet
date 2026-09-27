@@ -9,17 +9,17 @@ test('all eight independent combinations; receipt afterglows expire', () => {
     if(mask&4)m.event('session.message',{sessionKey:'a',messageSeq:1,message:{role:'user'}},10);
     if(mask&1)m.event('chat',{sessionKey:'a',runId:'r',seq:1,state:'delta',deltaText:'visible'},10);
     assert.equal(m.view(20).mask,mask);
-    assert.equal(m.view(200).mask,(mask&4)|(mask&2));
+    assert.equal(m.view(200).mask,mask);
     assert.equal(m.view(550).mask,mask&2);
   }
 });
-test('input receipt spin lasts exactly three times the UI update receipt',()=>{
+test('input and UI update receipt spins use the threefold 540 ms window',()=>{
   const m=make();
   m.event('session.message',{sessionKey:'a',messageSeq:1,message:{role:'user'}},0);
   m.event('chat',{sessionKey:'a',runId:'r',seq:1,state:'delta',deltaText:'visible'},0);
   assert.equal(m.view(179).mask,7);
-  assert.equal(m.view(180).mask,6);
-  assert.equal(m.view(539).mask,6);
+  assert.equal(m.view(180).mask,7);
+  assert.equal(m.view(539).mask,7);
   assert.equal(m.view(540).mask,2);
 });
 test('model lifecycle text alone never claims delivery; duplicate and stale deltas do not refresh pulse',()=>{
@@ -28,7 +28,8 @@ test('model lifecycle text alone never claims delivery; duplicate and stale delt
   assert.equal(m.view(20).mask,2);
   const e={sessionKey:'a',runId:'r',seq:2,state:'delta',deltaText:'text'};
   m.event('chat',e,10); assert.equal(m.event('chat',e,180),false);
-  assert.equal(m.event('chat',{...e,seq:1},180),false); assert.equal(m.view(200).mask,2);
+  assert.equal(m.event('chat',{...e,seq:1},180),false); assert.equal(m.view(200).mask,3);
+  assert.equal(m.view(550).mask,2);
   assert.equal(m.event('chat',{...e,seq:3,state:'final',deltaText:undefined},210),false);
 });
 test('queued sessions and known approval waits park; unrelated active session survives',()=>{
