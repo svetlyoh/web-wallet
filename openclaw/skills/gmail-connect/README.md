@@ -1,22 +1,36 @@
 # Gmail Connect for OpenClaw (Ubuntu)
 
-This folder contains `gmail-connect-0.1.0-openclaw.tar.gz`, a preview skill and local browser wizard. It uses Gmail API polling and does not edit the OpenClaw gateway configuration. It has passed offline tests; live authorization on a user's Ubuntu machine is still required.
+**Preview 0.1.1** · Local browser setup · Direct Gmail API · No public tunnel or gateway edits
 
-SHA-256: `5e405b3297eb4ec8ea6738dd5933174c4be70b9f8831fe1731fa59669872f3b8`
+## Skill card
 
-Run these as your ordinary Ubuntu user, without sudo:
+| | |
+|---|---|
+| What it does | Authorize a Gmail account in a local browser wizard, search/read messages through OpenClaw, and optionally monitor new mail or send an individually reviewed message. |
+| Platform | Ubuntu Linux, Python 3.10+, existing OpenClaw with host execution. |
+| Access | Gmail read-only by default; optional Gmail send. OAuth Desktop client belongs to each installer. |
+| Data | OAuth tokens and cached metadata in owner-only local files; not encrypted at rest. Same-user processes can access them. |
+| Network | Google OAuth and Gmail API; browser links to Google Cloud Console and Google Account. Wizard listens on 127.0.0.1 only. |
+| Changes | Optional separate user systemd monitor; does not change the OpenClaw gateway, hooks, models, or channels. |
+| Status | Offline tests pass; live Ubuntu/Gmail acceptance and ClawHub security audit are pending. No guaranteed scan rating. |
+
+## Install from GitHub tarball
+
+On your Ubuntu OpenClaw machine:
 
 ```bash
-mkdir -p "$HOME/.local/share/openclaw-gmail-connect"
-curl -fL "https://raw.githubusercontent.com/svetlyoh/web-wallet/master/openclaw/skills/gmail-connect/gmail-connect-0.1.0-openclaw.tar.gz" -o /tmp/gmail-connect-0.1.0-openclaw.tar.gz
-echo "5e405b3297eb4ec8ea6738dd5933174c4be70b9f8831fe1731fa59669872f3b8  /tmp/gmail-connect-0.1.0-openclaw.tar.gz" | sha256sum -c -
-tar -xzf /tmp/gmail-connect-0.1.0-openclaw.tar.gz -C "$HOME/.local/share/openclaw-gmail-connect"
-openclaw skills install "$HOME/.local/share/openclaw-gmail-connect/gmail-connect"
-python3 "$HOME/.local/share/openclaw-gmail-connect/gmail-connect/scripts/gmail_connect.py" wizard
+mkdir -p "$HOME/Downloads/gmail-connect-release"
+cd "$HOME/Downloads/gmail-connect-release"
+curl -fL --retry 3 -o gmail-connect-0.1.1-openclaw.tar.gz https://raw.githubusercontent.com/svetlyoh/web-wallet/master/openclaw/skills/gmail-connect/gmail-connect-0.1.1-openclaw.tar.gz
+echo "c02314f059a8818ebce9c0e232f2a6a62ef3e2c1631ad04e17d1470c02047e39  gmail-connect-0.1.1-openclaw.tar.gz" | sha256sum -c -
+tar -xzf gmail-connect-0.1.1-openclaw.tar.gz
+openclaw skills install ./gmail-connect
 ```
 
-The final command opens the local setup wizard. Select your own Google Cloud project, enable Gmail API, create or reuse a **Desktop** OAuth client, upload its downloaded JSON locally, authorize Gmail in your browser, then click **Verify Gmail**. You can reuse an existing Google project and Desktop client, but authorization for this app is separate from `gog`.
+Ask OpenClaw: **Use Gmail Connect to connect my Gmail account.** If host execution is unavailable, run `python3 "$HOME/Downloads/gmail-connect-release/gmail-connect/scripts/gmail_connect.py" wizard` in the Ubuntu desktop terminal and follow its private browser link. The Google project, Gmail API, OAuth consent, and Desktop client are created in Google's UI.
 
-If you are SSH-only, forward port 8766 and use the private link printed by the wizard; see `references/operations.md` after extraction. Do not post that link or any client JSON in a public chat. The optional background monitor is separate from OpenClaw's gateway. Your existing Pub/Sub watcher can remain while you test read access; configure only one automatic notification workflow to avoid duplicates.
+OpenClaw installs a folder, not the `.tar.gz` directly. Review [`gmail-connect/SKILL.md`](gmail-connect/SKILL.md) and the included code before installation. Avoid running the wizard as root or uploading credentials to chat.
 
-This is a ClawHub-ready skill source archive, **not an in-process OpenClaw plugin**. It has not been published on ClawHub. The extracted folder includes the full source, operational guide, and offline tests.
+## ClawHub publication
+
+The nested [`gmail-connect/`](gmail-connect/) directory is the publishable skill folder. Import that folder from this public GitHub repository while signed in as the repository owner, or download the archive and run `clawhub skill publish ./gmail-connect --slug gmail-connect --name "Gmail Connect" --version 0.1.1 --dry-run` from its extracted parent. Real publishing requires your ClawHub account and releases the skill under MIT-0. The security audit runs after submission; inspect the listing's security-audit page and address its actual findings.
