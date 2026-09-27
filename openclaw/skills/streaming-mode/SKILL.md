@@ -1,5 +1,5 @@
 ---
-name: openclaw-streaming-mode
+name: streaming-mode
 description: Install, verify, update, or roll back the bundled Streaming Mode Control UI for OpenClaw 2026.9.6 on Linux.
 metadata:
   openclaw:
@@ -20,7 +20,7 @@ metadata:
     os:
       - linux
     emoji: "📺"
-    homepage: https://github.com/svetlyoh/web-wallet/tree/master/openclaw/skills/openclaw-streaming-mode
+    homepage: https://github.com/svetlyoh/web-wallet/tree/master/openclaw/skills/streaming-mode
 ---
 
 # OpenClaw Streaming Mode

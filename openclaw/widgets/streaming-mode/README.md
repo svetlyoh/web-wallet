@@ -9,10 +9,10 @@ Compatible host: **OpenClaw 2026.9.6** (source `eb377ac59e6c9fd6c7705028034812be
 ### ClawHub
 
 ```bash
-openclaw skills install @svetlyoh/openclaw-streaming-mode
+openclaw skills install @svetlyoh/streaming-mode
 ```
 
-Then ask your OpenClaw agent: **Install Streaming Mode using the openclaw-streaming-mode skill.** The skill uses its bundled, checksum-verified payload and keeps the original Control UI for rollback. Update the skill later with `openclaw skills update --all`, then ask the agent to install the updated payload.
+Then ask your OpenClaw agent: **Install Streaming Mode using the streaming-mode skill.** The skill uses its bundled, checksum-verified payload and keeps the original Control UI for rollback. Update the skill later with `openclaw skills update --all`, then ask the agent to install the updated payload.
 
 ### Direct from GitHub
 
