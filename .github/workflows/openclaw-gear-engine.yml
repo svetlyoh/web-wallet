@@ -1,0 +1,63 @@
+name: OpenClaw Gear Engine
+on:
+  workflow_dispatch:
+  push:
+    paths: ['openclaw/widgets/gear-engine/**', '.github/workflows/openclaw-gear-engine.yml']
+  pull_request:
+    paths: ['openclaw/widgets/gear-engine/**', '.github/workflows/openclaw-gear-engine.yml']
+permissions:
+  contents: read
+jobs:
+  plugin:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: openclaw/widgets/gear-engine
+    env:
+      OPENCLAW_STATE_DIR: ${{ runner.temp }}/gear-engine-openclaw
+      OPENCLAW_CONFIG_PATH: ${{ runner.temp }}/gear-engine-openclaw/openclaw.json
+      NO_COLOR: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.18.0'
+          cache: npm
+          cache-dependency-path: openclaw/widgets/gear-engine/package-lock.json
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: npm run typecheck && npm test && npm run build
+      - run: git diff --exit-code -- plugin/dist/control-ui/index.js
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:browser
+      - name: Install official matching OpenClaw host
+        run: npm install --global openclaw@2026.9.6 --no-audit --no-fund
+      - name: Start isolated Gateway with no channel or model credentials
+        run: |
+          mkdir -p "$OPENCLAW_STATE_DIR"
+          openclaw config set gateway.mode local
+          openclaw config set gateway.port 18799 --strict-json
+          openclaw config set gateway.auth.mode token
+          openclaw config set gateway.auth.token gear-engine-ci-fixture-token
+          openclaw gateway run > "$RUNNER_TEMP/gear-gateway.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/gear-gateway.pid"
+          for attempt in $(seq 1 60); do
+            if openclaw gateway call health --json >/dev/null 2>&1; then exit 0; fi
+            sleep 2
+          done
+          cat "$RUNNER_TEMP/gear-gateway.log"
+          exit 1
+      - name: Install and verify native UI catalog, then rollback
+        run: |
+          node scripts/install.mjs install
+          node scripts/install.mjs rollback
+          node scripts/install.mjs install
+      - name: Stop isolated Gateway
+        if: always()
+        run: |
+          if test -f "$RUNNER_TEMP/gear-gateway.pid"; then kill "$(cat "$RUNNER_TEMP/gear-gateway.pid")" || true; fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gear-engine-browser-proof
+          path: openclaw/widgets/gear-engine/test-results/

@@ -1,0 +1,10 @@
+{
+  "name": "@svetlyoh/openclaw-gear-engine",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Three-gear native OpenClaw activity accessory",
+  "license": "UNLICENSED",
+  "files": ["index.js", "openclaw.plugin.json", "dist/", "skills/"],
+  "engines": {"node": ">=24.16.0"},
+  "openclaw": {"extensions": ["./index.js"]}
+}

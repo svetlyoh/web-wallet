@@ -1,0 +1,9 @@
+{
+  "id": "openclaw-gear-engine",
+  "name": "Gear Engine",
+  "version": "1.0.0",
+  "description": "Native session-header gears showing authorized run activity and recent UI receipts.",
+  "configSchema": {"type": "object", "properties": {}, "additionalProperties": false},
+  "controlUi": {"entry": "dist/control-ui/index.js"},
+  "skills": ["./skills"]
+}
