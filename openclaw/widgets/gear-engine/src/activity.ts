@@ -3,6 +3,8 @@ import type {Session} from './host.ts';
 const record = (x: unknown): Record<string, unknown> | null =>
   typeof x === 'object' && x !== null && !Array.isArray(x) ? x as Record<string, unknown> : null;
 const measured = (x: unknown) => typeof x === 'number' && Number.isFinite(x) && x >= 0 ? x : undefined;
+export const INPUT_RECEIPT_AFTERGLOW_MS = 540;
+export const UI_UPDATE_AFTERGLOW_MS = 180;
 
 /** Only presentation metadata is retained; no message bodies, tool data, or recipients. */
 export class ActivityModel {
@@ -82,8 +84,8 @@ export class ActivityModel {
     this.sequences.set(seqKey, seq);
     const pulse = this.pulses.get(id) ?? {input: 0, update: 0};
     // This is explicitly a recent receipt afterglow, never a live transport timer.
-    if (input) pulse.input = now + 180;
-    if (update) pulse.update = now + 180;
+    if (input) pulse.input = now + INPUT_RECEIPT_AFTERGLOW_MS;
+    if (update) pulse.update = now + UI_UPDATE_AFTERGLOW_MS;
     this.pulses.set(id, pulse);
     return true;
   }

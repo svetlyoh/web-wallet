@@ -172,7 +172,7 @@ export class GearView extends LitElement {
         @toggle=${(event: Event) => { if ((event as Event & { newState?: string }).newState === 'closed') { this.expanded = false; document.removeEventListener('keydown', this.escape); } }}>
         <header><strong>Activity gears</strong><button class="close" aria-label="Close details" @click=${() => { this.close(); this.renderRoot.querySelector<HTMLButtonElement>('.instrument')?.focus(); }}>×</button></header>
         <p><strong>${a.scopeLabel}</strong><br>${this.status()}</p>
-        <dl><dt>I · Input receipt</dt><dd>${a.recentInput ? 'Recent input receipt · 180 ms afterglow' : 'No recent receipt'}</dd>
+        <dl><dt>I · Input receipt</dt><dd>${a.recentInput ? 'Recent input receipt · 540 ms afterglow' : 'No recent receipt'}</dd>
           <dt>P · Reported session activity</dt><dd>${a.active} active; ${a.queued} queued. Active sessions can include provider waits.</dd>
           <dt>D · UI update receipt</dt><dd>${a.recentUpdate ? 'Recent UI update' : 'No recent UI update'}. This does not confirm external channel delivery.</dd>
           <dt>Token rates</dt><dd>Unavailable. Slow rotation indicates reported activity, not token throughput.</dd></dl>

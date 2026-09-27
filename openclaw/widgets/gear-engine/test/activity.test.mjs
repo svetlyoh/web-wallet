@@ -9,8 +9,18 @@ test('all eight independent combinations; receipt afterglows expire', () => {
     if(mask&4)m.event('session.message',{sessionKey:'a',messageSeq:1,message:{role:'user'}},10);
     if(mask&1)m.event('chat',{sessionKey:'a',runId:'r',seq:1,state:'delta',deltaText:'visible'},10);
     assert.equal(m.view(20).mask,mask);
-    assert.equal(m.view(200).mask,mask&2);
+    assert.equal(m.view(200).mask,(mask&4)|(mask&2));
+    assert.equal(m.view(550).mask,mask&2);
   }
+});
+test('input receipt spin lasts exactly three times the UI update receipt',()=>{
+  const m=make();
+  m.event('session.message',{sessionKey:'a',messageSeq:1,message:{role:'user'}},0);
+  m.event('chat',{sessionKey:'a',runId:'r',seq:1,state:'delta',deltaText:'visible'},0);
+  assert.equal(m.view(179).mask,7);
+  assert.equal(m.view(180).mask,6);
+  assert.equal(m.view(539).mask,6);
+  assert.equal(m.view(540).mask,2);
 });
 test('model lifecycle text alone never claims delivery; duplicate and stale deltas do not refresh pulse',()=>{
   const m=make();
