@@ -16,7 +16,7 @@ This downloads the widget folder, installs its prebuilt native plugin, enables i
 
 Then reload your usual OpenClaw Control UI. Use the connected Gateway's **HTTPS address or localhost**; plain HTTP on a LAN IP cannot authenticate native plugin assets. This is an OpenClaw host requirement, and the installer does not change authentication or network settings. On the Linux machine, `openclaw dashboard` can open the normal local UI.
 
-The gear accessory appears automatically on ordinary chat panes. Compact embedded panes omit OpenClaw's accessory slot. Click the gears for details, size, or Hide; use the scope selector for this chat or visible work. The existing Stop button continues to own cancellation.
+The gear accessory appears automatically on ordinary chat panes. Compact embedded panes omit OpenClaw's accessory slot. The SVG scales down without distortion when a narrow or streaming layout reduces its available width. Click the gears for details, size, or Hide; use the scope selector for this chat or visible work. The existing Stop button continues to own cancellation.
 
 ## What the gears mean
 

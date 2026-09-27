@@ -1,0 +1,9 @@
+{
+  "schema": 1,
+  "id": "openclaw-streaming-mode",
+  "hostVersion": "2026.9.6",
+  "sourceCommit": "eb377ac59e6c9fd6c7705028034812becf00271b",
+  "archive": "control-ui.tar.gz",
+  "sha256": "1fae95fe79e1b1dd0b0dc26a3502e9358dbe09587611a59998e1fcc4812c6dcd",
+  "builtAt": "2026-09-27"
+}

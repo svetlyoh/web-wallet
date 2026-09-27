@@ -46,6 +46,16 @@ try{
   await page.setViewportSize({width:320,height:640});await page.evaluate(()=>document.body.classList.add('light'));
   await page.screenshot({path:'test-results/narrow-light.png',fullPage:true});
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'320px overflow');
+  const tightGear=await page.evaluate(()=>{
+    document.querySelector('#accessory').style.width='80px';
+    const instrument=document.querySelector('svet-gear-engine-v1').shadowRoot.querySelector('.instrument');
+    const {width,height}=instrument.getBoundingClientRect();
+    const svg=instrument.querySelector('svg').getBoundingClientRect();
+    const style=getComputedStyle(instrument);
+    return {width,height,svgWidth:svg.width,svgHeight:svg.height,cssWidth:style.width,cssHeight:style.height};
+  });
+  assert.ok(tightGear.width<=80,'gear must fit an 80px accessory slot');
+  assert.ok(Math.abs(tightGear.width-tightGear.height)<1,`gear must keep its square aspect ratio: ${JSON.stringify(tightGear)}`);
   await page.evaluate(()=>fixture.access(false));
   await page.waitForFunction(()=>document.querySelector('svet-gear-engine-v1').activity.rows.length===0);
   await page.evaluate(()=>fixture.dispose());assert.equal(await page.evaluate(()=>fixture.subscriptions),0);
