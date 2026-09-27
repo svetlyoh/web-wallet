@@ -1,0 +1,418 @@
+diff --git a/ui/src/app/app-host.ts b/ui/src/app/app-host.ts
+index 2db157d6..d3b2e0a7 100644
+--- a/ui/src/app/app-host.ts
++++ b/ui/src/app/app-host.ts
+@@ -75,6 +75,7 @@ import { resolveOnboardingMode } from "./onboarding-mode.ts";
+ import { changedServerUiPrefs } from "./server-prefs-intent.ts";
+ import { isApplyingServerUiPrefs, pushServerUiPrefs } from "./server-prefs.ts";
+ import { setSettingsChangeListener } from "./settings.ts";
++import { isStreamingMode, setStreamingMode } from "./streaming-mode.ts";
+ import {
+   isStaleChunkImportError,
+   retryStaleChunkReloadWhenReachable,
+@@ -99,6 +100,7 @@ class OpenClawShell
+   @property({ attribute: false }) onboarding = false;
+ 
+   @state() navDrawerOpen = false;
++  @state() streamingMode = isStreamingMode();
+   @state() desktopNavigationExpanded = false;
+   @state() activeSessionKey = "";
+   @state() settingsSearchQuery = "";
+@@ -598,6 +600,12 @@ class OpenClawShell
+   readonly toggleNavigationSurface = this.shellChrome.toggleNavigationSurface;
+ 
+   readonly closeNavDrawer = this.shellChrome.closeNavDrawer;
++  readonly toggleStreamingMode = (): void => {
++    this.closeNavDrawer();
++    this.streamingMode = !this.streamingMode;
++    setStreamingMode(this.streamingMode);
++    this.handleWindowResize();
++  };
+ 
+   readonly resizeNavigation = this.shellChrome.resizeNavigation;
+ 
+diff --git a/ui/src/app/app-shell-view.ts b/ui/src/app/app-shell-view.ts
+index 203d4912..d18a96f5 100644
+--- a/ui/src/app/app-shell-view.ts
++++ b/ui/src/app/app-shell-view.ts
+@@ -69,6 +69,7 @@ export interface ShellViewHost
+   readonly onboardingMemoryImportElement: OptionalCustomElement;
+   readonly nativeHistoryState: NativeHistoryState;
+   readonly navDrawerOpen: boolean;
++  readonly streamingMode: boolean;
+   readonly navigationSidebar: HTMLElement;
+   readonly onboardingMode: boolean;
+   readonly outboxStoreRuntime: OutboxStoreRuntime | null;
+@@ -92,6 +93,7 @@ export interface ShellViewHost
+   resizeNavigation(splitRatio: number): void;
+   storedOutboxScopeHost(context: ApplicationContext): StoredOutboxScopeHost;
+   toggleNavigationSurface(trigger?: HTMLElement): void;
++  toggleStreamingMode(): void;
+ }
+ 
+ export function renderApplicationShell(host: ShellViewHost) {
+@@ -178,12 +180,13 @@ export function renderApplicationShell(host: ShellViewHost) {
+   );
+   const navDrawerOpen = host.navDrawerOpen && !onboarding && !nativeEmbed;
+   const mobileNavLayout = isMobileNavLayout();
++  const streamingMode = host.streamingMode && !nativeEmbed && !onboarding;
+   const nativeWebChrome = isNativeWebChromeHost() && !nativeEmbed;
+   // Native chrome is absent in browsers; the shell owns visible retry if its chunk fails.
+   if (nativeWebChrome && !onboarding) {
+     host.lazyCustomElements.preload(MACOS_TITLEBAR_ELEMENT, { reportError: true });
+   }
+-  const mergedChatChrome = shouldMergeChatChrome({
++  const mergedChatChrome = !streamingMode && shouldMergeChatChrome({
+     mobileNavLayout,
+     routeId: activeRoute,
+     onboarding,
+@@ -273,6 +276,8 @@ export function renderApplicationShell(host: ShellViewHost) {
+       onOpenPalette: () => host.openPalette(),
+       onRetryConnect: () => context.gateway.connect(),
+       onToggleSidebar: () => host.toggleNavigationSurface(),
++      streamingMode,
++      onToggleStreaming: host.toggleStreamingMode,
+       onOpenNewSession: openNewSession,
+       onUpdateSidebarEntries: (entries: string[]) =>
+         context.navigation.update({ sidebarEntries: entries }),
+@@ -352,7 +357,7 @@ export function renderApplicationShell(host: ShellViewHost) {
+   const workspace = html`
+     ${renderShellLazyOverlays(host, desktopPanelAvailable, custodianPanelAvailable, nativeEmbed)}
+     <div
+-      class="shell ${chatLikeRoute ? "shell--chat" : ""} ${
++      class="shell ${chatLikeRoute ? "shell--chat" : ""} ${streamingMode ? "shell--streaming" : ""} ${
+         navCollapsed ? "shell--nav-collapsed" : ""
+       } ${mobileNavLayout ? "shell--mobile-nav" : ""} ${
+         mergedChatChrome ? "shell--merged-chat-chrome" : ""
+@@ -394,6 +399,8 @@ export function renderApplicationShell(host: ShellViewHost) {
+               .navDrawerOpen=${navDrawerOpen}
+               .onOpenPalette=${() => host.openPalette()}
+               .onToggleDrawer=${(trigger: HTMLElement) => host.toggleNavigationSurface(trigger)}
++              .streamingMode=${streamingMode}
++              .onToggleStreaming=${host.toggleStreamingMode}
+             ></openclaw-app-topbar>`
+       }
+       ${
+diff --git a/ui/src/app/mobile-nav-layout.ts b/ui/src/app/mobile-nav-layout.ts
+index 37b1176f..47621257 100644
+--- a/ui/src/app/mobile-nav-layout.ts
++++ b/ui/src/app/mobile-nav-layout.ts
+@@ -1,6 +1,7 @@
+ import { isSessionRouteId } from "../app-route-paths.ts";
+ import type { RouteId } from "../app-routes.ts";
+-import { isNativeWebChromeHost } from "./native-web-chrome.ts";
++import { isNativeEmbedHost, isNativeWebChromeHost } from "./native-web-chrome.ts";
++import { isStreamingMode } from "./streaming-mode.ts";
+ 
+ const MOBILE_NAV_MAX_WIDTH = 900;
+ const NATIVE_WEB_CHROME_MOBILE_NAV_MAX_WIDTH = 600;
+@@ -18,7 +19,8 @@ export function mobileNavLayoutMediaQuery(): string {
+ }
+ 
+ export function isMobileNavLayout(): boolean {
+-  return globalThis.matchMedia?.(mobileNavLayoutMediaQuery()).matches ?? false;
++  return (isStreamingMode() && !isNativeEmbedHost()) ||
++    (globalThis.matchMedia?.(mobileNavLayoutMediaQuery()).matches ?? false);
+ }
+ 
+ function hasNativeShellClass(): boolean {
+diff --git a/ui/src/app/streaming-mode.test.ts b/ui/src/app/streaming-mode.test.ts
+new file mode 100644
+index 00000000..37d57de9
+--- /dev/null
++++ b/ui/src/app/streaming-mode.test.ts
+@@ -0,0 +1,48 @@
++/* @vitest-environment jsdom */
++import { afterEach, describe, expect, it, vi } from "vitest";
++import { createStorageMock } from "../test-helpers/storage.ts";
++
++async function importStreamingMode() {
++  vi.resetModules();
++  return await import("./streaming-mode.ts");
++}
++
++describe("streaming mode preference", () => {
++  afterEach(() => {
++    vi.unstubAllGlobals();
++  });
++
++  it("defaults off, persists changes, and restores the saved mode", async () => {
++    const storage = createStorageMock();
++    vi.stubGlobal("localStorage", storage);
++
++    const initial = await importStreamingMode();
++    expect(initial.isStreamingMode()).toBe(false);
++
++    initial.setStreamingMode(true);
++    expect(initial.isStreamingMode()).toBe(true);
++    expect(storage.getItem("openclaw.streamingMode")).toBe("true");
++
++    const restored = await importStreamingMode();
++    expect(restored.isStreamingMode()).toBe(true);
++
++    restored.setStreamingMode(false);
++    expect(storage.getItem("openclaw.streamingMode")).toBe("false");
++  });
++
++  it("keeps the in-memory view usable when storage throws", async () => {
++    vi.stubGlobal("localStorage", {
++      getItem() {
++        throw new Error("blocked");
++      },
++      setItem() {
++        throw new Error("blocked");
++      },
++    });
++
++    const mode = await importStreamingMode();
++    expect(mode.isStreamingMode()).toBe(false);
++    expect(() => mode.setStreamingMode(true)).not.toThrow();
++    expect(mode.isStreamingMode()).toBe(true);
++  });
++});
+diff --git a/ui/src/app/streaming-mode.ts b/ui/src/app/streaming-mode.ts
+new file mode 100644
+index 00000000..a26d4b0e
+--- /dev/null
++++ b/ui/src/app/streaming-mode.ts
+@@ -0,0 +1,23 @@
++import { getSafeLocalStorage } from "../local-storage.ts";
++
++const STORAGE_KEY = "openclaw.streamingMode";
++
++let enabled = false;
++try {
++  enabled = getSafeLocalStorage()?.getItem(STORAGE_KEY) === "true";
++} catch {
++  // Privacy settings can make storage reads fail.
++}
++
++export function isStreamingMode(): boolean {
++  return enabled;
++}
++
++export function setStreamingMode(value: boolean): void {
++  enabled = value;
++  try {
++    getSafeLocalStorage()?.setItem(STORAGE_KEY, String(value));
++  } catch {
++    // The view remains usable when browser storage is unavailable.
++  }
++}
+diff --git a/ui/src/components/app-sidebar-base.ts b/ui/src/components/app-sidebar-base.ts
+index a74b54c4..7ca5ee7a 100644
+--- a/ui/src/components/app-sidebar-base.ts
++++ b/ui/src/components/app-sidebar-base.ts
+@@ -56,6 +56,8 @@ export abstract class AppSidebarBase extends OpenClawLightDomContentsElement {
+   @property({ attribute: false }) onOpenPalette?: () => void;
+   @property({ attribute: false }) onRetryConnect?: () => void;
+   @property({ attribute: false }) onToggleSidebar?: () => void;
++  @property({ attribute: false }) streamingMode = false;
++  @property({ attribute: false }) onToggleStreaming?: () => void;
+   @property({ attribute: false }) onOpenNewSession?: (
+     agentId: string,
+     target?: NewSessionTarget,
+diff --git a/ui/src/components/app-sidebar.ts b/ui/src/components/app-sidebar.ts
+index 47faf676..25337b1c 100644
+--- a/ui/src/components/app-sidebar.ts
++++ b/ui/src/components/app-sidebar.ts
+@@ -689,6 +689,12 @@ class AppSidebar extends AppSidebarSessionNavigationElement implements SessionLi
+             ${this.communityInvitePresentation === "shown" ? renderCommunityInviteCard(this.dismissCommunityInvite) : nothing}
+           </div>
+           <div class="sidebar-shell__footer">
++            <button
++              type="button"
++              class="btn btn--sm sidebar-streaming-toggle"
++              aria-pressed=${String(this.streamingMode)}
++              @click=${() => this.onToggleStreaming?.()}
++            >${t(this.streamingMode ? "nav.exitStreamingMode" : "nav.enterStreamingMode")}</button>
+             ${
+               this.devGitBranch
+                 ? html`<openclaw-tooltip .content=${this.devGitBranch}>
+diff --git a/ui/src/components/app-topbar.ts b/ui/src/components/app-topbar.ts
+index b5ce210f..32273d3d 100644
+--- a/ui/src/components/app-topbar.ts
++++ b/ui/src/components/app-topbar.ts
+@@ -16,6 +16,8 @@ class AppTopbar extends OpenClawLightDomContentsElement {
+   @property({ attribute: false }) environment: ControlUiEnvironment | null = null;
+   @property({ attribute: false }) onToggleDrawer!: (trigger: HTMLElement) => void;
+   @property({ attribute: false }) onOpenPalette!: () => void;
++  @property({ attribute: false }) streamingMode = false;
++  @property({ attribute: false }) onToggleStreaming!: () => void;
+ 
+   override render() {
+     const drawerLabel = this.navDrawerOpen ? t("nav.collapse") : t("nav.expand");
+@@ -51,6 +53,13 @@ class AppTopbar extends OpenClawLightDomContentsElement {
+             </div>
+           </div>
+           <div class="topnav-shell__actions">
++            <button
++              type="button"
++              class="btn btn--sm topbar-streaming-toggle"
++              aria-pressed=${String(this.streamingMode)}
++              aria-label=${t(this.streamingMode ? "nav.exitStreamingMode" : "nav.enterStreamingMode")}
++              @click=${this.onToggleStreaming}
++            >${t(this.streamingMode ? "nav.exitStream" : "nav.stream")}</button>
+             <openclaw-tooltip .content=${t("chat.commandPaletteTitle")}>
+               <button
+                 class="topbar-search"
+diff --git a/ui/src/i18n/locales/en.ts b/ui/src/i18n/locales/en.ts
+index 38137088..31fca07d 100644
+--- a/ui/src/i18n/locales/en.ts
++++ b/ui/src/i18n/locales/en.ts
+@@ -1962,6 +1962,10 @@ export const en: TranslationMap & {
+     exitSettings: "Back to app",
+     expand: "Expand sidebar",
+     collapse: "Collapse sidebar",
++    enterStreamingMode: "Streaming Mode",
++    exitStreamingMode: "Exit Streaming Mode",
++    stream: "Stream",
++    exitStream: "Exit stream",
+     resize: "Resize sidebar",
+     more: "More",
+     home: "Home",
+@@ -3280,6 +3284,8 @@ export const en: TranslationMap & {
+   // Login copy lives in the lazy en-login catalog; the anchor keeps its merge target.
+   login: {},
+   chat: {
++    minimizeStreamingComposer: "Minimize composer",
++    restoreStreamingComposer: "Show composer",
+     historyRequestTimedOut: "Chat history request timed out. Retry to load the conversation.",
+     clawhub: {
+       retryStatus: "Status unavailable · Retry",
+diff --git a/ui/src/pages/chat/chat-view.ts b/ui/src/pages/chat/chat-view.ts
+index cecfe6f1..2a0436e2 100644
+--- a/ui/src/pages/chat/chat-view.ts
++++ b/ui/src/pages/chat/chat-view.ts
+@@ -168,6 +168,7 @@ export function renderChat(props: ChatProps) {
+     : undefined;
+   const pendingInputs = props.historyState ? getChatPendingInputs(props.historyState) : undefined;
+   const requestUpdate = props.onRequestUpdate ?? (() => {});
++  const composerState = getChatComposerState(props.paneId);
+   const canCompose = props.canSend;
+   const questionState = getTranscriptState(props.paneId);
+   const asyncQuestions = createAsyncQuestionPresentation(questionState, {
+@@ -560,7 +561,18 @@ export function renderChat(props: ChatProps) {
+                   >
+                     ${historyRefreshNotice} ${historyError === nothing ? thread : historyError}
+                     ${scrollToBottomButton} ${gutterStack}
+-                    <div class="chat-footer">${chatColumnFooter}</div>
++                    <div class="chat-footer ${composerState.streamingCollapsed ? "chat-footer--streaming-collapsed" : ""}">
++                      <button
++                        class="btn btn--sm streaming-composer-toggle"
++                        type="button"
++                        aria-expanded=${String(!composerState.streamingCollapsed)}
++                        @click=${() => {
++                          composerState.streamingCollapsed = !composerState.streamingCollapsed;
++                          requestUpdate();
++                        }}
++                      >${t(composerState.streamingCollapsed ? "chat.restoreStreamingComposer" : "chat.minimizeStreamingComposer")}</button>
++                      ${chatColumnFooter}
++                    </div>
+                   </div>
+                 </div>
+               </div>
+diff --git a/ui/src/pages/chat/components/chat-composer-state.ts b/ui/src/pages/chat/components/chat-composer-state.ts
+index 10fa39b8..835633fd 100644
+--- a/ui/src/pages/chat/components/chat-composer-state.ts
++++ b/ui/src/pages/chat/components/chat-composer-state.ts
+@@ -28,6 +28,7 @@ function createChatComposerState(): ChatComposerState {
+     gatewayQuestionIds: new Set(),
+     asyncQuestionIds: new Set(),
+     questionCollapsed: false,
++    streamingCollapsed: false,
+     questionTakeoverActive: false,
+     restoreComposerFocus: false,
+     composerInput: null,
+diff --git a/ui/src/pages/chat/components/chat-composer-types.ts b/ui/src/pages/chat/components/chat-composer-types.ts
+index a32e421e..9370c0fa 100644
+--- a/ui/src/pages/chat/components/chat-composer-types.ts
++++ b/ui/src/pages/chat/components/chat-composer-types.ts
+@@ -219,6 +219,7 @@ export type ChatComposerState = SkillMenuState &
+     gatewayQuestionIds: Set<string>;
+     asyncQuestionIds: Set<string>;
+     questionCollapsed: boolean;
++    streamingCollapsed: boolean;
+     questionTakeoverActive: boolean;
+     restoreComposerFocus: boolean;
+     composerInput: HTMLElement | null;
+diff --git a/ui/src/styles.css b/ui/src/styles.css
+index 157d2396..f66d764c 100644
+--- a/ui/src/styles.css
++++ b/ui/src/styles.css
+@@ -3,6 +3,7 @@
+ @import "./styles/theme-backgrounds.css";
+ @import "./styles/layout.css";
+ @import "./styles/layout.mobile.css";
++@import "./styles/streaming-mode.css";
+ @import "./styles/components.css";
+ @import "./styles/chat/progress-card.css";
+ @import "./styles/approval-boot.css";
+diff --git a/ui/src/styles/streaming-mode.css b/ui/src/styles/streaming-mode.css
+new file mode 100644
+index 00000000..7438aba2
+--- /dev/null
++++ b/ui/src/styles/streaming-mode.css
+@@ -0,0 +1,62 @@
++/* Streaming Mode reuses the shell's responsive drawer and affects only the
++   active browser view. Existing theme tokens provide contrast in both modes. */
++.sidebar-streaming-toggle,
++.topbar-streaming-toggle,
++.streaming-composer-toggle {
++  min-height: 36px;
++}
++
++.sidebar-streaming-toggle {
++  width: 100%;
++  margin-bottom: 4px;
++}
++
++.shell--streaming .chat {
++  --chat-thread-max-width: min(60ch, calc(100vw - 2rem));
++  --chat-text-size: max(18px, calc(18px * var(--control-ui-text-scale)));
++  --chat-text: var(--text-strong);
++  --chat-message-max-width: 100%;
++}
++
++.shell--streaming .chat-text {
++  line-height: 1.6;
++  text-align: start;
++}
++
++.shell--streaming .chat-text :where(p, ul, ol) {
++  margin-block-end: 1.5em;
++}
++
++.shell--streaming .chat-text :where(h1, h2) {
++  font-size: max(24px, 1.5em);
++}
++
++.streaming-composer-toggle {
++  display: none;
++  align-self: center;
++  margin: 4px 0;
++}
++
++.shell--streaming .streaming-composer-toggle {
++  display: block;
++}
++
++.shell--streaming .chat-footer--streaming-collapsed > :not(.streaming-composer-toggle) {
++  display: none;
++}
++
++.shell--streaming .chat-footer--streaming-collapsed::before {
++  display: none;
++}
++
++@media (max-width: 560px) {
++  .shell--streaming .topbar-brand__title {
++    display: none;
++  }
++}
++
++@media (max-height: 600px) {
++  .shell--streaming .chat-footer:not(.chat-footer--streaming-collapsed) {
++    --chat-footer-max-height: 40cqh;
++  }
++}

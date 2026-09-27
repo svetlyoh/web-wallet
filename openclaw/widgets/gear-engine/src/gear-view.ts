@@ -184,11 +184,11 @@ export class GearView extends LitElement {
       </section></div>`;
   }
   static styles = css`
-    :host{display:block;flex:none;color:inherit;contain:style;font:inherit}
-    .widget{position:relative;display:flex;justify-content:flex-end}
+    :host{display:block;flex:none;max-width:100%;min-width:0;color:inherit;contain:style;font:inherit}
+    .widget{position:relative;display:flex;justify-content:flex-end;align-items:flex-start;max-width:100%;min-width:0}
     button,select{font:inherit;color:inherit}button{cursor:pointer}button:focus-visible,select:focus-visible{outline:2px solid currentColor;outline-offset:3px}
-    .instrument{display:block;border:0;padding:0;background:transparent;width:var(--gear-size,160px);height:var(--gear-size,160px);color:inherit}
-    svg{display:block;width:100%;height:100%;overflow:visible}.metal{stroke:#8293aa;stroke-width:.65;stroke-linejoin:round}.shadow{fill:#29384e;stroke:#526079;stroke-width:.65}
+    .instrument{display:block;border:0;padding:0;background:transparent;width:var(--gear-size,160px);max-width:100%;height:auto;color:inherit}
+    svg{display:block;width:100%;height:auto;aspect-ratio:1;overflow:visible}.metal{stroke:#8293aa;stroke-width:.65;stroke-linejoin:round}.shadow{fill:#29384e;stroke:#526079;stroke-width:.65}
     .recess{fill:#33435a;stroke:#a8b6c9;stroke-width:.8}.energy{fill:#389bff;opacity:.2}.hub{stroke:#bac9db;stroke-width:1}
     .bearing{fill:none;stroke:#73849d;stroke-width:3}.rail{fill:none;stroke:#718399;stroke-width:2;opacity:.65}
     .badge{fill:currentColor;font:600 14px system-ui;text-anchor:middle;dominant-baseline:central;paint-order:stroke;stroke:var(--bg,#172131);stroke-width:2px}
@@ -198,7 +198,7 @@ export class GearView extends LitElement {
     dt{font-weight:600;margin-top:10px}dd{margin:2px 0}ul{padding-left:18px;max-height:180px;overflow:auto}li{overflow-wrap:anywhere;margin:8px 0}small{display:block}.note{font-size:12px;opacity:.8}
     label{display:flex;align-items:center;justify-content:space-between;gap:16px}select,.hide,.reveal{border:1px solid var(--border,#718399);border-radius:6px;padding:6px 10px;background:var(--bg,Canvas);color:var(--text,CanvasText)}.hide{margin-top:12px}
     .sr-only{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
-    @media(max-width:400px){.instrument{width:128px;height:128px}}
+    @media(max-width:400px){.instrument{width:128px;height:auto}}
     @media(forced-colors:active){.metal,.hub{fill:Canvas;stroke:CanvasText}.shadow{fill:Canvas;stroke:CanvasText}.recess,.marker{fill:Highlight;stroke:CanvasText}.badge,.caption{fill:CanvasText;stroke:none}.energy{fill:Highlight;opacity:.6}.bearing,.rail{stroke:CanvasText}}
   `;
 }

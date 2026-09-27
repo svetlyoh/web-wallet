@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>OpenClaw Streaming Mode visual QA</title>
+  <style>
+    :root{color-scheme:dark;font:16px/1.5 system-ui,sans-serif;background:#0e1015;color:#f4f5f8}body{max-width:1500px;margin:auto;padding:24px}h1{font-size:28px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,440px),1fr));gap:20px}.case{border:1px solid #39404d;border-radius:12px;padding:14px;background:#151820}.state{display:inline-block;padding:3px 8px;border-radius:999px;background:#24452d;color:#baf4c8;font-weight:700}img{display:block;width:100%;height:auto;margin-top:12px;border:1px solid #303744;border-radius:8px}textarea{box-sizing:border-box;width:100%;min-height:110px;padding:12px;background:#0e1015;color:inherit;border:1px solid #667085;border-radius:8px}button{margin-top:8px;padding:9px 14px;font:inherit;font-weight:700;border:0;border-radius:8px;background:#e64b57;color:white}.status{margin-left:10px;color:#baf4c8}
+  </style>
+</head>
+<body>
+  <h1>OpenClaw Streaming Mode visual QA</h1>
+  <p>Compare the normal baseline with the streaming layouts. Check legibility, full-width chat, hidden drawer, composer control, and horizontal fit.</p>
+  <main class="grid">
+    <article class="case" id="case-normal"><span class="state">Mode off · 1280×720</span><img src="screens/normal-1280x720.png" alt="Normal OpenClaw layout at 1280 by 720"></article>
+    <article class="case" id="case-streaming"><span class="state">Mode on · 1280×720</span><img src="screens/streaming-1280x720.png" alt="Streaming Mode at 1280 by 720"></article>
+    <article class="case" id="case-collapsed"><span class="state">Composer minimized · 1280×720</span><img src="screens/streaming-composer-collapsed-1280x720.png" alt="Streaming Mode with minimized composer"></article>
+    <article class="case" id="case-short"><span class="state">Short capture · 800×400</span><img src="screens/streaming-short-800x400.png" alt="Streaming Mode at 800 by 400"></article>
+    <article class="case" id="case-phone"><span class="state">Phone · 390×844</span><img src="screens/streaming-phone-390x844.png" alt="Streaming Mode at phone size"></article>
+  </main>
+  <section aria-labelledby="feedback-heading">
+    <h2 id="feedback-heading">Review notes</h2>
+    <textarea id="feedback" placeholder="Record anything that should change…"></textarea>
+    <button id="copy-feedback" type="button">Copy feedback</button><span id="copy-status" class="status" role="status"></span>
+  </section>
+  <script>
+    const key='openclaw.streamingMode.visualFeedback';const field=document.querySelector('#feedback');const status=document.querySelector('#copy-status');field.value=localStorage.getItem(key)||'';field.addEventListener('input',()=>localStorage.setItem(key,field.value));document.querySelector('#copy-feedback').addEventListener('click',async()=>{await navigator.clipboard.writeText(field.value);status.textContent='Copied';setTimeout(()=>status.textContent='',1500)});
+  </script>
+</body>
+</html>
