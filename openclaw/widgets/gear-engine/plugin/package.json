@@ -3,8 +3,23 @@
   "version": "1.0.0",
   "type": "module",
   "description": "Three-gear native OpenClaw activity accessory",
-  "license": "UNLICENSED",
-  "files": ["index.js", "openclaw.plugin.json", "dist/", "skills/"],
+  "license": "MIT-0",
+  "homepage": "https://github.com/svetlyoh/web-wallet/tree/master/openclaw/widgets/gear-engine",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/svetlyoh/web-wallet.git",
+    "directory": "openclaw/widgets/gear-engine/plugin"
+  },
+  "files": ["LICENSE", "README.md", "THIRD_PARTY_NOTICES.md", "index.js", "openclaw.plugin.json", "dist/", "skills/"],
   "engines": {"node": ">=24.16.0"},
-  "openclaw": {"extensions": ["./index.js"]}
+  "openclaw": {
+    "extensions": ["./index.js"],
+    "compat": {
+      "pluginApi": "2026.9.6",
+      "minGatewayVersion": "2026.9.6"
+    },
+    "build": {
+      "openclawVersion": "2026.9.6"
+    }
+  }
 }

@@ -1,6 +1,15 @@
 ---
 name: gear-engine
 description: Explain or troubleshoot the installed Gear Engine native OpenClaw activity widget, its receipt indicators, version requirements, and reversible installer.
+metadata:
+  openclaw:
+    requires:
+      bins:
+        - openclaw
+    os:
+      - linux
+    emoji: "⚙️"
+    homepage: https://github.com/svetlyoh/web-wallet/tree/master/openclaw/widgets/gear-engine
 ---
 
 Gear Engine is installed as a native UI plugin named `openclaw-gear-engine`. This skill describes it; loading the skill alone does not mount the widget.
@@ -11,4 +20,6 @@ Input is a brief recent user-message receipt. Processing shows authorized report
 
 For troubleshooting, inspect `openclaw plugins inspect openclaw-gear-engine --runtime --json`, `openclaw gateway call plugins.controlUi.list --json`, and the browser's Plugins → Customize UI diagnostics. Check the installed version and `gateway.controlUi.experimental.customPlugins`. Do not weaken auth, origins, CSP, or pairing to load native assets.
 
-The GitHub source and install/rollback instructions are at https://github.com/svetlyoh/web-wallet/tree/master/openclaw/widgets/gear-engine. The managed download's `scripts/install.mjs rollback` disables the widget and restores the UI setting recorded by the installer. Preserve the installer record while troubleshooting.
+Install the ClawHub package with `openclaw plugins install clawhub:@svetlyoh/openclaw-gear-engine`, enable the plugin, set `gateway.controlUi.experimental.customPlugins` to `true` with strict JSON, and reload the plugin. Make these configuration changes only when the user asks to install or enable the widget.
+
+The GitHub source and alternate managed install/rollback instructions are at https://github.com/svetlyoh/web-wallet/tree/master/openclaw/widgets/gear-engine. The managed download's `scripts/install.mjs rollback` disables the widget and restores the UI setting recorded by the installer. Preserve the installer record while troubleshooting.

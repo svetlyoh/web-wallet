@@ -6,6 +6,16 @@ Compatible host: **OpenClaw 2026.9.6** (source `eb377ac59e6c9fd6c7705028034812be
 
 ## Install or update on Linux
 
+### ClawHub
+
+```bash
+openclaw skills install @svetlyoh/openclaw-streaming-mode
+```
+
+Then ask your OpenClaw agent: **Install Streaming Mode using the openclaw-streaming-mode skill.** The skill uses its bundled, checksum-verified payload and keeps the original Control UI for rollback. Update the skill later with `openclaw skills update --all`, then ask the agent to install the updated payload.
+
+### Direct from GitHub
+
 Run this as the Linux account that owns and runs the existing OpenClaw installation, without `sudo`:
 
 ```bash

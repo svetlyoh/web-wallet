@@ -6,6 +6,19 @@ Compatible host: **OpenClaw 2026.9.6** (source `eb377ac59e6c9fd6c7705028034812be
 
 ## Install on Linux
 
+### ClawHub
+
+```bash
+openclaw plugins install clawhub:@svetlyoh/openclaw-gear-engine
+openclaw plugins enable openclaw-gear-engine
+openclaw config set gateway.controlUi.experimental.customPlugins true --strict-json
+openclaw plugins reload openclaw-gear-engine --json
+```
+
+This is the standard ClawHub package route. Reload the Control UI after the commands finish. Future catalog updates use `openclaw plugins update --all`.
+
+### Direct from GitHub
+
 Run this as the Linux account that runs your existing OpenClaw Gateway, without `sudo`. The Gateway must already be running. You need `curl`, `git`, `node`, and `openclaw` on PATH.
 
 ```bash

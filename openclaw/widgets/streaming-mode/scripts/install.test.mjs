@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { HOST_VERSION, ID, install } from './install.mjs';
 
-function fixture(t, { version = HOST_VERSION, badChecksum = false } = {}) {
+function fixture(t, { version = HOST_VERSION, badChecksum = false, chunked = false } = {}) {
   const temp = mkdtempSync(join(tmpdir(), 'streaming-mode-installer-'));
   t.after(() => rmSync(temp, { recursive: true, force: true }));
   const root = join(temp, 'openclaw');
@@ -28,14 +28,27 @@ function fixture(t, { version = HOST_VERSION, badChecksum = false } = {}) {
   const packed = spawnSync('tar', ['-czf', archive, '-C', payloadFiles, '.'], { encoding: 'utf8' });
   assert.equal(packed.status, 0, packed.stderr);
   const digest = createHash('sha256').update(readFileSync(archive)).digest('hex');
-  writeFileSync(join(payloadRoot, 'manifest.json'), JSON.stringify({
+  const manifest = {
     schema: 1,
     id: ID,
     hostVersion: HOST_VERSION,
     archive: 'control-ui.tar.gz',
     sha256: badChecksum ? '0'.repeat(64) : digest,
     sourceCommit: 'fixture',
-  }));
+  };
+  if (chunked) {
+    const content = readFileSync(archive);
+    const midpoint = Math.ceil(content.length / 2);
+    const chunks = [content.subarray(0, midpoint), content.subarray(midpoint)].map((part, index) => {
+      const file = `control-ui.tar.gz.part-${String(index + 1).padStart(3, '0')}`;
+      writeFileSync(join(payloadRoot, file), part);
+      return { file, size: part.length, sha256: createHash('sha256').update(part).digest('hex') };
+    });
+    rmSync(archive);
+    manifest.schema = 2;
+    manifest.chunks = chunks;
+  }
+  writeFileSync(join(payloadRoot, 'manifest.json'), JSON.stringify(manifest));
   const run = (command, args) => {
     if (command === 'openclaw') return { status: 0, stdout: `OpenClaw ${version}\n`, stderr: '' };
     return spawnSync(command, args, { encoding: 'utf8' });
@@ -60,6 +73,12 @@ test('repeat install preserves the first original backup', (t) => {
   f.invoke();
   f.invoke('rollback');
   assert.equal(readFileSync(join(f.target, 'index.html'), 'utf8'), 'original');
+});
+
+test('installs a payload split into individually verified ClawHub-sized chunks', (t) => {
+  const f = fixture(t, { chunked: true });
+  assert.equal(f.invoke().status, 'installed');
+  assert.equal(readFileSync(join(f.target, 'index.html'), 'utf8'), 'streaming');
 });
 
 test('rejects another OpenClaw version before changing the UI', (t) => {
