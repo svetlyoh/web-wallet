@@ -1,7 +1,7 @@
 // Structural subset of the public ControlUiHost v1 contract at OpenClaw 2026.9.6.
 // Browser bundles deliberately have no dependency on OpenClaw implementation files.
 export interface Session {
-  key: string; agentId?: string; label?: string; displayName?: string;
+  key: string; agentId?: string; sessionId?: string; label?: string; displayName?: string;
   hasActiveRun?: boolean; status?: string; inputTokens?: number; outputTokens?: number;
 }
 export interface Roster {

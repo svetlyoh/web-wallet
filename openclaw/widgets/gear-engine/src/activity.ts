@@ -22,12 +22,20 @@ export class ActivityModel {
     this.pulses.clear(); this.sequences.clear(); this.approvals.clear();
   }
   snapshot(rows: readonly Session[], truncated = false) {
+    const previous = new Map(this.rows.map(row => [this.identity(row.key, row.agentId), row.sessionId]));
     this.rows = rows.slice(0, 200).map(row => ({
-      key: this.normalize(row.key), agentId: row.agentId,
+      key: this.normalize(row.key), agentId: row.agentId, sessionId: row.sessionId,
       label: row.label ?? row.displayName, hasActiveRun: row.hasActiveRun,
       status: row.status, inputTokens: measured(row.inputTokens), outputTokens: measured(row.outputTokens),
     }));
     const allowed = new Set(this.rows.map(row => this.identity(row.key, row.agentId)));
+    for (const row of this.rows) {
+      const id = this.identity(row.key, row.agentId);
+      if (previous.has(id) && previous.get(id) !== row.sessionId) {
+        this.pulses.delete(id); this.approvals.delete(id);
+        for (const key of this.sequences.keys()) if (key.startsWith(`${id}\u0000`)) this.sequences.delete(key);
+      }
+    }
     for (const key of this.pulses.keys()) if (!allowed.has(key)) this.pulses.delete(key);
     for (const key of this.approvals.keys()) if (!allowed.has(key)) this.approvals.delete(key);
     for (const row of this.rows) if (row.hasActiveRun === false) this.approvals.delete(this.identity(row.key, row.agentId));
@@ -45,6 +53,7 @@ export class ActivityModel {
     // Unscoped aliases must never attribute one agent's event to another.
     if (candidates.length !== 1) return false;
     const row = candidates[0];
+    if (row.sessionId && typeof event.sessionId === 'string' && row.sessionId !== event.sessionId) return false;
     const id = this.identity(row.key, row.agentId);
     if (name === 'agent' && event.stream === 'execution') {
       const approval = record(record(event.data)?.approval);

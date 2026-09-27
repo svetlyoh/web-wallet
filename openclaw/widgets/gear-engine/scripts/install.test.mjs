@@ -57,6 +57,16 @@ test('incompatible host fails before any mutation', (t) => {
   assert.throws(() => f.invoke(), /requires OpenClaw/);
   assert.equal(f.calls.length, 1);
 });
+
+test('rollback remains available after the host is upgraded', (t) => {
+  const options = {};
+  const f = fixture(t, options);
+  f.invoke();
+  options.version = '2026.10.1';
+  f.invoke('rollback');
+  assert.equal(f.enabled, false);
+  assert.deepEqual(f.flag, {present:false,value:undefined});
+});
 test('rollback restores false and preserves an originally true flag', (t) => {
   for (const flag of [false, true]) {
     const f = fixture(t, { flag });

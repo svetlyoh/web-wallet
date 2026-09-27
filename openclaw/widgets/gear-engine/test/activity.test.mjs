@@ -41,3 +41,11 @@ test('disconnect and failed snapshot are unknown; totals never become rates or a
   m.clear(); m.connected=true; assert.equal(m.view(0).unknown,true);
   m.snapshot(rows);m.error=true;assert.equal(m.view(0).mask,0);
 });
+test('session incarnation resets receipt ordering and rejects prior-incarnation events',()=>{
+  const m=make();m.snapshot([{...rows[0],sessionId:'old'}]);
+  m.event('session.message',{sessionKey:'a',sessionId:'old',message:{role:'user',__openclaw:{seq:50}}},0);
+  m.snapshot([{...rows[0],sessionId:'new'}]);
+  assert.equal(m.view(1).recentInput,false);
+  assert.equal(m.event('session.message',{sessionKey:'a',sessionId:'old',messageSeq:51,message:{role:'user'}},1),false);
+  assert.equal(m.event('session.message',{sessionKey:'a',sessionId:'new',messageSeq:1,message:{role:'user'}},1),true);
+});

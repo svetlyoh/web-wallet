@@ -18,6 +18,7 @@ export function cli(args) {
 
 export function install({ run = cli, action = 'install', stateDir = process.env.OPENCLAW_STATE_DIR || join(homedir(), '.openclaw'), pluginDir = resolve(here, '../plugin'), log = console.log } = {}) {
   const statePath = join(stateDir, 'gear-engine-installer.json');
+  const configPath = resolve(process.env.OPENCLAW_CONFIG_PATH || join(stateDir, 'openclaw.json'));
   const call = (args) => {
     const result = run(args);
     if (result.status !== 0) throw new Error(`openclaw ${args.slice(0, 3).join(' ')} failed (exit ${result.status}). Run that command directly for diagnostics.`);
@@ -36,6 +37,7 @@ export function install({ run = cli, action = 'install', stateDir = process.env.
   };
   let state = existsSync(statePath) ? JSON.parse(readFileSync(statePath, 'utf8')) : null;
   if (state && (state.id !== ID || state.schema !== 1)) throw new Error(`Unrecognized installer record: ${statePath}`);
+  if (state?.configPath && state.configPath !== configPath) throw new Error('This installer record belongs to another OpenClaw configuration. Use the original OPENCLAW_CONFIG_PATH for rollback.');
   const save = () => {
     mkdirSync(stateDir, { recursive: true });
     writeFileSync(`${statePath}.tmp`, `${JSON.stringify(state, null, 2)}\n`, { mode: 0o600 });
@@ -61,7 +63,7 @@ export function install({ run = cli, action = 'install', stateDir = process.env.
     if (failures.length) throw new Error(`Recovery incomplete. Retry rollback after resolving: ${failures.join(' ')}`);
   };
   const version = call(['--version']);
-  if (!new RegExp(`(?:^|\\s)${HOST.replaceAll('.', '\\.')}($|\\s|\\()`).test(version)) throw new Error(`This release requires OpenClaw ${HOST}; found ${version}. No upgrade was attempted.`);
+  if (action !== 'rollback' && !new RegExp(`(?:^|\\s)${HOST.replaceAll('.', '\\.')}($|\\s|\\()`).test(version)) throw new Error(`This release requires OpenClaw ${HOST}; found ${version}. No upgrade was attempted.`);
   if (action === 'rollback') {
     if (!state) throw new Error(`No installer record at ${statePath}; refusing to change an untracked install.`);
     recover();
@@ -80,7 +82,7 @@ export function install({ run = cli, action = 'install', stateDir = process.env.
   if (installed.status !== 0 && !/not found|unknown plugin|no plugin/i.test(`${installed.stdout}\n${installed.stderr}`)) throw new Error('Cannot determine existing plugin state; refusing to overwrite it.');
   // Verify authentication and the running Gateway before mutating config or files.
   json(['gateway', 'call', 'plugins.controlUi.list', '--json']);
-  if (!state || state.status === 'disabled') state = { schema: 1, id: ID, priorFlag: flag, flagChanged: false, installAttempted: false, status: 'prepared' };
+  if (!state || state.status === 'disabled') state = { schema: 1, id: ID, configPath, priorFlag: flag, flagChanged: false, installAttempted: false, status: 'prepared' };
   save();
   try {
     state.installAttempted = true;
