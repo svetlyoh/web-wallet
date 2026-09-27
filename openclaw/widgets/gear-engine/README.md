@@ -22,7 +22,7 @@ The gear accessory appears automatically on ordinary chat panes. Compact embedde
 
 | Gear | Live source | Meaning |
 |---|---|---|
-| I | Authorized `session.message` user receipt | 180 ms recent-input afterglow; not an upload progress meter |
+| I | Authorized `session.message` user receipt | 540 ms recent-input afterglow; not an upload progress meter |
 | P | Authorized session snapshot | Reported active sessions; queued sessions park; known approval events park the affected session |
 | D | Sequenced `chat` updates received by the browser | 180 ms UI-update afterglow; **not external channel delivery confirmation** |
 
