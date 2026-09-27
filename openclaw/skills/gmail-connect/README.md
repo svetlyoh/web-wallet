@@ -22,7 +22,7 @@ On your Ubuntu OpenClaw machine:
 mkdir -p "$HOME/Downloads/gmail-connect-release"
 cd "$HOME/Downloads/gmail-connect-release"
 curl -fL --retry 3 -o gmail-connect-0.1.1-openclaw.tar.gz https://raw.githubusercontent.com/svetlyoh/web-wallet/master/openclaw/skills/gmail-connect/gmail-connect-0.1.1-openclaw.tar.gz
-echo "c02314f059a8818ebce9c0e232f2a6a62ef3e2c1631ad04e17d1470c02047e39  gmail-connect-0.1.1-openclaw.tar.gz" | sha256sum -c -
+echo "d0087a00020b8110afbb488e6e228802fc8ee03bc791b5dd48f6163bc1e730f3  gmail-connect-0.1.1-openclaw.tar.gz" | sha256sum -c -
 tar -xzf gmail-connect-0.1.1-openclaw.tar.gz
 openclaw skills install ./gmail-connect
 ```

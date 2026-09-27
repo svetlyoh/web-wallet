@@ -1,6 +1,6 @@
 ---
 name: gmail-connect
-description: Connect OpenClaw to Gmail on Ubuntu through a local browser wizard, read and search mail, prepare user-reviewed outgoing messages, and inspect background mailbox checks. Use for Gmail setup, authorization repair, inbox access, or Gmail connection diagnostics. Default to direct Gmail API polling without gateway edits or public tunnels.
+description: Connect OpenClaw to Gmail on Ubuntu with a local OAuth wizard. Search and read mail, check for new messages, and optionally send reviewed drafts.
 version: 0.1.1
 metadata: {"openclaw":{"os":["linux"],"requires":{"bins":["python3"]},"homepage":"https://github.com/svetlyoh/web-wallet/tree/master/openclaw/skills/gmail-connect","envVars":[{"name":"GMAIL_CONNECT_HOME","required":false,"description":"Optional private local state directory, outside the skill folder."}]}}
 ---
