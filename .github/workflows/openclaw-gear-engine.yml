@@ -15,11 +15,13 @@ jobs:
       run:
         working-directory: openclaw/widgets/gear-engine
     env:
-      OPENCLAW_STATE_DIR: ${{ runner.temp }}/gear-engine-openclaw
-      OPENCLAW_CONFIG_PATH: ${{ runner.temp }}/gear-engine-openclaw/openclaw.json
       NO_COLOR: '1'
     steps:
       - uses: actions/checkout@v4
+      - name: Select isolated test state
+        run: |
+          echo "OPENCLAW_STATE_DIR=$RUNNER_TEMP/gear-engine-openclaw" >> "$GITHUB_ENV"
+          echo "OPENCLAW_CONFIG_PATH=$RUNNER_TEMP/gear-engine-openclaw/openclaw.json" >> "$GITHUB_ENV"
       - uses: actions/setup-node@v4
         with:
           node-version: '24.18.0'
