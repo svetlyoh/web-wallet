@@ -2,6 +2,7 @@ name: OpenClaw Gear Engine
 on:
   workflow_dispatch:
   push:
+    branches: [master]
     paths: ['openclaw/widgets/gear-engine/**', '.github/workflows/openclaw-gear-engine.yml']
   pull_request:
     paths: ['openclaw/widgets/gear-engine/**', '.github/workflows/openclaw-gear-engine.yml']
@@ -50,10 +51,9 @@ jobs:
           cat "$RUNNER_TEMP/gear-gateway.log"
           exit 1
       - name: Install and verify native UI catalog, then rollback
-        run: |
-          node scripts/install.mjs install
-          node scripts/install.mjs rollback
-          node scripts/install.mjs install
+        run: node test/live-install.mjs
+      - name: Load installed widget in the real Control UI
+        run: node test/live-host.mjs
       - name: Stop isolated Gateway
         if: always()
         run: |
