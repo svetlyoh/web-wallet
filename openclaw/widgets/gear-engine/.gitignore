@@ -1,0 +1,6 @@
+node_modules/
+test-results/
+*.tgz
+!plugin/dist/
+!plugin/dist/control-ui/
+!plugin/dist/control-ui/index.js

@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>OpenClaw Gear Engine</title><style>body{margin:0;padding:24px;background:light-dark(#fff,#0f151e);color-scheme:light dark}button,select,input{cursor:pointer}</style><body>
+<div id="oc-gear-concept">
+  <style>
+    #oc-gear-concept{color-scheme:light dark;--oc-bg:light-dark(#f5f7fa,#141b25);--oc-ink:light-dark(#20304a,#e6edf8);--oc-muted:light-dark(#56657a,#a6b4c9);--oc-line:light-dark(#d5deea,#354156);--oc-button:light-dark(#e5ebf4,#25334a);font:14px/1.5 system-ui,sans-serif;color:var(--oc-ink);max-width:720px;margin:auto;background:transparent}
+    #oc-gear-concept *{box-sizing:border-box}#oc-gear-concept .top{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:16px}#oc-gear-concept h2{font-size:20px;font-weight:500;margin:0}#oc-gear-concept .meta{color:var(--oc-muted);font-size:12px}#oc-gear-concept .stage{display:flex;align-items:center;justify-content:center;gap:28px;padding:18px 4px 10px;min-height:230px}#oc-gear-concept .gear-well{width:192px;height:192px;display:grid;place-items:center;flex:none}#oc-gear-concept .lanes{display:grid;gap:10px;width:190px}#oc-gear-concept .lane{display:flex;justify-content:space-between;align-items:center;gap:12px}#oc-gear-concept .lane span{color:var(--oc-muted);font-size:12px}#oc-gear-concept button,#oc-gear-concept select{font:inherit;color:var(--oc-ink);border:1px solid var(--oc-line);border-radius:8px;background:var(--oc-bg);padding:9px 12px;min-height:40px}#oc-gear-concept button[aria-pressed="true"]{background:var(--oc-button);border-color:light-dark(#8397b4,#7494c1)}#oc-gear-concept button:disabled{opacity:.5}#oc-gear-concept .controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center}#oc-gear-concept select{flex:1;min-width:210px;max-width:100%}#oc-gear-concept .rate{display:flex;align-items:center;gap:12px;margin:14px 0 0}#oc-gear-concept input[type="range"]{min-width:60px;flex:1;accent-color:#709af3}#oc-gear-concept output{min-width:86px;font-variant-numeric:tabular-nums}#oc-gear-concept .note{color:var(--oc-muted);min-height:42px;margin:12px 0}#oc-gear-concept .foot{display:flex;justify-content:space-between;gap:12px;border-top:1px solid var(--oc-line);padding-top:12px;color:var(--oc-muted);font-size:12px}#oc-gear-concept .dot{width:7px;height:7px;border-radius:50%;background:#67aefd;display:inline-block;margin-right:6px}#oc-gear-concept label{display:inline-flex;align-items:center;gap:6px}#oc-gear-concept .lane button{width:122px;text-align:left}#oc-gear-concept .rate label{white-space:nowrap}#oc-gear-concept .status{font-variant-numeric:tabular-nums}
+    @media(max-width:460px){#oc-gear-concept .stage{gap:0}#oc-gear-concept .gear-well{width:160px}#oc-gear-concept .lanes{width:auto;flex:1}#oc-gear-concept .lane{gap:4px}#oc-gear-concept .lane button{width:auto;padding:8px}#oc-gear-concept .lane span{font-size:11px}#oc-gear-concept .top{align-items:start}#oc-gear-concept .rate{flex-wrap:wrap}#oc-gear-concept .foot{flex-wrap:wrap}}
+  </style>
+  <div class="top"><div><h2>OpenClaw · Gear engine</h2><div class="meta">160 × 160 · transparent · interactive concept</div></div><span class="meta"><span class="dot"></span>Simulated activity</span></div>
+  <div class="stage viz-dotted-background">
+    <div class="gear-well"><openclaw-gears></openclaw-gears></div>
+    <div class="lanes" aria-label="Toggle independent activity">
+      <div class="lane"><button type="button" data-bit="4" aria-pressed="false">I · Input</button><span data-state="4">Stopped</span></div>
+      <div class="lane"><button type="button" data-bit="2" aria-pressed="true">P · Processing</button><span data-state="2">Active</span></div>
+      <div class="lane"><button type="button" data-bit="1" aria-pressed="true">D · Delivery</button><span data-state="1">Active</span></div>
+    </div>
+  </div>
+  <div class="controls"><select aria-label="Activity scenario" data-scenario></select><button type="button" data-cycle>Play cycle</button><button type="button" data-stop>Stop this run</button></div>
+  <div class="rate"><label for="oc-gear-rate">Token rate</label><input id="oc-gear-rate" type="range" min="0" max="160" value="40"><output data-rate>40 tok/s</output></div>
+  <p class="note" data-note role="status" aria-live="polite"></p>
+  <div class="foot"><span>Steel → blue → violet · token load</span><span data-mode>Clutches open · separate axial planes</span></div>
+</div>
+
+<script type="module">
+// OpenClaw gear concept. No network, credentials, timers or framework dependencies.
+const TEETH = Object.freeze({ input: 18, processing: 36, delivery: 72 });
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+function rpmForRate(rate, phase) {
+  const ranges = { input: [6, 34], processing: [4, 24], delivery: [3, 16] };
+  const [lo, hi] = ranges[phase];
+  return lo + (hi - lo) * clamp(Math.log1p(Math.max(0, rate ?? 0)) / Math.log1p(160));
+}
+function linkedSpeeds(sunRpm, carrierRpm = 0) {
+  return { processing: sunRpm, input: carrierRpm - 2 * (sunRpm - carrierRpm),
+    delivery: carrierRpm - .5 * (sunRpm - carrierRpm) };
+}
+// Sampled 20-degree involute flanks; straight root transitions, not machining fillets.
+// Internal gear is an even-odd ring around an involute-shaped tooth-space contour.
+function gearContour(teeth, internal = false, module = 2) {
+  const r = teeth * module / 2, rb = r * Math.cos(Math.PI / 9);
+  const root = internal ? r - module : r - 1.25 * module;
+  const tip = internal ? r + 1.25 * module : r + module;
+  const inv = radius => { const a = Math.acos(clamp(rb / radius, -1, 1)); return Math.tan(a) - a; };
+  const half = radius => Math.PI / (2 * teeth) + inv(r) - inv(Math.max(rb, radius));
+  const points = [], add = (rad, angle) => points.push([rad * Math.cos(angle), rad * Math.sin(angle)]);
+  for (let n = 0; n < teeth; n++) {
+    const a = n * Math.PI * 2 / teeth, low = Math.max(root, rb);
+    add(root, a - half(low));
+    for (let j = 0; j <= 8; j++) { const v = low + (tip-low)*j/8; add(v, a-half(v)); }
+    for (let j = 1; j <= 4; j++) add(tip, a-half(tip)+2*half(tip)*j/4);
+    for (let j = 8; j >= 0; j--) { const v=low+(tip-low)*j/8; add(v,a+half(v)); }
+    add(root, a+half(low));
+    const next = (n+1)*Math.PI*2/teeth-half(low);
+    for (let j=1;j<=3;j++) add(root,a+half(low)+(next-a-half(low))*j/3);
+  }
+  return 'M'+points.map(p=>p.map(v=>v.toFixed(3)).join(',')).join('L')+'Z';
+}
+function ringPath() {
+  return 'M84,0A84,84 0 1,0 -84,0A84,84 0 1,0 84,0Z'+gearContour(72,true);
+}
+const SCENARIOS = [
+  {id:'idle', name:'000 · Idle', mask:0, detail:'No active work. Residual glow cools away.'},
+  {id:'input', name:'100 · Input only', mask:4, detail:'Receiving a prompt or attachment; no model run has started.'},
+  {id:'processing', name:'010 · Processing only', mask:2, detail:'Model or tool work is active; no outbound message is in flight.'},
+  {id:'delivery', name:'001 · Delivery only', mask:1, detail:'Generation ended; an outbound send is still in flight.'},
+  {id:'input-processing', name:'110 · Input + processing', mask:6, detail:'New input arrives while a run continues or accepts steering.'},
+  {id:'input-delivery', name:'101 · Input + delivery', mask:5, detail:'Receiving a new message while an earlier reply is being sent.'},
+  {id:'processing-delivery', name:'011 · Processing + delivery', mask:3, detail:'Generating while a preview, reply block, or tool message is being sent.'},
+  {id:'all', name:'111 · All three', mask:7, detail:'Concurrent intake, model work, and outbound delivery.'},
+  {id:'heat', name:'High token load', mask:7, heat:1, detail:'Blue shifts to violet with sustained simulated token load.'},
+  {id:'late-stop', name:'Stop · send already in flight', mask:3, stop:true, detail:'Stop this run: processing brakes after acknowledgment; sending continues.'},
+  {id:'other', name:'Stop · another chat continues', mask:7, other:true, detail:'Stop this run: other work keeps processing and delivery active.'},
+  {id:'approval', name:'Waiting for approval', mask:0, wait:true, detail:'Processing is parked with an amber pause marker; approval is pending.'},
+  {id:'retry', name:'Delivery retry backoff', mask:0, retry:true, detail:'A queued retry waits; the delivery gear is parked, not falsely sending.'},
+  {id:'error', name:'Delivery failed', mask:0, error:true, detail:'Delivery failed. Red is a fault indicator, not token heat.'},
+  {id:'offline', name:'Connection lost', mask:0, offline:true, detail:'Activity unknown. Freeze and reconcile on reconnect; do not claim idle.'},
+  {id:'mechanical', name:'Linked gear demonstration', mask:7, linked:true, detail:'Carrier locked: 36-tooth sun +14 rpm; planet −28 rpm; ring −7 rpm.'}
+];
+
+// Proposed normalized telemetry reducer, NOT an existing OpenClaw wire API.
+// Events are already authenticated and scoped by the production adapter.
+function createActivityStore() {
+  const operations = new Map(), revisions = new Map();
+  let epoch = '', connected = false;
+  return {
+    snapshot(s) { epoch=s.epoch; connected=true; operations.clear(); revisions.clear();
+      for (const op of s.operations) { operations.set(op.id,{...op}); revisions.set(op.id,op.revision); } },
+    disconnect() { connected=false; },
+    apply(e) {
+      if (!connected || e.epoch!==epoch || e.revision <= (revisions.get(e.id) ?? -1)) return false;
+      revisions.set(e.id,e.revision); // retain terminal tombstones until next authoritative snapshot
+      if (e.terminal) operations.delete(e.id); else operations.set(e.id,{...e});
+      return true;
+    },
+    view() {
+      const ops=[...operations.values()], active=ops.filter(x=>x.state==='active'||x.state==='stopping');
+      return { connected, unknown:!connected, operations:ops,
+        mask:connected ? active.reduce((m,x)=>m | ({input:4,processing:2,delivery:1}[x.phase]??0),0) : 0,
+        counts:Object.fromEntries(['input','processing','delivery'].map(p=>[p,active.filter(x=>x.phase===p).length])) };
+    }
+  };
+}
+let instance = 0;
+class OpenClawGears extends HTMLElement {
+  constructor() {
+    super(); this.attachShadow({mode:'open'}); this.uid='ocg'+(++instance);
+    this.state={mask:0,rate:35,heat:0}; this.angle=[10,0,2.5]; this.speed=[0,0,0]; this.heat=[0,0,0];
+    this.motion=matchMedia('(prefers-reduced-motion: reduce)');
+    this.visible=true; this.frame=0; this.last=0;
+    this.tick=this.tick.bind(this); this.wake=this.wake.bind(this);
+  }
+  connectedCallback() {
+    this.render();
+    this.observer=new IntersectionObserver(e=>{this.visible=e[0].isIntersecting;this.wake();});this.observer.observe(this);
+    document.addEventListener('visibilitychange',this.wake);this.motion.addEventListener('change',this.wake); this.wake();
+  }
+  disconnectedCallback() {
+    cancelAnimationFrame(this.frame);this.frame=0;this.observer?.disconnect();
+    document.removeEventListener('visibilitychange',this.wake);this.motion.removeEventListener('change',this.wake);
+  }
+  set activity(v) {
+    const enteringLinked=v.linked&&!this.state.linked;
+    this.state={mask:0,rate:35,heat:0,...v};
+    if(enteringLinked) {this.angle=[10,0,2.5];this.speed=[0,0,0];}
+    this.updateStatus();this.wake();
+  }
+  get activity() {return {...this.state};}
+  wake() {if(!this.isConnected)return; if(document.hidden||!this.visible){cancelAnimationFrame(this.frame);this.frame=0;this.last=0;return;}
+    if(!this.frame){this.last=0;this.frame=requestAnimationFrame(this.tick);}}
+  render() {
+    const u=this.uid;
+    const gear=(kind,path,index,holes='')=>`<g data-lane="${index}"><g class="shadow-body" transform="translate(0 5)"><path d="${path}" fill-rule="evenodd"/></g><g class="face"><path class="metal" d="${path}" fill-rule="evenodd"/><path class="energy" d="${path}" fill-rule="evenodd"/>${holes}</g></g>`;
+    const spokes = (r,count) => Array.from({length:count},(_,i)=>{const a=i*2*Math.PI/count;return `<circle cx="${r*Math.cos(a)}" cy="${r*Math.sin(a)}" r="4.1" class="recess"/>`;}).join('');
+    this.shadowRoot.innerHTML=`<style>
+      :host{display:block;width:160px;height:160px;contain:layout style;--steel-a:#e1e6ee;--steel-b:#526178;--steel-c:#a6b3c7;--edge:#8293aa;--ink:light-dark(#25334b,#e2e9f4);color-scheme:light dark}
+      svg{display:block;width:100%;height:100%;overflow:visible}.metal{fill:url(#${u}-metal);stroke:var(--edge);stroke-width:.65;stroke-linejoin:round}.shadow-body{fill:#29384e;stroke:#526079;stroke-width:.65}.recess{fill:#33435a;stroke:#a8b6c9;stroke-width:.8}.energy{fill:var(--energy,#389bff);opacity:var(--heat,0);filter:url(#${u}-bloom);pointer-events:none}.hub{fill:url(#${u}-hub);stroke:#bac9db;stroke-width:1}.bearing{fill:none;stroke:#73849d;stroke-width:3}.rail{fill:none;stroke:#718399;stroke-width:2;opacity:.65}.badge{fill:var(--ink);font:500 14px system-ui;text-anchor:middle;dominant-baseline:central;paint-order:stroke;stroke:light-dark(#f8fafc,#172131);stroke-width:3px}.marker{fill:#75c9ff;stroke:#29384e;stroke-width:1}.fault{fill:#ed6579}.wait{fill:#e9ad4c}.status{font:600 9px system-ui;letter-spacing:1.1px;fill:var(--ink);text-anchor:middle}.brake{stroke:#e9ad4c;stroke-width:4;fill:none;stroke-linecap:round}.axes{opacity:.65}
+    </style><svg viewBox="0 0 240 240" role="img" aria-label="OpenClaw input, processing, and delivery activity">
+      <defs><linearGradient id="${u}-metal" x1="0" y1="0" x2=".8" y2="1"><stop stop-color="var(--steel-a)"/><stop offset=".38" stop-color="var(--steel-c)"/><stop offset=".62" stop-color="var(--steel-b)"/><stop offset="1" stop-color="var(--steel-c)"/></linearGradient>
+      <radialGradient id="${u}-hub"><stop stop-color="#d4e0ee"/><stop offset=".7" stop-color="#53647e"/><stop offset="1" stop-color="#26364f"/></radialGradient>
+      <filter id="${u}-bloom" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="1.5"/></filter></defs>
+      <g class="axes"><path class="rail" d="M112 156L120 115M166 156L182 67"/></g>
+      <g data-plane="2">${gear('delivery',ringPath(),2,`<circle class="bearing" r="79"/><circle class="marker" cx="79" cy="0" r="3"/>`)}</g>
+      <g data-plane="1">${gear('processing',gearContour(36),1,spokes(24,6)+`<circle class="hub" r="12"/><circle class="recess" r="4"/><circle class="marker" cx="0" cy="-30" r="2"/>`)}</g>
+      <g data-plane="0">${gear('input',gearContour(18),0,`<circle class="hub" r="10"/><circle class="recess" r="3.5"/><circle class="marker" cx="0" cy="-14" r="1.7"/>`)}</g>
+      <text class="badge" data-label="0">I</text><text class="badge" data-label="1">P</text><text class="badge" data-label="2">D</text>
+      <path class="brake" d="M108 106L108 117M115 106L115 117" style="display:none"/>
+      <text class="status" x="120" y="223" data-caption></text>
+    </svg>`;
+    this.groups=[0,1,2].map(i=>this.shadowRoot.querySelector(`[data-lane="${i}"]`));
+    this.planes=[0,1,2].map(i=>this.shadowRoot.querySelector(`[data-plane="${i}"]`));
+    this.labels=[0,1,2].map(i=>this.shadowRoot.querySelector(`[data-label="${i}"]`)); this.updateStatus();
+  }
+  updateStatus() {
+    if(!this.groups)return;const s=this.state;
+    const statuses=['Input','Processing','Delivery'].map((p,i)=>`${p}: ${s.offline?'unknown':s.mask&[4,2,1][i]?'active':'stopped'}`).join('; ');
+    this.shadowRoot.querySelector('svg').setAttribute('aria-label',statuses);
+    this.shadowRoot.querySelector('[data-caption]').textContent=s.offline?'OFFLINE':s.error?'SEND FAILED':s.wait?'APPROVAL':s.retry?'RETRY WAIT':s.stopping?'STOPPING':s.linked?'LINKED':'INDEPENDENT';
+    this.shadowRoot.querySelector('.axes').style.display=s.linked?'none':'';
+    this.shadowRoot.querySelector('.brake').style.display=(s.wait||s.stopping)?'':'none';
+    const centers=s.linked?[[174,127],[120,127],[120,127]]:[[182,72],[120,114],[112,156]];
+    centers.forEach(([x,y],i)=>{this.planes[i].setAttribute('transform',`translate(${x} ${y}) scale(1 .74)`);
+      this.labels[i].setAttribute('x',i===2?x-78:x);this.labels[i].setAttribute('y',i===2?y:y-1);});
+  }
+  tick(time) {
+    this.frame=0;const dt=this.last?Math.min((time-this.last)/1000,.05):0;this.last=time;
+    const s=this.state, keys=['input','processing','delivery'], linked=linkedSpeeds(14);
+    let animating=false;
+    for(let i=0;i<3;i++) {
+      const active=!!(s.mask&[4,2,1][i])&&!s.offline;
+      const target=active?(s.linked?linked[keys[i]]:rpmForRate(s.rate,keys[i])*[-1,1,-1][i]):0;
+      this.speed[i]+=(target-this.speed[i])*(1-Math.exp(-dt/(active?.25:.13)));
+      if(Math.abs(this.speed[i])<.02&&!active)this.speed[i]=0;
+      const htarget=active?(.10+.65*clamp((s.rate??0)/160)+.23*(s.heat??0)):0;
+      this.heat[i]+=(htarget-this.heat[i])*(1-Math.exp(-dt/(htarget>this.heat[i]?1.6:4)));
+      if(!this.motion.matches&&!s.offline)this.angle[i]+=this.speed[i]*6*dt;
+      this.groups[i].querySelector('.face').setAttribute('transform',`rotate(${this.angle[i]})`);
+      this.groups[i].querySelector('.shadow-body').setAttribute('transform',`translate(0 5) rotate(${this.angle[i]})`);
+      const h=this.motion.matches?htarget:this.heat[i];
+      this.groups[i].style.setProperty('--energy',s.error&&i===2?'#ed6579':(s.wait&&i===1)||(s.retry&&i===2)?'#e9ad4c':`hsl(${205+clamp((h-.35)/.55)*65} 95% 64%)`);
+      this.groups[i].style.setProperty('--heat',s.error&&i===2||s.wait&&i===1||s.retry&&i===2?'.42':String(h*.48));
+      this.groups[i].style.opacity=s.offline?'.45':active?'1':'.70';
+      if(!this.motion.matches&&(active||Math.abs(this.speed[i])>.02||this.heat[i]>.01))animating=true;
+    }
+    if(animating&&!document.hidden&&this.visible&&!s.offline)this.frame=requestAnimationFrame(this.tick);
+  }
+}
+if(!customElements.get('openclaw-gears'))customElements.define('openclaw-gears',OpenClawGears);
+const root=document.getElementById('oc-gear-concept'), gear=root.querySelector('openclaw-gears');
+const select=root.querySelector('[data-scenario]'), note=root.querySelector('[data-note]'), rate=root.querySelector('input[type=range]');
+let state={...SCENARIOS[6],rate:40}, timers=[], cycle=false;
+select.innerHTML=SCENARIOS.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
+function cancel(){timers.forEach(clearTimeout);timers=[];cycle=false;root.querySelector('[data-cycle]').textContent='Play cycle';}
+function later(fn,ms){timers.push(setTimeout(fn,ms));}
+function update(){
+  gear.activity=state;select.value=state.id||'';
+  root.querySelectorAll('[data-bit]').forEach(b=>{b.setAttribute('aria-pressed',String(!!(state.mask&Number(b.dataset.bit))));b.disabled=!!state.linked;});
+  root.querySelectorAll('[data-state]').forEach(el=>el.textContent=state.offline?'Unknown':state.mask&Number(el.dataset.state)?state.stopping&&el.dataset.state==='2'?'Stopping':'Active':'Stopped');
+  note.textContent=state.detail;rate.value=state.rate;rate.disabled=!!state.linked;root.querySelector('[data-rate]').textContent=state.linked?'Fixed ratio':state.rate+' tok/s';
+  root.querySelector('[data-mode]').textContent=state.linked?'Carrier locked · gears meshed':'Clutches open · separate axial planes';
+}
+function choose(id){state={...SCENARIOS.find(s=>s.id===id),rate:id==='heat'?160:Number(rate.value)};update();}
+select.addEventListener('change',()=>{cancel();choose(select.value);});
+root.querySelectorAll('[data-bit]').forEach(b=>b.addEventListener('click',()=>{cancel();state={mask:state.mask^Number(b.dataset.bit),rate:Number(rate.value),detail:'Independent activity: each stopped gear stays parked in its own axial plane.'};state.id=SCENARIOS.find(s=>s.mask===state.mask)?.id;update();}));
+rate.addEventListener('input',()=>{state.rate=Number(rate.value);update();});
+root.querySelector('[data-stop]').addEventListener('click',()=>{
+  cancel();const wasOther=!!state.other, hadDelivery=!!(state.mask&1);
+  state={...state,linked:false,stopping:true,detail:'Stop requested. Waiting for the targeted run to acknowledge cancellation.'};update();
+  later(()=>{state={...state,stopping:false,mask:wasOther?3:hadDelivery?1:0,detail:wasOther?'This run stopped. Another chat is still processing and sending.':hadDelivery?'Processing stopped. The message already in flight is still sending.':'Targeted work stopped. No outbound send was in flight.'};update();},600);
+  if(hadDelivery&&!wasOther)later(()=>{state={...state,mask:0,detail:'The in-flight send was accepted by the channel. All gears are now parked.'};update();},3200);
+});
+root.querySelector('[data-cycle]').addEventListener('click',()=>{
+  if(cycle){cancel();return;}cancel();cycle=true;root.querySelector('[data-cycle]').textContent='Pause cycle';
+  const stages=['input','input-processing','processing','processing-delivery','delivery','idle'];let i=0;
+  const step=()=>{choose(stages[i++%stages.length]);if(cycle)later(step,2600);};step();
+});
+window.addEventListener('pagehide',cancel,{once:true});update();
+</script>
+
+</body></html>
