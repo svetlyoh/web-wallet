@@ -27,6 +27,8 @@ metadata:
 
 Use this skill when the user asks to install, update, check, troubleshoot, or roll back Streaming Mode. It replaces only the installed OpenClaw 2026.9.6 Control UI directory and keeps the first original UI as a rollback backup.
 
+Streaming Mode expands the transcript and composer across almost the full browser width, leaving only a small responsive edge gutter. It also increases transcript text to at least 18 px with 1.6 line spacing.
+
 ## Safety and compatibility
 
 - Run only on Linux with OpenClaw 2026.9.6. The installer refuses every other host version before changing files.
