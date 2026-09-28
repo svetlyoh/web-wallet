@@ -5,6 +5,7 @@
   "gatewayBuildId": "2026.9.6-release-eb377ac59e6c-2026-09-23T16-33-12.144Z",
   "sourceCommit": "eb377ac59e6c9fd6c7705028034812becf00271b",
   "archive": "control-ui.tar.gz",
-  "sha256": "fa38cbe4dddcc0832e811f950ff82497439b81599dec2d2fc91e0dfa27ea631a",
+  "sha256": "dba0d569d493b57ad2abbd1d73696381788bf1c799e0d4e3c1e40d62e32d7a3a",
   "builtAt": "2026-09-28"
 }
+
