@@ -1,6 +1,6 @@
 # OpenClaw Streaming Mode
 
-An optional Control UI view for OBS and video streaming. It gives the conversation the full window and increases transcript text to at least 18 px with 1.6 line spacing and a 60-character reading measure. The standard OpenClaw composer and plugin controls remain unchanged. The setting is off by default and is remembered in that browser.
+An optional Control UI view for OBS and video streaming. It gives the conversation almost the full browser width with a small responsive edge gutter, and increases transcript text to at least 18 px with 1.6 line spacing. The standard OpenClaw composer and plugin controls remain unchanged. The setting is off by default and is remembered in that browser.
 
 Compatible host: **OpenClaw 2026.9.6** (source `eb377ac59e6c9fd6c7705028034812becf00271b`). The installer stops before changing files on any other version and never upgrades OpenClaw.
 
@@ -70,6 +70,8 @@ The existing Gear Engine plugin remains installed and enabled because this packa
 ## Composer and Gear Engine repair
 
 Streaming Mode 1.0.3 removes the earlier composer state and global mobile-navigation overrides. Those overrides could leave an invisible navigation surface or stale composer state intercepting input, which prevented typing and hid the Gear Engine until the original Control UI was restored. Streaming Mode now uses scoped layout CSS only. A real Chromium regression test types into the unmodified OpenClaw textarea before, during, and after Streaming Mode and verifies that the `session-header` plugin accessory remains visible at desktop, short-capture, and phone sizes.
+
+Streaming Mode 1.0.4 removes the 60-character transcript and composer width cap. Streaming Mode now uses almost the full browser width with a small responsive edge gutter; the Chromium test requires both the transcript and composer to occupy more than 90% of a desktop viewport.
 
 ## Why this is a patch
 

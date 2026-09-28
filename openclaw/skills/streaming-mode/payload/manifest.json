@@ -5,33 +5,33 @@
   "gatewayBuildId": "2026.9.6-release-eb377ac59e6c-2026-09-23T16-33-12.144Z",
   "sourceCommit": "eb377ac59e6c9fd6c7705028034812becf00271b",
   "archive": "control-ui.tar.gz",
-  "sha256": "bb27410cd1689c1c0495526893e6fa51822324d84358f506b850e9d99ab882c7",
+  "sha256": "82c7d4f95c3c3dc26b1413fb375818dd5bd257ba55f87b9274880adaed2748fb",
   "builtAt": "2026-09-28",
   "chunks": [
     {
       "file": "control-ui.tar.gz.part-001",
       "size": 8000000,
-      "sha256": "f4324bcb774c9a7638f9daedf57890005f0594b6b3e126c9b03adb44df58e5cd"
+      "sha256": "b28da24a3bbf8bedfd2030e2b0b567cf04f5dfa9e9b4e3febc28c5e86e8179e5"
     },
     {
       "file": "control-ui.tar.gz.part-002",
       "size": 8000000,
-      "sha256": "ceae4794b8ecb9d537966d95035f871e5c82376fc004d5af9002652a201dc31c"
+      "sha256": "ae7c1984c6544d389e7965ad263f379edbdd411de1f93201bf437a36100a1b43"
     },
     {
       "file": "control-ui.tar.gz.part-003",
       "size": 8000000,
-      "sha256": "9e11b5afc5e93bccfd4c54b2ddd3133894cdeed7bf283935e660d634bd40fa13"
+      "sha256": "f21db23eb48965ed7331155e50fa74fde57dfbab0883229319b0e363034df3db"
     },
     {
       "file": "control-ui.tar.gz.part-004",
       "size": 8000000,
-      "sha256": "1c831fb6691a47eb2425ad3c3cce832aa99e270cc40c40af20c155a28573da2a"
+      "sha256": "9767f82feeaac7ad3f13b0996b4df432e5fa5e09c768d5f16b02aae8e3e84a4d"
     },
     {
       "file": "control-ui.tar.gz.part-005",
-      "size": 5753048,
-      "sha256": "c6dd7ce52d607ddf9a0ea53626c80f21a140533216dfe26a6e5a6b5f1c9a5ada"
+      "size": 5750532,
+      "sha256": "28188ab19e94bde3ee969ec94b16dc023a7593cf84363f2f9d36905c3487586e"
     }
   ]
 }
