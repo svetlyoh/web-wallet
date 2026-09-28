@@ -3,9 +3,21 @@ on:
   workflow_dispatch:
   push:
     branches: [master]
-    paths: ['openclaw/widgets/streaming-mode/**', '.github/workflows/openclaw-streaming-mode.yml']
+    paths:
+      - 'openclaw/widgets/streaming-mode/**'
+      - 'openclaw/skills/streaming-mode/**'
+      - 'openclaw/widgets/gear-engine/plugin/**'
+      - 'openclaw/widgets/gear-engine/scripts/install.mjs'
+      - 'openclaw/local-install/**'
+      - '.github/workflows/openclaw-streaming-mode.yml'
   pull_request:
-    paths: ['openclaw/widgets/streaming-mode/**', '.github/workflows/openclaw-streaming-mode.yml']
+    paths:
+      - 'openclaw/widgets/streaming-mode/**'
+      - 'openclaw/skills/streaming-mode/**'
+      - 'openclaw/widgets/gear-engine/plugin/**'
+      - 'openclaw/widgets/gear-engine/scripts/install.mjs'
+      - 'openclaw/local-install/**'
+      - '.github/workflows/openclaw-streaming-mode.yml'
 permissions:
   contents: read
 jobs:
@@ -20,6 +32,14 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24.18.0'
+      - name: Validate local transfer bundle
+        working-directory: ${{ github.workspace }}
+        shell: bash
+        run: |
+          bash -n openclaw/local-install/install-local.sh
+          pwsh -NoProfile -File openclaw/local-install/prepare-local-bundle.ps1 -OutputDirectory "$RUNNER_TEMP/OpenClaw-Local-Updates"
+          test -f "$RUNNER_TEMP/OpenClaw-Local-Updates.zip"
+          (cd "$RUNNER_TEMP/OpenClaw-Local-Updates" && sha256sum -c SHA256SUMS.txt)
       - run: npm test
       - name: Verify payload checksum and contents
         run: |
