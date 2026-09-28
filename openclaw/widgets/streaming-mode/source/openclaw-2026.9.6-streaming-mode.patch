@@ -246,10 +246,10 @@ index b5ce210f..32273d3d 100644
                  class="topbar-search"
 diff --git a/ui/src/e2e/streaming-mode.e2e.test.ts b/ui/src/e2e/streaming-mode.e2e.test.ts
 new file mode 100644
-index 00000000..65d75a75
+index 00000000..2ca726c1
 --- /dev/null
 +++ b/ui/src/e2e/streaming-mode.e2e.test.ts
-@@ -0,0 +1,92 @@
+@@ -0,0 +1,150 @@
 +import path from "node:path";
 +import { expect, it } from "vitest";
 +import { installMockGateway } from "../test-helpers/control-ui-e2e.ts";
@@ -302,6 +302,21 @@ index 00000000..65d75a75
 +
 +        await page.getByRole("button", { name: "Streaming Mode", exact: true }).click();
 +        await expect.poll(() => shell.getAttribute("class")).toContain("shell--streaming");
++        await page.evaluate(() => {
++          const thread = document.querySelector<HTMLElement>(".chat-thread-inner");
++          if (!thread) {
++            throw new Error("Missing the chat thread");
++          }
++          const probe = document.createElement("div");
++          probe.className = "chat-text";
++          probe.dataset.streamingTypographyProbe = "true";
++          probe.innerHTML = `
++            <p>Streaming readability check for model responses.</p>
++            <table><tbody><tr><td>Receipt text</td><td>Readable</td></tr></tbody></table>
++            <pre><code>message_id: example</code></pre>
++          `;
++          thread.append(probe);
++        });
 +        await composer.fill("during streaming");
 +        expect(await composer.inputValue()).toBe("during streaming");
 +        expect(await composer.isEditable()).toBe(true);
@@ -320,16 +335,59 @@ index 00000000..65d75a75
 +        });
 +        expect(wideLayout.threadWidth / wideLayout.viewportWidth).toBeGreaterThan(0.9);
 +        expect(wideLayout.composerWidth / wideLayout.viewportWidth).toBeGreaterThan(0.9);
++        const typography = await page.evaluate(() => {
++          const size = (selector: string) => {
++            const element = document.querySelector<HTMLElement>(selector);
++            if (!element) {
++              throw new Error(`Missing typography probe: ${selector}`);
++            }
++            return Number.parseFloat(getComputedStyle(element).fontSize);
++          };
++          return {
++            composer: size(".agent-chat__composer-combobox textarea"),
++            response: size('[data-streaming-typography-probe="true"]'),
++            table: size('[data-streaming-typography-probe="true"] table'),
++            code: size('[data-streaming-typography-probe="true"] pre code'),
++            topCommand: size(".topbar-streaming-toggle"),
++            bottomCommand: size(".chat-controls__inline-select-trigger"),
++          };
++        });
++        expect(typography.response).toBeGreaterThanOrEqual(24);
++        expect(typography.table).toBe(typography.response);
++        expect(typography.code).toBe(typography.response);
++        expect(typography.composer).toBeGreaterThanOrEqual(24);
++        expect(typography.topCommand).toBeGreaterThanOrEqual(20);
++        expect(typography.bottomCommand).toBeGreaterThanOrEqual(18);
 +        await capture(page, "streaming-1280x720.png");
 +
 +        await page.setViewportSize({ height: 400, width: 800 });
 +        expect(await composer.isEditable()).toBe(true);
 +        expect(await gearProbe.isVisible()).toBe(true);
++        expect(
++          await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1),
++        ).toBe(true);
 +        await capture(page, "streaming-short-800x400.png");
 +
 +        await page.setViewportSize({ height: 844, width: 390 });
 +        expect(await composer.isEditable()).toBe(true);
 +        expect(await gearProbe.isVisible()).toBe(true);
++        const phoneTypography = await page.evaluate(() => ({
++          composer: Number.parseFloat(
++            getComputedStyle(
++              document.querySelector<HTMLElement>(".agent-chat__composer-combobox textarea")!,
++            ).fontSize,
++          ),
++          response: Number.parseFloat(
++            getComputedStyle(
++              document.querySelector<HTMLElement>('[data-streaming-typography-probe="true"]')!,
++            ).fontSize,
++          ),
++          scrollWidth: document.documentElement.scrollWidth,
++          viewportWidth: window.innerWidth,
++        }));
++        expect(phoneTypography.response).toBeGreaterThanOrEqual(24);
++        expect(phoneTypography.composer).toBeGreaterThanOrEqual(22);
++        expect(phoneTypography.scrollWidth).toBeLessThanOrEqual(phoneTypography.viewportWidth + 1);
 +        await capture(page, "streaming-phone-390x844.png");
 +
 +        await page.getByRole("button", { name: "Exit Streaming Mode", exact: true }).click();
@@ -371,10 +429,10 @@ index 157d2396..f66d764c 100644
  @import "./styles/approval-boot.css";
 diff --git a/ui/src/styles/streaming-mode.css b/ui/src/styles/streaming-mode.css
 new file mode 100644
-index 00000000..f57ca887
+index 00000000..9ad645f6
 --- /dev/null
 +++ b/ui/src/styles/streaming-mode.css
-@@ -0,0 +1,92 @@
+@@ -0,0 +1,183 @@
 +/* Streaming Mode changes only shell layout and reading styles. It deliberately
 +   leaves OpenClaw's navigation, overlays, and chat composer behavior untouched. */
 +.sidebar-streaming-toggle,
@@ -389,7 +447,9 @@ index 00000000..f57ca887
 +
 +.shell--streaming,
 +.shell--streaming.shell--nav-collapsed {
-+  --shell-topbar-height: 58px;
++  --shell-topbar-height: 72px;
++  --streaming-response-text-size: clamp(24px, 1.75vw, 32px);
++  --streaming-control-text-size: 18px;
 +  --shell-nav-width: 0px;
 +  grid-template-columns: minmax(0, 1fr);
 +  grid-template-rows: var(--shell-topbar-height) minmax(0, 1fr);
@@ -426,9 +486,26 @@ index 00000000..f57ca887
 +.shell--streaming .topbar-search {
 +  display: inline-flex;
 +  justify-content: center;
-+  width: 38px;
-+  min-width: 38px;
++  width: 48px;
++  min-width: 48px;
++  min-height: 48px;
 +  padding-inline: 0;
++}
++
++.shell--streaming .topbar-search svg,
++.shell--streaming .topbar-icon-btn svg {
++  width: 22px;
++  height: 22px;
++}
++
++.shell--streaming .topbar-brand__title {
++  font-size: 20px;
++}
++
++.shell--streaming .topbar-streaming-toggle {
++  min-height: 48px;
++  padding-inline: 16px;
++  font-size: 20px;
 +}
 +
 +.shell--streaming .topbar-search__label,
@@ -438,14 +515,29 @@ index 00000000..f57ca887
 +
 +.shell--streaming .chat {
 +  --chat-thread-max-width: calc(100vw - 1rem);
-+  --chat-text-size: max(18px, calc(18px * var(--control-ui-text-scale)));
++  --chat-text-size: var(--streaming-response-text-size);
 +  --chat-text: var(--text-strong);
 +  --chat-message-max-width: 100%;
 +}
 +
-+.shell--streaming .chat-text {
-+  line-height: 1.6;
++.shell--streaming :is(.chat-text, .chat-thinking) {
++  font-size: var(--streaming-response-text-size);
++  line-height: 1.55;
 +  text-align: start;
++}
++
++/* Markdown tables, inline code, fenced code, and disclosure text have smaller
++   defaults in the regular UI. In a captured stream they must remain the same
++   readable size as the surrounding model response. */
++.shell--streaming .chat-text :where(table, code, pre, pre code, pre code.markdown-block-art),
++.shell--streaming .chat-message-disclosure__toggle {
++  font-size: inherit;
++}
++
++.shell--streaming .chat-message-disclosure__toggle,
++.shell--streaming .code-block-expand {
++  min-height: 44px;
++  font-size: var(--streaming-control-text-size);
 +}
 +
 +.shell--streaming .chat-text :where(p, ul, ol) {
@@ -453,17 +545,74 @@ index 00000000..f57ca887
 +}
 +
 +.shell--streaming .chat-text :where(h1, h2) {
-+  font-size: max(24px, 1.5em);
++  font-size: max(34px, 1.45em);
++}
++
++.shell--streaming .chat-text :where(h3) {
++  font-size: max(30px, 1.2em);
++}
++
++.shell--streaming .agent-chat__input {
++  --chat-composer-control-height: 48px;
++  --chat-composer-control-size: 44px;
++  --chat-composer-send-size: 48px;
++  --chat-composer-chip-height: 44px;
++  --chat-composer-chip-padding-inline: 12px;
++  --chat-composer-chip-text: var(--streaming-control-text-size);
++  --chat-composer-chip-icon: 20px;
++  --chat-composer-menu-row-height: 48px;
++  --chat-composer-menu-icon: 20px;
++  --chat-composer-editor-size: 24px;
++  --chat-composer-min-height: 140px;
++}
++
++.shell--streaming .chat-controls__inline-select-option,
++.shell--streaming .chat-controls__permission-option,
++.shell--streaming .agent-chat__composer-status-stack {
++  font-size: var(--streaming-control-text-size);
 +}
 +
 +@media (max-width: 560px) {
++  .shell--streaming,
++  .shell--streaming.shell--nav-collapsed {
++    --shell-topbar-height: 64px;
++    --streaming-response-text-size: 24px;
++    --streaming-control-text-size: 17px;
++  }
++
 +  .shell--streaming .topbar-brand__title {
 +    display: none;
++  }
++
++  .shell--streaming .topbar-streaming-toggle {
++    min-height: 44px;
++    padding-inline: 12px;
++    font-size: 18px;
++  }
++
++  .shell--streaming .agent-chat__input {
++    --chat-composer-control-height: 44px;
++    --chat-composer-control-size: 40px;
++    --chat-composer-send-size: 44px;
++    --chat-composer-chip-height: 40px;
++    --chat-composer-chip-padding-inline: 8px;
++    --chat-composer-editor-size: 22px;
++    --chat-composer-min-height: 132px;
 +  }
 +}
 +
 +@media (max-height: 600px) {
 +  .shell--streaming .chat-footer {
 +    --chat-footer-max-height: 40cqh;
++  }
++
++  .shell--streaming .agent-chat__input {
++    --chat-composer-control-height: 40px;
++    --chat-composer-control-size: 36px;
++    --chat-composer-send-size: 40px;
++    --chat-composer-chip-height: 36px;
++    --chat-composer-chip-text: 16px;
++    --chat-composer-editor-size: 22px;
++    --chat-composer-min-height: 108px;
 +  }
 +}
