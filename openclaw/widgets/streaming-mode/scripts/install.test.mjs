@@ -5,6 +5,7 @@ import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { gzipSync } from 'node:zlib';
 import { HOST_VERSION, ID, install } from './install.mjs';
 
 const BUILD_ID = 'fixture-build';
@@ -16,6 +17,7 @@ function fixture(t, {
   badChecksum = false,
   chunked = false,
   payloadBuildId = BUILD_ID,
+  unsafePath = false,
 } = {}) {
   const temp = mkdtempSync(join(tmpdir(), 'streaming-mode-installer-'));
   t.after(() => rmSync(temp, { recursive: true, force: true }));
@@ -37,6 +39,22 @@ function fixture(t, {
   const archive = join(payloadRoot, 'control-ui.tar.gz');
   const packed = spawnSync('tar', ['-czf', archive, '-C', payloadFiles, '.'], { encoding: 'utf8' });
   assert.equal(packed.status, 0, packed.stderr);
+  if (unsafePath) {
+    const header = Buffer.alloc(512);
+    header.write('../escaped.txt', 0, 'utf8');
+    header.write('0000644\0', 100, 'ascii');
+    header.write('0000000\0', 108, 'ascii');
+    header.write('0000000\0', 116, 'ascii');
+    header.write('00000000000\0', 124, 'ascii');
+    header.write('00000000000\0', 136, 'ascii');
+    header.fill(32, 148, 156);
+    header.write('0', 156, 'ascii');
+    header.write('ustar\0', 257, 'ascii');
+    header.write('00', 263, 'ascii');
+    const checksum = header.reduce((sum, byte) => sum + byte, 0).toString(8).padStart(6, '0');
+    header.write(`${checksum}\0 `, 148, 'ascii');
+    writeFileSync(archive, gzipSync(Buffer.concat([header, Buffer.alloc(1024)])));
+  }
   const digest = createHash('sha256').update(readFileSync(archive)).digest('hex');
   const manifest = {
     schema: 1,
@@ -60,11 +78,7 @@ function fixture(t, {
     manifest.chunks = chunks;
   }
   writeFileSync(join(payloadRoot, 'manifest.json'), JSON.stringify(manifest));
-  const run = (command, args) => {
-    if (command === 'openclaw') return { status: 0, stdout: `OpenClaw ${version}\n`, stderr: '' };
-    return spawnSync(command, args, { encoding: 'utf8' });
-  };
-  const invoke = (action = 'install') => install({ action, root, stateDir, payloadRoot, run, log() {} });
+  const invoke = (action = 'install') => install({ action, root, stateDir, payloadRoot, log() {} });
   return { invoke, root, stateDir, target };
 }
 
@@ -101,6 +115,12 @@ test('rejects another OpenClaw version before changing the UI', (t) => {
 test('rejects a bad payload checksum before making a backup', (t) => {
   const f = fixture(t, { badChecksum: true });
   assert.throws(() => f.invoke(), /checksum/);
+  assert.match(readFileSync(join(f.target, 'index.html'), 'utf8'), /original/);
+});
+
+test('rejects an archive entry that escapes the staging directory', (t) => {
+  const f = fixture(t, { unsafePath: true });
+  assert.throws(() => f.invoke(), /unsafe path/);
   assert.match(readFileSync(join(f.target, 'index.html'), 'utf8'), /original/);
 });
 

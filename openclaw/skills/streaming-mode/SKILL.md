@@ -6,10 +6,7 @@ metadata:
     requires:
       bins:
         - node
-        - npm
         - openclaw
-        - sh
-        - tar
     envVars:
       - name: OPENCLAW_INSTALL_ROOT
         required: false
@@ -35,6 +32,7 @@ Streaming Mode expands the transcript and composer across almost the full browse
 - Run commands from this skill directory so `scripts/install.mjs` can find the bundled payload.
 - Do not use `sudo`, weaken file permissions, disable checksum verification, or download a replacement payload.
 - The bundle requires no credentials and makes no network requests during installation.
+- The installer uses only Node.js filesystem, crypto, and gzip APIs. It does not start shell commands or subprocesses.
 - Existing native Control UI plugins remain enabled. Streaming Mode keeps the `session-header` accessory host mounted, so the Gear Engine widget remains visible and responsive while Streaming Mode is active.
 - The installer verifies the bundled archive against `payload/manifest.json`, stages the new UI, and swaps directories atomically.
 - The installer verifies that the installed Gateway, payload manifest, and extracted Control UI all carry the same official build identity. Stop on any mismatch; do not bypass this check.
@@ -81,5 +79,5 @@ Always roll back before uninstalling this skill. Uninstalling a skill does not r
 - A version error means this bundle does not support the installed OpenClaw release. Leave the installation unchanged.
 - A checksum error means the bundled payload is incomplete or altered. Reinstall the skill from ClawHub; do not bypass the check.
 - A build identity error means the payload is not the exact artifact for the installed Gateway build. Leave the installation unchanged and obtain a compatible Streaming Mode release.
-- A discovery error means the OpenClaw package could not be found from the `openclaw` binary or global npm root. Set `OPENCLAW_INSTALL_ROOT` to the verified package directory and retry.
+- A discovery error means the OpenClaw package could not be found from the `openclaw` entry on `PATH`, `NODE_PATH`, or standard global Node.js locations. Set `OPENCLAW_INSTALL_ROOT` to the verified package directory and retry.
 - If rollback reports no tracked backup, do not copy files manually. Report the state path shown by the installer.
