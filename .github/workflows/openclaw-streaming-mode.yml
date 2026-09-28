@@ -53,6 +53,26 @@ jobs:
           test -n "$(tar -tzf payload/control-ui.tar.gz | grep '/index.html$')"
           test -n "$(tar -tzf payload/control-ui.tar.gz | grep '\.br$')"
           test -n "$(tar -tzf payload/control-ui.tar.gz | grep '\.gz$')"
+      - name: Verify ClawHub chunks reconstruct the payload
+        working-directory: ${{ github.workspace }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { createHash } from 'node:crypto';
+          import { readFileSync } from 'node:fs';
+          const root = 'openclaw/skills/streaming-mode/payload';
+          const manifest = JSON.parse(readFileSync(`${root}/manifest.json`));
+          const parts = manifest.chunks.map((chunk) => {
+            const value = readFileSync(`${root}/${chunk.file}`);
+            const digest = createHash('sha256').update(value).digest('hex');
+            if (value.length !== chunk.size || digest !== chunk.sha256) {
+              throw new Error(`Invalid chunk: ${chunk.file}`);
+            }
+            return value;
+          });
+          const archive = Buffer.concat(parts);
+          const digest = createHash('sha256').update(archive).digest('hex');
+          if (digest !== manifest.sha256) throw new Error(`Reconstructed checksum mismatch: ${digest}`);
+          NODE
       - name: Install official matching OpenClaw host
         run: npm install --global openclaw@2026.9.6 --no-audit --no-fund
       - name: Install, verify, and roll back against the official package

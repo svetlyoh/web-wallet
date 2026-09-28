@@ -1,5 +1,17 @@
+diff --git a/test/vitest/vitest.ui-e2e.config.ts b/test/vitest/vitest.ui-e2e.config.ts
+index e5c829f8..c56c5194 100644
+--- a/test/vitest/vitest.ui-e2e.config.ts
++++ b/test/vitest/vitest.ui-e2e.config.ts
+@@ -114,6 +114,7 @@ export const uiE2ePrivateServerTestFiles = [
+   "ui/src/e2e/settings-loading-skeletons.e2e.test.ts",
+   "ui/src/e2e/sidebar-account-footer.e2e.test.ts",
+   "ui/src/e2e/sidebar-cached-list-stability.e2e.test.ts",
++  "ui/src/e2e/streaming-mode.e2e.test.ts",
+   "ui/src/e2e/terminal-runtime.e2e.test.ts",
+ ];
+ 
 diff --git a/ui/src/app/app-host.ts b/ui/src/app/app-host.ts
-index 2db157d6..d3b2e0a7 100644
+index 2db157d6..297d031d 100644
 --- a/ui/src/app/app-host.ts
 +++ b/ui/src/app/app-host.ts
 @@ -75,6 +75,7 @@ import { resolveOnboardingMode } from "./onboarding-mode.ts";
@@ -18,7 +30,7 @@ index 2db157d6..d3b2e0a7 100644
    @state() desktopNavigationExpanded = false;
    @state() activeSessionKey = "";
    @state() settingsSearchQuery = "";
-@@ -598,6 +600,12 @@ class OpenClawShell
+@@ -598,6 +600,11 @@ class OpenClawShell
    readonly toggleNavigationSurface = this.shellChrome.toggleNavigationSurface;
  
    readonly closeNavDrawer = this.shellChrome.closeNavDrawer;
@@ -26,7 +38,6 @@ index 2db157d6..d3b2e0a7 100644
 +    this.closeNavDrawer();
 +    this.streamingMode = !this.streamingMode;
 +    setStreamingMode(this.streamingMode);
-+    this.handleWindowResize();
 +  };
  
    readonly resizeNavigation = this.shellChrome.resizeNavigation;
@@ -93,29 +104,6 @@ index 203d4912..d18a96f5 100644
              ></openclaw-app-topbar>`
        }
        ${
-diff --git a/ui/src/app/mobile-nav-layout.ts b/ui/src/app/mobile-nav-layout.ts
-index 37b1176f..47621257 100644
---- a/ui/src/app/mobile-nav-layout.ts
-+++ b/ui/src/app/mobile-nav-layout.ts
-@@ -1,6 +1,7 @@
- import { isSessionRouteId } from "../app-route-paths.ts";
- import type { RouteId } from "../app-routes.ts";
--import { isNativeWebChromeHost } from "./native-web-chrome.ts";
-+import { isNativeEmbedHost, isNativeWebChromeHost } from "./native-web-chrome.ts";
-+import { isStreamingMode } from "./streaming-mode.ts";
- 
- const MOBILE_NAV_MAX_WIDTH = 900;
- const NATIVE_WEB_CHROME_MOBILE_NAV_MAX_WIDTH = 600;
-@@ -18,7 +19,8 @@ export function mobileNavLayoutMediaQuery(): string {
- }
- 
- export function isMobileNavLayout(): boolean {
--  return globalThis.matchMedia?.(mobileNavLayoutMediaQuery()).matches ?? false;
-+  return (isStreamingMode() && !isNativeEmbedHost()) ||
-+    (globalThis.matchMedia?.(mobileNavLayoutMediaQuery()).matches ?? false);
- }
- 
- function hasNativeShellClass(): boolean {
 diff --git a/ui/src/app/streaming-mode.test.ts b/ui/src/app/streaming-mode.test.ts
 new file mode 100644
 index 00000000..37d57de9
@@ -256,8 +244,92 @@ index b5ce210f..32273d3d 100644
              <openclaw-tooltip .content=${t("chat.commandPaletteTitle")}>
                <button
                  class="topbar-search"
+diff --git a/ui/src/e2e/streaming-mode.e2e.test.ts b/ui/src/e2e/streaming-mode.e2e.test.ts
+new file mode 100644
+index 00000000..e0a7ddba
+--- /dev/null
++++ b/ui/src/e2e/streaming-mode.e2e.test.ts
+@@ -0,0 +1,78 @@
++import path from "node:path";
++import { expect, it } from "vitest";
++import { installMockGateway } from "../test-helpers/control-ui-e2e.ts";
++import { createControlUiE2eSuite } from "./control-ui-e2e-suite.test-support.ts";
++
++const suite = createControlUiE2eSuite({
++  name: "Streaming Mode composer interaction mocked Gateway E2E",
++  startServerBeforeBrowser: true,
++});
++const qaDir = process.env.OPENCLAW_STREAMING_MODE_QA_DIR?.trim();
++
++async function capture(page: import("playwright").Page, fileName: string) {
++  if (qaDir) {
++    await page.screenshot({ animations: "disabled", path: path.join(qaDir, fileName) });
++  }
++}
++
++suite.define(() => {
++  it("keeps the standard composer editable before, during, and after Streaming Mode", async () => {
++    await suite.withPage(
++      {
++        locale: "en-US",
++        serviceWorkers: "block",
++        viewport: { height: 720, width: 1280 },
++      },
++      async ({ page }) => {
++        await installMockGateway(page);
++        await page.goto(`${suite.server.baseUrl}chat`);
++
++        const shell = page.locator(".shell");
++        const composer = page.locator(".agent-chat__composer-combobox textarea");
++        await composer.waitFor();
++        await page.evaluate(() => {
++          const host = [...document.querySelectorAll("openclaw-plugin-contributions")].find(
++            (element) => (element as HTMLElement & { kind?: string }).kind === "session-header",
++          );
++          if (!host) {
++            throw new Error("Missing the session-header plugin accessory host");
++          }
++          const probe = document.createElement("button");
++          probe.dataset.streamingGearProbe = "true";
++          probe.textContent = "Activity gears";
++          host.append(probe);
++        });
++        const gearProbe = page.locator('[data-streaming-gear-probe="true"]');
++        expect(await gearProbe.isVisible()).toBe(true);
++        await composer.fill("before streaming");
++        expect(await composer.inputValue()).toBe("before streaming");
++        await capture(page, "normal-1280x720.png");
++
++        await page.getByRole("button", { name: "Streaming Mode", exact: true }).click();
++        await expect.poll(() => shell.getAttribute("class")).toContain("shell--streaming");
++        await composer.fill("during streaming");
++        expect(await composer.inputValue()).toBe("during streaming");
++        expect(await composer.isEditable()).toBe(true);
++        expect(await gearProbe.isVisible()).toBe(true);
++        await capture(page, "streaming-1280x720.png");
++
++        await page.setViewportSize({ height: 400, width: 800 });
++        expect(await composer.isEditable()).toBe(true);
++        expect(await gearProbe.isVisible()).toBe(true);
++        await capture(page, "streaming-short-800x400.png");
++
++        await page.setViewportSize({ height: 844, width: 390 });
++        expect(await composer.isEditable()).toBe(true);
++        expect(await gearProbe.isVisible()).toBe(true);
++        await capture(page, "streaming-phone-390x844.png");
++
++        await page.getByRole("button", { name: "Exit Streaming Mode", exact: true }).click();
++        await expect.poll(() => shell.getAttribute("class")).not.toContain("shell--streaming");
++        await composer.fill("after streaming");
++        expect(await composer.inputValue()).toBe("after streaming");
++        expect(await composer.isEditable()).toBe(true);
++        expect(await gearProbe.isVisible()).toBe(true);
++      },
++    );
++  });
++});
 diff --git a/ui/src/i18n/locales/en.ts b/ui/src/i18n/locales/en.ts
-index 38137088..31fca07d 100644
+index 38137088..93897fd1 100644
 --- a/ui/src/i18n/locales/en.ts
 +++ b/ui/src/i18n/locales/en.ts
 @@ -1962,6 +1962,10 @@ export const en: TranslationMap & {
@@ -271,71 +343,6 @@ index 38137088..31fca07d 100644
      resize: "Resize sidebar",
      more: "More",
      home: "Home",
-@@ -3280,6 +3284,8 @@ export const en: TranslationMap & {
-   // Login copy lives in the lazy en-login catalog; the anchor keeps its merge target.
-   login: {},
-   chat: {
-+    minimizeStreamingComposer: "Minimize composer",
-+    restoreStreamingComposer: "Show composer",
-     historyRequestTimedOut: "Chat history request timed out. Retry to load the conversation.",
-     clawhub: {
-       retryStatus: "Status unavailable · Retry",
-diff --git a/ui/src/pages/chat/chat-view.ts b/ui/src/pages/chat/chat-view.ts
-index cecfe6f1..2a0436e2 100644
---- a/ui/src/pages/chat/chat-view.ts
-+++ b/ui/src/pages/chat/chat-view.ts
-@@ -168,6 +168,7 @@ export function renderChat(props: ChatProps) {
-     : undefined;
-   const pendingInputs = props.historyState ? getChatPendingInputs(props.historyState) : undefined;
-   const requestUpdate = props.onRequestUpdate ?? (() => {});
-+  const composerState = getChatComposerState(props.paneId);
-   const canCompose = props.canSend;
-   const questionState = getTranscriptState(props.paneId);
-   const asyncQuestions = createAsyncQuestionPresentation(questionState, {
-@@ -560,7 +561,18 @@ export function renderChat(props: ChatProps) {
-                   >
-                     ${historyRefreshNotice} ${historyError === nothing ? thread : historyError}
-                     ${scrollToBottomButton} ${gutterStack}
--                    <div class="chat-footer">${chatColumnFooter}</div>
-+                    <div class="chat-footer ${composerState.streamingCollapsed ? "chat-footer--streaming-collapsed" : ""}">
-+                      <button
-+                        class="btn btn--sm streaming-composer-toggle"
-+                        type="button"
-+                        aria-expanded=${String(!composerState.streamingCollapsed)}
-+                        @click=${() => {
-+                          composerState.streamingCollapsed = !composerState.streamingCollapsed;
-+                          requestUpdate();
-+                        }}
-+                      >${t(composerState.streamingCollapsed ? "chat.restoreStreamingComposer" : "chat.minimizeStreamingComposer")}</button>
-+                      ${chatColumnFooter}
-+                    </div>
-                   </div>
-                 </div>
-               </div>
-diff --git a/ui/src/pages/chat/components/chat-composer-state.ts b/ui/src/pages/chat/components/chat-composer-state.ts
-index 10fa39b8..835633fd 100644
---- a/ui/src/pages/chat/components/chat-composer-state.ts
-+++ b/ui/src/pages/chat/components/chat-composer-state.ts
-@@ -28,6 +28,7 @@ function createChatComposerState(): ChatComposerState {
-     gatewayQuestionIds: new Set(),
-     asyncQuestionIds: new Set(),
-     questionCollapsed: false,
-+    streamingCollapsed: false,
-     questionTakeoverActive: false,
-     restoreComposerFocus: false,
-     composerInput: null,
-diff --git a/ui/src/pages/chat/components/chat-composer-types.ts b/ui/src/pages/chat/components/chat-composer-types.ts
-index a32e421e..9370c0fa 100644
---- a/ui/src/pages/chat/components/chat-composer-types.ts
-+++ b/ui/src/pages/chat/components/chat-composer-types.ts
-@@ -219,6 +219,7 @@ export type ChatComposerState = SkillMenuState &
-     gatewayQuestionIds: Set<string>;
-     asyncQuestionIds: Set<string>;
-     questionCollapsed: boolean;
-+    streamingCollapsed: boolean;
-     questionTakeoverActive: boolean;
-     restoreComposerFocus: boolean;
-     composerInput: HTMLElement | null;
 diff --git a/ui/src/styles.css b/ui/src/styles.css
 index 157d2396..f66d764c 100644
 --- a/ui/src/styles.css
@@ -350,21 +357,69 @@ index 157d2396..f66d764c 100644
  @import "./styles/approval-boot.css";
 diff --git a/ui/src/styles/streaming-mode.css b/ui/src/styles/streaming-mode.css
 new file mode 100644
-index 00000000..7438aba2
+index 00000000..588f1bba
 --- /dev/null
 +++ b/ui/src/styles/streaming-mode.css
-@@ -0,0 +1,62 @@
-+/* Streaming Mode reuses the shell's responsive drawer and affects only the
-+   active browser view. Existing theme tokens provide contrast in both modes. */
+@@ -0,0 +1,92 @@
++/* Streaming Mode changes only shell layout and reading styles. It deliberately
++   leaves OpenClaw's navigation, overlays, and chat composer behavior untouched. */
 +.sidebar-streaming-toggle,
-+.topbar-streaming-toggle,
-+.streaming-composer-toggle {
++.topbar-streaming-toggle {
 +  min-height: 36px;
 +}
 +
 +.sidebar-streaming-toggle {
 +  width: 100%;
 +  margin-bottom: 4px;
++}
++
++.shell--streaming,
++.shell--streaming.shell--nav-collapsed {
++  --shell-topbar-height: 58px;
++  --shell-nav-width: 0px;
++  grid-template-columns: minmax(0, 1fr);
++  grid-template-rows: var(--shell-topbar-height) minmax(0, 1fr);
++  grid-template-areas:
++    "topbar"
++    "content";
++}
++
++.shell--streaming > .shell-nav,
++.shell--streaming > .shell-nav-backdrop,
++.shell--streaming > .shell-chrome-controls {
++  display: none;
++}
++
++.shell--streaming .topbar {
++  display: flex;
++}
++
++.shell--streaming .topbar .topbar-nav-toggle {
++  display: none;
++}
++
++.shell--streaming .topnav-shell {
++  display: grid;
++  grid-template-columns: minmax(0, 1fr) auto;
++  gap: 10px;
++}
++
++.shell--streaming .topnav-shell__content,
++.shell--streaming .topbar-brand {
++  display: flex;
++}
++
++.shell--streaming .topbar-search {
++  display: inline-flex;
++  justify-content: center;
++  width: 38px;
++  min-width: 38px;
++  padding-inline: 0;
++}
++
++.shell--streaming .topbar-search__label,
++.shell--streaming .topbar-search__shortcut {
++  display: none;
 +}
 +
 +.shell--streaming .chat {
@@ -387,24 +442,6 @@ index 00000000..7438aba2
 +  font-size: max(24px, 1.5em);
 +}
 +
-+.streaming-composer-toggle {
-+  display: none;
-+  align-self: center;
-+  margin: 4px 0;
-+}
-+
-+.shell--streaming .streaming-composer-toggle {
-+  display: block;
-+}
-+
-+.shell--streaming .chat-footer--streaming-collapsed > :not(.streaming-composer-toggle) {
-+  display: none;
-+}
-+
-+.shell--streaming .chat-footer--streaming-collapsed::before {
-+  display: none;
-+}
-+
 +@media (max-width: 560px) {
 +  .shell--streaming .topbar-brand__title {
 +    display: none;
@@ -412,7 +449,7 @@ index 00000000..7438aba2
 +}
 +
 +@media (max-height: 600px) {
-+  .shell--streaming .chat-footer:not(.chat-footer--streaming-collapsed) {
++  .shell--streaming .chat-footer {
 +    --chat-footer-max-height: 40cqh;
 +  }
 +}
