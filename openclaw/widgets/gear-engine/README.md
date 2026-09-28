@@ -6,6 +6,17 @@ Compatible host: **OpenClaw 2026.9.6** (source `eb377ac59e6c9fd6c7705028034812be
 
 ## Install on Linux
 
+### Local folder (recommended for direct PC-to-PC updates)
+
+Create the self-contained transfer folder on Windows with [`openclaw/local-install/prepare-local-bundle.ps1`](../../local-install/prepare-local-bundle.ps1), copy it to the Linux PC by USB or a local share, then run:
+
+```bash
+cd ~/Documents/OpenClaw-Local-Updates
+bash install-local.sh gear
+```
+
+Rebuild and replace the local bundle when the source changes, then rerun the same command. The installer uses the bundled plugin directory and makes no GitHub or ClawHub request.
+
 ### ClawHub
 
 ```bash

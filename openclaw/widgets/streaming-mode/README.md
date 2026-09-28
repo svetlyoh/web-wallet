@@ -6,6 +6,17 @@ Compatible host: **OpenClaw 2026.9.6** (source `eb377ac59e6c9fd6c7705028034812be
 
 ## Install or update on Linux
 
+### Local folder (recommended for direct PC-to-PC updates)
+
+Create the self-contained transfer folder on Windows with [`openclaw/local-install/prepare-local-bundle.ps1`](../../local-install/prepare-local-bundle.ps1), copy it to the Linux PC by USB or a local share, then run:
+
+```bash
+cd ~/Documents/OpenClaw-Local-Updates
+bash install-local.sh streaming
+```
+
+The command verifies the copied files, applies the corrected payload directly from the folder, and registers the same local folder as the shared `streaming-mode` skill. To update later, replace the local bundle and rerun the command. `openclaw skills update --all` does not refresh local-folder installs.
+
 ### ClawHub
 
 ```bash

@@ -60,6 +60,8 @@ node scripts/install.mjs install
 
 The backup and copy step can take a couple of minutes. Do not interrupt it. On success, tell the user to hard-refresh the Control UI. The Gateway does not need a restart.
 
+For a skill installed from a local directory, refresh the skill itself by rerunning `openclaw skills install /path/to/streaming-mode --as streaming-mode --global --force`; `openclaw skills update` refreshes ClawHub-tracked installs only. The repository's local transfer bundle runs the payload installer before this registration step so it can repair a broken Control UI.
+
 ## Roll back
 
 When the user asks to remove or roll back Streaming Mode, run:
