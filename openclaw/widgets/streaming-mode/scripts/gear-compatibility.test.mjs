@@ -1,0 +1,64 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { spawnSync } from 'node:child_process';
+
+const root = join(dirname(fileURLToPath(import.meta.url)), '..');
+const repoOpenClaw = join(root, '..', '..');
+
+function read(path) {
+  return readFileSync(path, 'utf8');
+}
+
+function archiveText(archive) {
+  const extractedRoot = mkdtempSync(join(tmpdir(), 'streaming-mode-contract-'));
+  try {
+    const extracted = spawnSync('tar', ['-xzf', archive, '-C', extractedRoot], {
+      encoding: 'utf8',
+      maxBuffer: 16 * 1024 * 1024,
+    });
+    assert.equal(extracted.status, 0, extracted.stderr);
+
+    const scripts = [];
+    const visit = (directory) => {
+      for (const entry of readdirSync(directory, { withFileTypes: true })) {
+        const path = join(directory, entry.name);
+        if (entry.isDirectory()) visit(path);
+        if (entry.isFile() && entry.name.endsWith('.js')) scripts.push(path);
+      }
+    };
+    visit(join(extractedRoot, 'assets'));
+    assert.ok(scripts.length > 0, 'Control UI payload has no JavaScript assets');
+    return scripts.map(read).join('\n');
+  } finally {
+    rmSync(extractedRoot, { recursive: true, force: true });
+  }
+}
+
+test('streaming layout keeps the native session-header accessory host', () => {
+  const sourcePatch = read(join(root, 'source', 'openclaw-2026.9.6-streaming-mode.patch'));
+
+  // OpenClaw omits session-header accessories only when the chat pane is compact.
+  // Streaming Mode must therefore keep mergedChatChrome false while it is active.
+  assert.match(
+    sourcePatch,
+    /const mergedChatChrome = !streamingMode && shouldMergeChatChrome\(\{/u,
+  );
+  assert.doesNotMatch(sourcePatch, /compact:\s*streamingMode/u);
+
+  const payload = archiveText(join(root, 'payload', 'control-ui.tar.gz'));
+  assert.match(payload, /shell--streaming/u);
+  assert.match(payload, /session-header/u);
+  assert.match(payload, /openclaw-plugin-contributions/u);
+});
+
+test('Gear Engine uses that host and remains visible in its available width', () => {
+  const gearSource = read(join(repoOpenClaw, 'widgets', 'gear-engine', 'src', 'control-ui.ts'));
+  const gearView = read(join(repoOpenClaw, 'widgets', 'gear-engine', 'src', 'gear-view.ts'));
+
+  assert.match(gearSource, /placement:\s*['"]session-header['"]/u);
+  assert.match(gearView, /max-width:100%;height:auto/u);
+});
