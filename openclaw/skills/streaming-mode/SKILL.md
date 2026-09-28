@@ -33,6 +33,7 @@ Use this skill when the user asks to install, update, check, troubleshoot, or ro
 - Run commands from this skill directory so `scripts/install.mjs` can find the bundled payload.
 - Do not use `sudo`, weaken file permissions, disable checksum verification, or download a replacement payload.
 - The bundle requires no credentials and makes no network requests during installation.
+- Existing native Control UI plugins remain enabled. Streaming Mode keeps the `session-header` accessory host mounted, so the Gear Engine widget remains visible and responsive while Streaming Mode is active.
 - The installer verifies the bundled archive against `payload/manifest.json`, stages the new UI, and swaps directories atomically.
 - The payload is built from the OpenClaw source commit recorded in the manifest. Its upstream MIT license and third-party notices are included under `licenses/`.
 - State and the first backup are stored under `${OPENCLAW_STATE_DIR:-~/.openclaw}`. Preserve them until the user no longer needs rollback.

@@ -38,7 +38,7 @@ Then hard-refresh the browser tab. Rollback restores the exact Control UI saved 
 
 ## Gear Engine compatibility
 
-The existing Gear Engine plugin remains installed and enabled because this package changes only `dist/control-ui`. This release also makes the gear instrument scale down inside a narrow accessory slot while preserving its square SVG aspect ratio. Gear Engine's own activity, animation, settings, and rollback remain separate.
+The existing Gear Engine plugin remains installed and enabled because this package changes only `dist/control-ui`. Streaming Mode keeps OpenClaw's native `session-header` accessory host mounted, so the gears remain visible while streaming. The gear instrument scales down inside a narrow accessory slot while preserving its square SVG aspect ratio. Gear Engine's own activity, animation, settings, and rollback remain separate.
 
 ## Why this is a patch
 
@@ -46,7 +46,7 @@ OpenClaw 2026.9.6 plugins can add a session-header accessory, but they cannot re
 
 ## Verification
 
-The source patch and QA evidence are in `source/` and `qa/`. Automated checks cover preference persistence and unavailable browser storage, normal-mode restoration, drawer behavior, composer minimize/restore, 1280×720, 800×400, 390×844, horizontal overflow, and responsive Gear Engine sizing.
+The source patch and QA evidence are in `source/` and `qa/`. Automated checks cover preference persistence and unavailable browser storage, normal-mode restoration, drawer behavior, composer minimize/restore, 1280×720, 800×400, 390×844, horizontal overflow, and the complete Gear Engine compatibility contract: native accessory host, `session-header` placement, and responsive gear sizing.
 
 Installer tests:
 
