@@ -1,6 +1,6 @@
 # OpenClaw Streaming Mode
 
-An optional Control UI view for OBS and video streaming. It gives the conversation the full window, increases transcript text to at least 18 px with 1.6 line spacing and a 60-character reading measure, keeps navigation in a drawer, and lets you minimize the composer. The setting is off by default and is remembered in that browser.
+An optional Control UI view for OBS and video streaming. It gives the conversation the full window and increases transcript text to at least 18 px with 1.6 line spacing and a 60-character reading measure. The standard OpenClaw composer and plugin controls remain unchanged. The setting is off by default and is remembered in that browser.
 
 Compatible host: **OpenClaw 2026.9.6** (source `eb377ac59e6c9fd6c7705028034812becf00271b`). The installer stops before changing files on any other version and never upgrades OpenClaw.
 
@@ -37,7 +37,7 @@ curl -fL https://raw.githubusercontent.com/svetlyoh/web-wallet/master/openclaw/w
 
 The command downloads only this folder, verifies the prebuilt payload, saves the original Control UI under `~/.openclaw`, installs Streaming Mode, and verifies the installed marker. Backup and installation can take a couple of minutes; the installer prints a message before that quiet step. You do **not** need to uninstall first, rebuild OpenClaw, or restart the Gateway.
 
-Hard-refresh the Control UI browser tab after the command completes. Use **Streaming Mode** at the bottom of the desktop sidebar. On a compact or phone layout, open the navigation drawer first. While streaming, use **Exit stream** in the top bar and **Minimize composer** below the conversation.
+Hard-refresh the Control UI browser tab after the command completes. Use **Streaming Mode** at the bottom of the desktop sidebar. On a compact or phone layout, open the navigation drawer first. While streaming, use **Exit stream** in the top bar. The normal message composer stays visible and editable.
 
 Re-run the same one-line command to update this feature. The first original backup is retained for rollback.
 
@@ -67,13 +67,17 @@ The original payload carried a generated development build identity. OpenClaw 20
 
 The existing Gear Engine plugin remains installed and enabled because this package changes only `dist/control-ui`. Streaming Mode keeps OpenClaw's native `session-header` accessory host mounted, so the gears remain visible while streaming. The gear instrument scales down inside a narrow accessory slot while preserving its square SVG aspect ratio. Gear Engine's own activity, animation, settings, and rollback remain separate.
 
+## Composer and Gear Engine repair
+
+Streaming Mode 1.0.3 removes the earlier composer state and global mobile-navigation overrides. Those overrides could leave an invisible navigation surface or stale composer state intercepting input, which prevented typing and hid the Gear Engine until the original Control UI was restored. Streaming Mode now uses scoped layout CSS only. A real Chromium regression test types into the unmodified OpenClaw textarea before, during, and after Streaming Mode and verifies that the `session-header` plugin accessory remains visible at desktop, short-capture, and phone sizes.
+
 ## Why this is a patch
 
 OpenClaw 2026.9.6 plugins can add a session-header accessory, but they cannot replace the whole application shell, sidebar, or composer. A skill also cannot change browser layout. The repository therefore ships a version-locked, prebuilt Control UI patch with a backup, checksum, repeatable update command, and rollback.
 
 ## Verification
 
-The source patch and QA evidence are in `source/` and `qa/`. Automated checks cover preference persistence and unavailable browser storage, normal-mode restoration, drawer behavior, composer minimize/restore, 1280×720, 800×400, 390×844, horizontal overflow, and the complete Gear Engine compatibility contract: native accessory host, `session-header` placement, and responsive gear sizing.
+The source patch and QA evidence are in `source/` and `qa/`. Automated checks cover preference persistence and unavailable browser storage, editable composer behavior before/during/after the mode, normal-mode restoration, 1280×720, 800×400, 390×844, and the Gear Engine compatibility contract: native accessory host, `session-header` placement, and responsive gear sizing.
 
 Installer tests:
 

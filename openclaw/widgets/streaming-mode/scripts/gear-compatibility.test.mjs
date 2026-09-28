@@ -72,6 +72,20 @@ test('streaming layout keeps the native session-header accessory host', () => {
   assert.match(payload, /openclaw-plugin-contributions/u);
 });
 
+test('streaming layout leaves composer and navigation behavior owned by OpenClaw', () => {
+  const sourcePatch = read(join(root, 'source', 'openclaw-2026.9.6-streaming-mode.patch'));
+
+  for (const path of [
+    'ui/src/app/mobile-nav-layout.ts',
+    'ui/src/pages/chat/chat-view.ts',
+    'ui/src/pages/chat/components/chat-composer-state.ts',
+    'ui/src/pages/chat/components/chat-composer-types.ts',
+  ]) {
+    assert.doesNotMatch(sourcePatch, new RegExp(`diff --git a/${path.replaceAll('.', '\\.')}`, 'u'));
+  }
+  assert.doesNotMatch(sourcePatch, /streamingCollapsed|streaming-composer-toggle/u);
+});
+
 test('Gear Engine uses that host and remains visible in its available width', () => {
   const gearSource = read(join(repoOpenClaw, 'widgets', 'gear-engine', 'src', 'control-ui.ts'));
   const gearView = read(join(repoOpenClaw, 'widgets', 'gear-engine', 'src', 'gear-view.ts'));
