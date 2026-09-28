@@ -80,6 +80,39 @@ function sha256(path) {
   return createHash('sha256').update(readFileSync(path)).digest('hex');
 }
 
+function hostBuildId(root) {
+  try {
+    const buildInfo = JSON.parse(readFileSync(join(root, 'dist', 'build-info.json'), 'utf8'));
+    if (
+      buildInfo.version !== HOST_VERSION
+      || typeof buildInfo.buildId !== 'string'
+      || !/^[a-zA-Z0-9._-]{1,96}$/.test(buildInfo.buildId)
+    ) {
+      throw new Error('invalid build identity');
+    }
+    return buildInfo.buildId;
+  } catch {
+    throw new Error('Could not verify the installed Gateway build identity. No files were changed.');
+  }
+}
+
+function controlUiBuildId(indexPath) {
+  try {
+    const html = readFileSync(indexPath, 'utf8');
+    const publicBuildId = /data-openclaw-control-ui-build-id=["']([^"']+)["']/.exec(html)?.[1];
+    return publicBuildId?.match(/^([a-zA-Z0-9._-]{1,96})-[a-f0-9]{64}$/)?.[1] || null;
+  } catch {
+    return null;
+  }
+}
+
+function requireMatchingUiBuild(indexPath, expectedBuildId, label) {
+  const actualBuildId = controlUiBuildId(indexPath);
+  if (actualBuildId !== expectedBuildId) {
+    throw new Error(`${label} does not match this Gateway build (${actualBuildId || 'unknown'}; expected ${expectedBuildId}). No files were changed.`);
+  }
+}
+
 function resolvePayloadArchive(payloadRoot, payloadManifest, temporaryArchive) {
   if (payloadManifest.schema === 1) {
     const archive = join(payloadRoot, payloadManifest.archive);
@@ -126,7 +159,7 @@ function atomicJson(path, value) {
   renameSync(temporary, path);
 }
 
-function verifyExtracted(stage, payloadManifest) {
+function verifyExtracted(stage, payloadManifest, expectedBuildId) {
   for (const name of ['index.html', 'asset-manifest.json', 'sw.js']) {
     if (!existsSync(join(stage, name))) throw new Error(`Streaming Mode payload is missing ${name}.`);
   }
@@ -137,6 +170,7 @@ function verifyExtracted(stage, payloadManifest) {
       throw new Error(`Streaming Mode payload is missing a manifest asset: ${asset?.path ?? 'unknown'}.`);
     }
   }
+  requireMatchingUiBuild(join(stage, 'index.html'), expectedBuildId, 'The Streaming Mode payload');
   atomicJson(join(stage, 'streaming-mode-build.json'), payloadManifest);
 }
 
@@ -177,6 +211,7 @@ export function install({
   }
 
   const target = join(root, 'dist', 'control-ui');
+  const expectedBuildId = hostBuildId(root);
   const statePath = join(stateDir, 'streaming-mode-installer.json');
   const backup = join(stateDir, 'streaming-mode-original-control-ui');
   const marker = join(target, 'streaming-mode-build.json');
@@ -187,14 +222,21 @@ export function install({
 
   if (action === 'status') {
     const active = existsSync(marker);
-    log(active ? `Streaming Mode is installed for OpenClaw ${HOST_VERSION}.` : 'Streaming Mode is not active.');
-    return { active, state };
+    const installedBuildId = controlUiBuildId(join(target, 'index.html'));
+    const healthy = installedBuildId === expectedBuildId;
+    log(active
+      ? `Streaming Mode is installed for OpenClaw ${HOST_VERSION}; build identity ${healthy ? 'matches' : 'DOES NOT MATCH'} the Gateway.`
+      : `Streaming Mode is not active; Control UI build identity ${healthy ? 'matches' : 'DOES NOT MATCH'} the Gateway.`);
+    return { active, healthy, expectedBuildId, installedBuildId, state };
   }
 
   if (!existsSync(join(target, 'index.html'))) {
     throw new Error(`OpenClaw Control UI was not found at ${target}. No files were changed.`);
   }
   accessSync(dirname(target), constants.W_OK);
+  if (state && existsSync(backup)) {
+    requireMatchingUiBuild(join(backup, 'index.html'), expectedBuildId, 'The saved original Control UI');
+  }
 
   const stage = `${target}.streaming-mode-stage-${process.pid}`;
   const temporaryArchive = `${target}.streaming-mode-payload-${process.pid}.tar.gz`;
@@ -204,6 +246,7 @@ export function install({
     if (action === 'rollback') {
       if (!state || !existsSync(backup)) throw new Error(`No tracked backup is available at ${backup}.`);
       if (!existsSync(marker)) throw new Error('Streaming Mode is not the active Control UI; refusing to overwrite the current UI.');
+      requireMatchingUiBuild(join(backup, 'index.html'), expectedBuildId, 'The saved original Control UI');
       log('Restoring the original Control UI. This can take a couple more minutes. Please do not interrupt it.');
       cpSync(backup, stage, { recursive: true, errorOnExist: true });
       swapDirectory(target, stage);
@@ -214,7 +257,12 @@ export function install({
 
     const payloadManifestPath = join(payloadRoot, 'manifest.json');
     const payloadManifest = JSON.parse(readFileSync(payloadManifestPath, 'utf8'));
-    if (![1, 2].includes(payloadManifest.schema) || payloadManifest.id !== ID || payloadManifest.hostVersion !== HOST_VERSION) {
+    if (
+      ![1, 2].includes(payloadManifest.schema)
+      || payloadManifest.id !== ID
+      || payloadManifest.hostVersion !== HOST_VERSION
+      || payloadManifest.gatewayBuildId !== expectedBuildId
+    ) {
       throw new Error('Unexpected Streaming Mode payload manifest.');
     }
     const archive = resolvePayloadArchive(payloadRoot, payloadManifest, temporaryArchive);
@@ -223,16 +271,18 @@ export function install({
     mkdirSync(stage, { recursive: true });
     const extracted = run('tar', ['-xzf', archive, '-C', stage]);
     if (extracted.status !== 0) throw new Error('Could not extract the Streaming Mode payload. No files were changed.');
-    verifyExtracted(stage, payloadManifest);
+    verifyExtracted(stage, payloadManifest, expectedBuildId);
 
     if (!state) {
       if (existsSync(backup)) throw new Error(`An untracked backup already exists at ${backup}.`);
+      requireMatchingUiBuild(join(target, 'index.html'), expectedBuildId, 'The current Control UI');
       cpSync(target, backup, { recursive: true, errorOnExist: true });
       atomicJson(statePath, {
         schema: 1,
         id: ID,
         root,
         hostVersion: HOST_VERSION,
+        gatewayBuildId: expectedBuildId,
         backup,
         status: 'prepared',
         createdAt: new Date().toISOString(),

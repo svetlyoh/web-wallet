@@ -7,7 +7,16 @@ import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { HOST_VERSION, ID, install } from './install.mjs';
 
-function fixture(t, { version = HOST_VERSION, badChecksum = false, chunked = false } = {}) {
+const BUILD_ID = 'fixture-build';
+const publicBuildId = (buildId) => `${buildId}-${'a'.repeat(64)}`;
+const index = (buildId, body) => `<html data-openclaw-control-ui-build-id="${publicBuildId(buildId)}"><body>${body}</body></html>`;
+
+function fixture(t, {
+  version = HOST_VERSION,
+  badChecksum = false,
+  chunked = false,
+  payloadBuildId = BUILD_ID,
+} = {}) {
   const temp = mkdtempSync(join(tmpdir(), 'streaming-mode-installer-'));
   t.after(() => rmSync(temp, { recursive: true, force: true }));
   const root = join(temp, 'openclaw');
@@ -19,9 +28,10 @@ function fixture(t, { version = HOST_VERSION, badChecksum = false, chunked = fal
   mkdirSync(payloadRoot, { recursive: true });
   mkdirSync(payloadFiles, { recursive: true });
   writeFileSync(join(root, 'package.json'), JSON.stringify({ name: 'openclaw', version }));
-  writeFileSync(join(target, 'index.html'), 'original');
+  writeFileSync(join(root, 'dist', 'build-info.json'), JSON.stringify({ version, buildId: BUILD_ID }));
+  writeFileSync(join(target, 'index.html'), index(BUILD_ID, 'original'));
   writeFileSync(join(target, 'original.txt'), 'keep me');
-  writeFileSync(join(payloadFiles, 'index.html'), 'streaming');
+  writeFileSync(join(payloadFiles, 'index.html'), index(payloadBuildId, 'streaming'));
   writeFileSync(join(payloadFiles, 'asset-manifest.json'), JSON.stringify({ version: 1, assets: [] }));
   writeFileSync(join(payloadFiles, 'sw.js'), 'self.skipWaiting()');
   const archive = join(payloadRoot, 'control-ui.tar.gz');
@@ -32,6 +42,7 @@ function fixture(t, { version = HOST_VERSION, badChecksum = false, chunked = fal
     schema: 1,
     id: ID,
     hostVersion: HOST_VERSION,
+    gatewayBuildId: payloadBuildId,
     archive: 'control-ui.tar.gz',
     sha256: badChecksum ? '0'.repeat(64) : digest,
     sourceCommit: 'fixture',
@@ -60,10 +71,10 @@ function fixture(t, { version = HOST_VERSION, badChecksum = false, chunked = fal
 test('installs, records the marker, and restores the original UI', (t) => {
   const f = fixture(t);
   assert.equal(f.invoke().status, 'installed');
-  assert.equal(readFileSync(join(f.target, 'index.html'), 'utf8'), 'streaming');
+  assert.match(readFileSync(join(f.target, 'index.html'), 'utf8'), /streaming/);
   assert.equal(JSON.parse(readFileSync(join(f.target, 'streaming-mode-build.json'), 'utf8')).id, ID);
   assert.equal(f.invoke('rollback').status, 'rolled-back');
-  assert.equal(readFileSync(join(f.target, 'index.html'), 'utf8'), 'original');
+  assert.match(readFileSync(join(f.target, 'index.html'), 'utf8'), /original/);
   assert.equal(readFileSync(join(f.target, 'original.txt'), 'utf8'), 'keep me');
 });
 
@@ -72,25 +83,31 @@ test('repeat install preserves the first original backup', (t) => {
   f.invoke();
   f.invoke();
   f.invoke('rollback');
-  assert.equal(readFileSync(join(f.target, 'index.html'), 'utf8'), 'original');
+  assert.match(readFileSync(join(f.target, 'index.html'), 'utf8'), /original/);
 });
 
 test('installs a payload split into individually verified ClawHub-sized chunks', (t) => {
   const f = fixture(t, { chunked: true });
   assert.equal(f.invoke().status, 'installed');
-  assert.equal(readFileSync(join(f.target, 'index.html'), 'utf8'), 'streaming');
+  assert.match(readFileSync(join(f.target, 'index.html'), 'utf8'), /streaming/);
 });
 
 test('rejects another OpenClaw version before changing the UI', (t) => {
   const f = fixture(t, { version: '2026.9.5' });
   assert.throws(() => f.invoke(), /requires OpenClaw/);
-  assert.equal(readFileSync(join(f.target, 'index.html'), 'utf8'), 'original');
+  assert.match(readFileSync(join(f.target, 'index.html'), 'utf8'), /original/);
 });
 
 test('rejects a bad payload checksum before making a backup', (t) => {
   const f = fixture(t, { badChecksum: true });
   assert.throws(() => f.invoke(), /checksum/);
-  assert.equal(readFileSync(join(f.target, 'index.html'), 'utf8'), 'original');
+  assert.match(readFileSync(join(f.target, 'index.html'), 'utf8'), /original/);
+});
+
+test('rejects a payload built for another Gateway identity before making a backup', (t) => {
+  const f = fixture(t, { payloadBuildId: 'another-build' });
+  assert.throws(() => f.invoke(), /payload manifest/);
+  assert.match(readFileSync(join(f.target, 'index.html'), 'utf8'), /original/);
 });
 
 test('refuses rollback when another UI replaced the installed payload', (t) => {

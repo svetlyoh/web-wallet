@@ -2,35 +2,36 @@
   "schema": 2,
   "id": "openclaw-streaming-mode",
   "hostVersion": "2026.9.6",
+  "gatewayBuildId": "2026.9.6-release-eb377ac59e6c-2026-09-23T16-33-12.144Z",
   "sourceCommit": "eb377ac59e6c9fd6c7705028034812becf00271b",
   "archive": "control-ui.tar.gz",
-  "sha256": "1fae95fe79e1b1dd0b0dc26a3502e9358dbe09587611a59998e1fcc4812c6dcd",
+  "sha256": "1bcceef33af1a8993afc316e57d8bdc49ed8a2404abc70e843a7a3b504b9233e",
   "builtAt": "2026-09-27",
   "chunks": [
     {
       "file": "control-ui.tar.gz.part-001",
       "size": 8000000,
-      "sha256": "21767477b4a78cec7cd6200c67a4734544d1c6861323881c12be3aa2c0590277"
+      "sha256": "1d2571c5e029eee663d8054b6fc102c5903711d10963a65e8486d75add3a05a8"
     },
     {
       "file": "control-ui.tar.gz.part-002",
       "size": 8000000,
-      "sha256": "5ce2e7a84d01440e686aa6d5e257dbd14c5db08486a1ffcc5e4151eb694c192d"
+      "sha256": "49a6f65ac0c6b2d1d9f34019d67dd1dfe61cd23a1940e8c339d5c84eb8e8d42c"
     },
     {
       "file": "control-ui.tar.gz.part-003",
       "size": 8000000,
-      "sha256": "9b036612ccfab6adf06ce876ba15ce0c87ee88d6050c13a1f92e56430db454f5"
+      "sha256": "063ca034686e23d5fa0e6ccc72aa69e562ed47d96f38ea66ead6689f8e8f2fc8"
     },
     {
       "file": "control-ui.tar.gz.part-004",
       "size": 8000000,
-      "sha256": "df8b66a818deb652b493cb91ea3ca16066c20a8b6ea1d996730d98e163adf5b1"
+      "sha256": "ffca2bba8c95416c22c0ff74c4d6fa0017b252600043ea80a318e0c0850bcf79"
     },
     {
       "file": "control-ui.tar.gz.part-005",
-      "size": 5754200,
-      "sha256": "c080a58eab5e373e5ae800a8e36d78ef026fb32e3095c1507ab7f75f16a29818"
+      "size": 5754264,
+      "sha256": "a26cc38155a2b9db273b55375a24314815f7f69c33fa09398964fc87b107e573"
     }
   ]
 }
