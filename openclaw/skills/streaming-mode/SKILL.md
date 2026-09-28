@@ -24,7 +24,7 @@ metadata:
 
 Use this skill when the user asks to install, update, check, troubleshoot, or roll back Streaming Mode. It replaces only the installed OpenClaw 2026.9.6 Control UI directory and keeps the first original UI as a rollback backup.
 
-Streaming Mode expands the transcript and composer across almost the full browser width, leaving only a small responsive edge gutter. It also increases transcript text to at least 18 px with 1.6 line spacing.
+Streaming Mode expands the transcript and composer across almost the full browser width, leaving only a small responsive edge gutter. It uses a responsive 24–32 px size for model responses, including tables and code; 22–24 px composer text; and larger top and bottom command controls for OBS streams viewed on phones.
 
 ## Safety and compatibility
 

@@ -1,6 +1,6 @@
 # OpenClaw Streaming Mode
 
-An optional Control UI view for OBS and video streaming. It gives the conversation almost the full browser width with a small responsive edge gutter, and increases transcript text to at least 18 px with 1.6 line spacing. The standard OpenClaw composer and plugin controls remain unchanged. The setting is off by default and is remembered in that browser.
+An optional Control UI view for OBS and video streaming. It gives the conversation almost the full browser width with a small responsive edge gutter. Model responses use a responsive 24–32 px reading size, including lists, tables, receipts, and code. The composer uses 22–24 px text, and its top and bottom commands use 16–20 px labels with larger controls. The standard OpenClaw composer and plugin behavior remain unchanged. The setting is off by default and is remembered in that browser.
 
 Compatible host: **OpenClaw 2026.9.6** (source `eb377ac59e6c9fd6c7705028034812becf00271b`). The installer stops before changing files on any other version and never upgrades OpenClaw.
 
@@ -75,13 +75,15 @@ Streaming Mode 1.0.4 removes the 60-character transcript and composer width cap.
 
 Streaming Mode 1.0.5 replaces the installer's shell process calls with validated Node.js path discovery and an in-process, path-safe tar extractor. This preserves normal global OpenClaw discovery while satisfying ClawHub's process-execution security rule.
 
+Streaming Mode 1.0.6 adds stream-scale typography for 16:9 OBS capture. Model prose, lists, tables, receipts, and code now share one readable response scale; the message editor and model, effort, permission, search, and exit controls are enlarged as well. Responsive floors preserve readability on a phone-sized viewport, while short capture windows retain OpenClaw's bounded composer behavior.
+
 ## Why this is a patch
 
 OpenClaw 2026.9.6 plugins can add a session-header accessory, but they cannot replace the whole application shell, sidebar, or composer. A skill also cannot change browser layout. The repository therefore ships a version-locked, prebuilt Control UI patch with a backup, checksum, repeatable update command, and rollback.
 
 ## Verification
 
-The source patch and QA evidence are in `source/` and `qa/`. Automated checks cover preference persistence and unavailable browser storage, editable composer behavior before/during/after the mode, normal-mode restoration, 1280×720, 800×400, 390×844, and the Gear Engine compatibility contract: native accessory host, `session-header` placement, and responsive gear sizing.
+The source patch and QA evidence are in `source/` and `qa/`. Automated checks cover preference persistence and unavailable browser storage, editable composer behavior before/during/after the mode, normal-mode restoration, 1280×720, 800×400, 390×844, computed font sizes for response text, tables, code, composer text, and controls, plus the Gear Engine compatibility contract: native accessory host, `session-header` placement, and responsive gear sizing.
 
 Installer tests:
 
