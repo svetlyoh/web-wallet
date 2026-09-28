@@ -73,6 +73,8 @@ Streaming Mode 1.0.3 removes the earlier composer state and global mobile-naviga
 
 Streaming Mode 1.0.4 removes the 60-character transcript and composer width cap. Streaming Mode now uses almost the full browser width with a small responsive edge gutter; the Chromium test requires both the transcript and composer to occupy more than 90% of a desktop viewport.
 
+Streaming Mode 1.0.5 replaces the installer's shell process calls with validated Node.js path discovery and an in-process, path-safe tar extractor. This preserves normal global OpenClaw discovery while satisfying ClawHub's process-execution security rule.
+
 ## Why this is a patch
 
 OpenClaw 2026.9.6 plugins can add a session-header accessory, but they cannot replace the whole application shell, sidebar, or composer. A skill also cannot change browser layout. The repository therefore ships a version-locked, prebuilt Control UI patch with a backup, checksum, repeatable update command, and rollback.

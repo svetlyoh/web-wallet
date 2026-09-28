@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
   accessSync,
@@ -16,21 +15,14 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { homedir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import { delimiter, dirname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { gunzipSync } from 'node:zlib';
 
 export const ID = 'openclaw-streaming-mode';
 export const HOST_VERSION = '2026.9.6';
 const here = dirname(fileURLToPath(import.meta.url));
 const packageDir = resolve(here, '..');
-
-function command(commandName, args) {
-  return spawnSync(commandName, args, {
-    encoding: 'utf8',
-    timeout: 120_000,
-    env: { ...process.env, NO_COLOR: '1' },
-  });
-}
 
 function packageAt(candidate) {
   try {
@@ -54,26 +46,137 @@ function ancestors(start) {
   return rows;
 }
 
-export function findOpenClawRoot({ env = process.env, run = command } = {}) {
+export function findOpenClawRoot({ env = process.env } = {}) {
   const candidates = [];
   if (env.OPENCLAW_INSTALL_ROOT) candidates.push(env.OPENCLAW_INSTALL_ROOT);
 
-  const which = run('sh', ['-lc', 'command -v openclaw']);
-  if (which.status === 0 && which.stdout.trim()) {
-    const executable = realpathSync(which.stdout.trim());
-    candidates.push(...ancestors(dirname(executable)));
+  for (const directory of (env.PATH || '').split(delimiter).filter(Boolean)) {
+    const executable = join(directory, 'openclaw');
+    if (!existsSync(executable)) continue;
+    try {
+      candidates.push(...ancestors(dirname(realpathSync(executable))));
+    } catch {
+      // Ignore stale or unreadable PATH entries.
+    }
   }
 
-  const npmRoot = run('npm', ['root', '-g']);
-  if (npmRoot.status === 0 && npmRoot.stdout.trim()) {
-    candidates.push(join(npmRoot.stdout.trim(), 'openclaw'));
+  for (const nodePath of (env.NODE_PATH || '').split(delimiter).filter(Boolean)) {
+    candidates.push(join(nodePath, 'openclaw'));
   }
+  candidates.push(
+    resolve(dirname(process.execPath), '..', 'lib', 'node_modules', 'openclaw'),
+    join(homedir(), '.local', 'lib', 'node_modules', 'openclaw'),
+    '/usr/local/lib/node_modules/openclaw',
+    '/usr/lib/node_modules/openclaw',
+  );
 
   for (const candidate of candidates) {
     const found = packageAt(candidate);
     if (found) return found;
   }
   throw new Error('Could not locate the OpenClaw package. Set OPENCLAW_INSTALL_ROOT to the folder containing its package.json.');
+}
+
+function tarString(header, offset, length) {
+  const end = header.indexOf(0, offset);
+  return header.subarray(offset, end >= offset && end < offset + length ? end : offset + length)
+    .toString('utf8')
+    .trim();
+}
+
+function tarNumber(header, offset, length) {
+  const value = tarString(header, offset, length).replace(/^0+/, '') || '0';
+  if (!/^[0-7]+$/.test(value)) throw new Error('Streaming Mode payload contains an invalid tar size.');
+  return Number.parseInt(value, 8);
+}
+
+function verifyTarChecksum(header) {
+  const expected = tarNumber(header, 148, 8);
+  let actual = 0;
+  for (let index = 0; index < header.length; index += 1) {
+    actual += index >= 148 && index < 156 ? 32 : header[index];
+  }
+  if (actual !== expected) throw new Error('Streaming Mode payload contains an invalid tar header checksum.');
+}
+
+function paxPath(data) {
+  let cursor = 0;
+  let path = null;
+  while (cursor < data.length) {
+    const space = data.indexOf(32, cursor);
+    if (space < 0) throw new Error('Streaming Mode payload contains invalid tar metadata.');
+    const length = Number.parseInt(data.subarray(cursor, space).toString('ascii'), 10);
+    if (!Number.isSafeInteger(length) || length < 4 || cursor + length > data.length) {
+      throw new Error('Streaming Mode payload contains invalid tar metadata.');
+    }
+    const record = data.subarray(space + 1, cursor + length - 1).toString('utf8');
+    const separator = record.indexOf('=');
+    if (separator > 0 && record.slice(0, separator) === 'path') path = record.slice(separator + 1);
+    cursor += length;
+  }
+  return path;
+}
+
+function safeArchivePath(destination, archivePath) {
+  if (!archivePath || archivePath.includes('\\') || archivePath.startsWith('/')) {
+    throw new Error('Streaming Mode payload contains an unsafe path.');
+  }
+  const parts = archivePath.split('/').filter((part) => part && part !== '.');
+  if (parts.length === 0) return destination;
+  if (parts.some((part) => part === '..' || part.includes('\0'))) {
+    throw new Error('Streaming Mode payload contains an unsafe path.');
+  }
+  const output = resolve(destination, ...parts);
+  const rootPrefix = resolve(destination).replace(/[\\/]+$/u, '') + sep;
+  if (output !== resolve(destination) && !output.startsWith(rootPrefix)) {
+    throw new Error('Streaming Mode payload contains an unsafe path.');
+  }
+  return output;
+}
+
+function extractPayload(archive, destination) {
+  const tar = gunzipSync(readFileSync(archive));
+  let offset = 0;
+  let pendingPath = null;
+  while (offset + 512 <= tar.length) {
+    const header = tar.subarray(offset, offset + 512);
+    if (header.every((byte) => byte === 0)) return;
+    verifyTarChecksum(header);
+    if (tarString(header, 257, 6) !== 'ustar') {
+      throw new Error('Streaming Mode payload is not a supported ustar archive.');
+    }
+    const size = tarNumber(header, 124, 12);
+    const dataStart = offset + 512;
+    const dataEnd = dataStart + size;
+    if (!Number.isSafeInteger(size) || dataEnd > tar.length) {
+      throw new Error('Streaming Mode payload tar entry is truncated.');
+    }
+    const type = String.fromCharCode(header[156] || 48);
+    const name = tarString(header, 0, 100);
+    const prefix = tarString(header, 345, 155);
+    const headerPath = prefix ? `${prefix}/${name}` : name;
+
+    if (type === 'x') {
+      pendingPath = paxPath(tar.subarray(dataStart, dataEnd)) || pendingPath;
+    } else if (type === 'L') {
+      pendingPath = tar.subarray(dataStart, dataEnd).toString('utf8').replace(/\0.*$/su, '').trim();
+    } else if (type === 'g') {
+      // Global PAX metadata does not name an extracted entry.
+    } else {
+      const output = safeArchivePath(destination, pendingPath || headerPath);
+      pendingPath = null;
+      if (type === '5') {
+        mkdirSync(output, { recursive: true });
+      } else if (type === '0') {
+        mkdirSync(dirname(output), { recursive: true });
+        writeFileSync(output, tar.subarray(dataStart, dataEnd));
+      } else {
+        throw new Error(`Streaming Mode payload contains unsupported tar entry type ${type}.`);
+      }
+    }
+    offset = dataStart + Math.ceil(size / 512) * 512;
+  }
+  throw new Error('Streaming Mode payload tar archive is incomplete.');
 }
 
 function sha256(path) {
@@ -191,23 +294,17 @@ export function install({
   root: suppliedRoot,
   stateDir = process.env.OPENCLAW_STATE_DIR || join(homedir(), '.openclaw'),
   payloadRoot = join(packageDir, 'payload'),
-  run = command,
   log = console.log,
 } = {}) {
   if (!['install', 'rollback', 'status'].includes(action)) {
     throw new Error('Usage: node scripts/install.mjs [install|rollback|status]');
   }
 
-  const found = suppliedRoot ? packageAt(suppliedRoot) : findOpenClawRoot({ run });
+  const found = suppliedRoot ? packageAt(suppliedRoot) : findOpenClawRoot();
   if (!found) throw new Error('OPENCLAW_INSTALL_ROOT is not an OpenClaw package directory.');
   const { root, manifest: hostManifest } = found;
   if (hostManifest.version !== HOST_VERSION) {
     throw new Error(`This release requires OpenClaw ${HOST_VERSION}; found ${hostManifest.version}. No files were changed.`);
-  }
-
-  const cliVersion = run('openclaw', ['--version']);
-  if (cliVersion.status !== 0 || !new RegExp(`(?:^|\\s)${HOST_VERSION.replaceAll('.', '\\.')}(?:$|\\s|\\()`).test(cliVersion.stdout)) {
-    throw new Error('The openclaw command on PATH does not match the package selected for installation. No files were changed.');
   }
 
   const target = join(root, 'dist', 'control-ui');
@@ -269,8 +366,7 @@ export function install({
 
     log('Preparing the Control UI backup and verified Streaming Mode payload. This can take a couple more minutes. Please do not interrupt it.');
     mkdirSync(stage, { recursive: true });
-    const extracted = run('tar', ['-xzf', archive, '-C', stage]);
-    if (extracted.status !== 0) throw new Error('Could not extract the Streaming Mode payload. No files were changed.');
+    extractPayload(archive, stage);
     verifyExtracted(stage, payloadManifest, expectedBuildId);
 
     if (!state) {
