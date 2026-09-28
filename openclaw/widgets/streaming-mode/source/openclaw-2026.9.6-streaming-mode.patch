@@ -246,10 +246,10 @@ index b5ce210f..32273d3d 100644
                  class="topbar-search"
 diff --git a/ui/src/e2e/streaming-mode.e2e.test.ts b/ui/src/e2e/streaming-mode.e2e.test.ts
 new file mode 100644
-index 00000000..2ca726c1
+index 00000000..c5b406eb
 --- /dev/null
 +++ b/ui/src/e2e/streaming-mode.e2e.test.ts
-@@ -0,0 +1,150 @@
+@@ -0,0 +1,180 @@
 +import path from "node:path";
 +import { expect, it } from "vitest";
 +import { installMockGateway } from "../test-helpers/control-ui-e2e.ts";
@@ -313,7 +313,15 @@ index 00000000..2ca726c1
 +          probe.innerHTML = `
 +            <p>Streaming readability check for model responses.</p>
 +            <table><tbody><tr><td>Receipt text</td><td>Readable</td></tr></tbody></table>
-+            <pre><code>message_id: example</code></pre>
++            <div class="code-block-wrapper">
++              <div class="code-block-viewport">
++                <pre><code class="markdown-block-art">type:          lingry.word coined
++candidate:     cand_W63753d4dcde24fdda1a88d369a8600
++word:          spooklump
++status:        pending (in mempool, awaiting confirmation)
++irreversible:  true</code></pre>
++              </div>
++            </div>
 +          `;
 +          thread.append(probe);
 +        });
@@ -343,22 +351,36 @@ index 00000000..2ca726c1
 +            }
 +            return Number.parseFloat(getComputedStyle(element).fontSize);
 +          };
++          const code = document.querySelector<HTMLElement>(
++            '[data-streaming-typography-probe="true"] pre code',
++          );
++          if (!code) {
++            throw new Error("Missing streaming code probe");
++          }
++          const codeStyle = getComputedStyle(code);
 +          return {
 +            composer: size(".agent-chat__composer-combobox textarea"),
 +            response: size('[data-streaming-typography-probe="true"]'),
 +            table: size('[data-streaming-typography-probe="true"] table'),
-+            code: size('[data-streaming-typography-probe="true"] pre code'),
++            code: Number.parseFloat(codeStyle.fontSize),
++            codeLineHeight: Number.parseFloat(codeStyle.lineHeight),
 +            topCommand: size(".topbar-streaming-toggle"),
 +            bottomCommand: size(".chat-controls__inline-select-trigger"),
 +          };
 +        });
 +        expect(typography.response).toBeGreaterThanOrEqual(24);
 +        expect(typography.table).toBe(typography.response);
-+        expect(typography.code).toBe(typography.response);
++        expect(typography.code).toBeGreaterThanOrEqual(20);
++        expect(typography.code).toBeLessThanOrEqual(24);
++        expect(typography.codeLineHeight / typography.code).toBeGreaterThanOrEqual(1.39);
 +        expect(typography.composer).toBeGreaterThanOrEqual(24);
 +        expect(typography.topCommand).toBeGreaterThanOrEqual(20);
 +        expect(typography.bottomCommand).toBeGreaterThanOrEqual(18);
 +        await capture(page, "streaming-1280x720.png");
++        await page
++          .locator('[data-streaming-typography-probe="true"] pre code')
++          .scrollIntoViewIfNeeded();
++        await capture(page, "streaming-code-1280x720.png");
 +
 +        await page.setViewportSize({ height: 400, width: 800 });
 +        expect(await composer.isEditable()).toBe(true);
@@ -382,10 +404,18 @@ index 00000000..2ca726c1
 +              document.querySelector<HTMLElement>('[data-streaming-typography-probe="true"]')!,
 +            ).fontSize,
 +          ),
++          code: Number.parseFloat(
++            getComputedStyle(
++              document.querySelector<HTMLElement>(
++                '[data-streaming-typography-probe="true"] pre code',
++              )!,
++            ).fontSize,
++          ),
 +          scrollWidth: document.documentElement.scrollWidth,
 +          viewportWidth: window.innerWidth,
 +        }));
 +        expect(phoneTypography.response).toBeGreaterThanOrEqual(24);
++        expect(phoneTypography.code).toBeGreaterThanOrEqual(20);
 +        expect(phoneTypography.composer).toBeGreaterThanOrEqual(22);
 +        expect(phoneTypography.scrollWidth).toBeLessThanOrEqual(phoneTypography.viewportWidth + 1);
 +        await capture(page, "streaming-phone-390x844.png");
@@ -429,10 +459,10 @@ index 157d2396..f66d764c 100644
  @import "./styles/approval-boot.css";
 diff --git a/ui/src/styles/streaming-mode.css b/ui/src/styles/streaming-mode.css
 new file mode 100644
-index 00000000..9ad645f6
+index 00000000..156daffc
 --- /dev/null
 +++ b/ui/src/styles/streaming-mode.css
-@@ -0,0 +1,183 @@
+@@ -0,0 +1,194 @@
 +/* Streaming Mode changes only shell layout and reading styles. It deliberately
 +   leaves OpenClaw's navigation, overlays, and chat composer behavior untouched. */
 +.sidebar-streaming-toggle,
@@ -449,6 +479,7 @@ index 00000000..9ad645f6
 +.shell--streaming.shell--nav-collapsed {
 +  --shell-topbar-height: 72px;
 +  --streaming-response-text-size: clamp(24px, 1.75vw, 32px);
++  --streaming-code-text-size: clamp(20px, 1.4vw, 24px);
 +  --streaming-control-text-size: 18px;
 +  --shell-nav-width: 0px;
 +  grid-template-columns: minmax(0, 1fr);
@@ -526,12 +557,22 @@ index 00000000..9ad645f6
 +  text-align: start;
 +}
 +
-+/* Markdown tables, inline code, fenced code, and disclosure text have smaller
-+   defaults in the regular UI. In a captured stream they must remain the same
-+   readable size as the surrounding model response. */
-+.shell--streaming .chat-text :where(table, code, pre, pre code, pre code.markdown-block-art),
++/* Tables, inline code, and disclosure text inherit the enlarged response size. */
++.shell--streaming .chat-text :where(table, :not(pre) > code),
 +.shell--streaming .chat-message-disclosure__toggle {
 +  font-size: inherit;
++}
++
++/* Fenced output needs slightly narrower glyphs so identifiers fit, plus a normal
++   line box. OpenClaw's compact block-art default uses 0.86 line spacing, which
++   makes enlarged receipt rows overlap in Streaming Mode. */
++.shell--streaming .code-block-viewport {
++  --code-block-line-height: 1.4;
++}
++
++.shell--streaming .chat-text :where(pre, pre code, pre code.markdown-block-art) {
++  font-size: var(--streaming-code-text-size);
++  line-height: 1.4;
 +}
 +
 +.shell--streaming .chat-message-disclosure__toggle,
