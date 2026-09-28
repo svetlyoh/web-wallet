@@ -38,6 +38,15 @@ function archiveText(archive) {
   }
 }
 
+function archiveFile(archive, entry) {
+  const extracted = spawnSync('tar', ['-xOzf', archive, entry], {
+    encoding: 'utf8',
+    maxBuffer: 1024 * 1024,
+  });
+  assert.equal(extracted.status, 0, extracted.stderr);
+  return extracted.stdout;
+}
+
 test('streaming layout keeps the native session-header accessory host', () => {
   const sourcePatch = read(join(root, 'source', 'openclaw-2026.9.6-streaming-mode.patch'));
 
@@ -49,7 +58,15 @@ test('streaming layout keeps the native session-header accessory host', () => {
   );
   assert.doesNotMatch(sourcePatch, /compact:\s*streamingMode/u);
 
-  const payload = archiveText(join(root, 'payload', 'control-ui.tar.gz'));
+  const archive = join(root, 'payload', 'control-ui.tar.gz');
+  const manifest = JSON.parse(read(join(root, 'payload', 'manifest.json')));
+  const indexHtml = archiveFile(archive, './index.html');
+  assert.match(
+    indexHtml,
+    new RegExp(`data-openclaw-control-ui-build-id=["']${manifest.gatewayBuildId}-[a-f0-9]{64}["']`, 'u'),
+  );
+
+  const payload = archiveText(archive);
   assert.match(payload, /shell--streaming/u);
   assert.match(payload, /session-header/u);
   assert.match(payload, /openclaw-plugin-contributions/u);

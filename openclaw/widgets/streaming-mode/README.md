@@ -14,6 +14,8 @@ openclaw skills install @svetlyoh/streaming-mode
 
 Then ask your OpenClaw agent: **Install Streaming Mode using the streaming-mode skill.** The skill uses its bundled, checksum-verified payload and keeps the original Control UI for rollback. Update the skill later with `openclaw skills update --all`, then ask the agent to install the updated payload.
 
+The installer now verifies the official Gateway build identity in `dist/build-info.json` before changing files and refuses a payload built for a different Gateway artifact.
+
 ### Direct from GitHub
 
 Run this as the Linux account that owns and runs the existing OpenClaw installation, without `sudo`:
@@ -35,6 +37,20 @@ node "${XDG_DATA_HOME:-$HOME/.local/share}/openclaw-streaming-mode-source/opencl
 ```
 
 Then hard-refresh the browser tab. Rollback restores the exact Control UI saved by the first install. The Gateway does not need a restart.
+
+Roll back **before** uninstalling the skill. Removing a skill removes its instructions and bundled installer; it does not modify the already installed OpenClaw application files or delete the rollback backup.
+
+If the skill was already removed, stop the Gateway and recover directly from GitHub:
+
+```bash
+curl -fL https://raw.githubusercontent.com/svetlyoh/web-wallet/master/openclaw/widgets/streaming-mode/scripts/install.mjs -o /tmp/openclaw-streaming-recover.mjs && node /tmp/openclaw-streaming-recover.mjs rollback
+```
+
+Start OpenClaw normally afterward and hard-refresh the browser.
+
+## Fixed restart failure
+
+The original payload carried a generated development build identity. OpenClaw 2026.9.6 accepted its files before restart, but the restarted Gateway compared that identity with the immutable ID in the official npm package and rejected the UI as stale. The corrected payload carries the official `2026.9.6-release-eb377ac59e6c-2026-09-23T16-33-12.144Z` identity, and the installer checks both the manifest and extracted `index.html` before swapping directories.
 
 ## Gear Engine compatibility
 
@@ -60,5 +76,5 @@ Source build reference:
 git clone https://github.com/openclaw/openclaw.git
 git -C openclaw checkout eb377ac59e6c9fd6c7705028034812becf00271b
 git -C openclaw apply /path/to/source/openclaw-2026.9.6-streaming-mode.patch
-pnpm -C openclaw ui:build
+OPENCLAW_CONTROL_UI_BUILD_ID=2026.9.6-release-eb377ac59e6c-2026-09-23T16-33-12.144Z pnpm -C openclaw ui:build
 ```
