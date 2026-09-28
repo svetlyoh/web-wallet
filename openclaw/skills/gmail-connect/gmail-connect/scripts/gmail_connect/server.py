@@ -54,10 +54,10 @@ class Handler(BaseHTTPRequestHandler):
                 self.server.gmail.finish(pending,args.get('code',[''])[0],state)
                 return self.reply(200,'<!doctype html><title>Gmail connected</title><h1>Gmail connected</h1><p>Close this tab and return to the setup wizard. Click Refresh status.</p>','text/html; charset=utf-8')
             except Problem as e:return self.reply(400,'Authorization failed. Return to the setup wizard and reconnect. Check the Desktop client, consent, test user and requested permissions.','text/plain')
-        routes={'/':'index.html','/app.js':'app.js','/style.css':'style.css'}
+        routes={'/':'index.html','/app.js':'app.js','/style.css':'style.css','/guide.css':'guide.css'}
         if p.path in routes:
             filename=routes[p.path]
-            return self.reply(200,(ASSETS/filename).read_bytes(),{'index.html':'text/html; charset=utf-8','app.js':'text/javascript','style.css':'text/css'}[filename])
+            return self.reply(200,(ASSETS/filename).read_bytes(),{'index.html':'text/html; charset=utf-8','app.js':'text/javascript','style.css':'text/css','guide.css':'text/css'}[filename])
         if p.path=='/api/status':
             if not self.authorized():return self.reply(401,{'error':'Open the private setup link printed by the launcher.'})
             return self.reply(200,dict(self.server.gmail.status(),service=service.status()))

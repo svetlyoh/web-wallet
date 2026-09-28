@@ -23,7 +23,7 @@ def export(destination):
             {'name':'GMAIL_CONNECT_HOME','required':False,'description':'Optional private local state directory, outside the skill folder.'}]}}
         head,body=text[4:].split('\n---',1)
         head='\n'.join(line for line in head.splitlines() if not line.startswith('metadata:'))
-        skill.write_text('---\n'+head+'\nversion: 0.1.1\nmetadata: '+json.dumps(metadata,separators=(',',':'))+'\n---'+body)
+        skill.write_text('---\n'+head+'\nversion: 0.1.2\nmetadata: '+json.dumps(metadata,separators=(',',':'))+'\n---'+body)
     except Exception:
         shutil.rmtree(target)
         raise

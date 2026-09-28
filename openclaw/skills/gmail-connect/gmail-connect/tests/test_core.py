@@ -113,6 +113,8 @@ class HTTPTests(unittest.TestCase):
  def test_static_security_headers(self):
   with self.call('/') as r:
    self.assertIn("frame-ancestors 'none'",r.headers['Content-Security-Policy']);self.assertEqual(r.headers['Referrer-Policy'],'no-referrer')
+  with self.call('/guide.css') as r:
+   self.assertEqual(r.headers['Content-Type'],'text/css');self.assertIn(b'details.guide',r.read())
  def test_callback_wrong_state_not_consumed(self):
   self.server.pending={'state':'right'}
   with self.assertRaises(urllib.error.HTTPError):self.call('/oauth/callback?state=wrong&code=secret')

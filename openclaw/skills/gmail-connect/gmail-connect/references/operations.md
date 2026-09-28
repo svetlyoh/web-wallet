@@ -14,7 +14,7 @@
 
 ## 1. Scope and requirements
 
-Release: 0.1.1 preview. Target: Ubuntu 22.04/24.04/26.04 with Python 3.10+, an existing OpenClaw installation, and host execution access under the same Unix account. OpenClaw's latest published release resolved to 2026.9.6 on 2026-09-26. This code uses the Agent Skills folder contract and ordinary host exec, not the gateway plugin API. There was no live OpenClaw or Gmail account available in the build environment, so those platforms remain acceptance-test targets rather than certified configurations.
+Release: 0.1.2 preview. Target: Ubuntu 22.04/24.04/26.04 with Python 3.10+, an existing OpenClaw installation, and host execution access under the same Unix account. OpenClaw's latest published release resolved to 2026.9.6 on 2026-09-26. This code uses the Agent Skills folder contract and ordinary host exec, not the gateway plugin API. There was no live OpenClaw or Gmail account available in the build environment, so those platforms remain acceptance-test targets rather than certified configurations.
 
 This is a working source implementation of the recommended **direct Gmail API** path. Google project and consent configuration stay in the Google website. OAuth uses a Desktop client, PKCE, a short-lived state value, and a loopback callback. No Tailscale, public ingress, Pub/Sub, gog, gcloud, npm packages, Python packages, or OpenClaw configuration changes are required for this mode.
 
@@ -39,7 +39,7 @@ Keep that process alive during setup. This one launcher is the only routine term
 After this skill is actually published, installation becomes:
 
 ```bash
-openclaw skills install @YOUR_CLAWHUB_OWNER/gmail-connect --version 0.1.1
+openclaw skills install @YOUR_CLAWHUB_OWNER/gmail-connect --version 0.1.2
 ```
 
 The owner is a placeholder. No ClawHub listing is claimed to exist.
@@ -137,11 +137,11 @@ After completing the live acceptance gates, sign in to ClawHub and preview the e
 
 ```bash
 clawhub login
-clawhub skill publish ./gmail-connect --slug gmail-connect --name "Gmail Connect" --version 0.1.1 --dry-run
-clawhub skill publish ./gmail-connect --slug gmail-connect --name "Gmail Connect" --version 0.1.1 --changelog "Initial preview of the local Gmail setup wizard"
+clawhub skill publish ./gmail-connect --slug gmail-connect --name "Gmail Connect" --version 0.1.2 --dry-run
+clawhub skill publish ./gmail-connect --slug gmail-connect --name "Gmail Connect" --version 0.1.2 --changelog "Add step-by-step Google project, consent, and verification guidance"
 ```
 
-Check the installed ClawHub CLI help if its command surface differs. Use a slug you own; the example name's availability is not verified. Publishing on ClawHub releases the skill under MIT-0. Keep the preview designation until the Ubuntu/Gmail gates pass. ClawHub's audit is separate from local tests; a local test cannot promise three green indicators. After submission, inspect the security audit, findings, and risk level. If blocked, download the exact report with `clawhub scan download gmail-connect --version 0.1.1 --output report.zip`. Fix genuine findings and publish a new version; never hide needed Gmail scopes to improve a score. Never bundle client JSON, user state, logs, session links, or the supplied user's personal transcript. Exclude bytecode caches and development state. No public listing was created during this build.
+Check the installed ClawHub CLI help if its command surface differs. Use a slug you own; the example name's availability is not verified. Publishing on ClawHub releases the skill under MIT-0. Keep the preview designation until the Ubuntu/Gmail gates pass. ClawHub's audit is separate from local tests; a local test cannot promise three green indicators. After submission, inspect the security audit, findings, and risk level. If blocked, download the exact report with `clawhub scan download gmail-connect --version 0.1.2 --output report.zip`. Fix genuine findings and publish a new version; never hide needed Gmail scopes to improve a score. Never bundle client JSON, user state, logs, session links, or the supplied user's personal transcript. Exclude bytecode caches and development state. No public listing was created during this build.
 
 For upgrades, stop this app's monitor before replacing source files, keep its private state, then relaunch the wizard and enable checks again. Do not move a live service's script path; reinstall its unit through the wizard after moving the skill. The gateway does not need to restart for this service update.
 

@@ -16,7 +16,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-VERSION = '0.1.1'
+VERSION = '0.1.2'
 READ = 'https://www.googleapis.com/auth/gmail.readonly'
 SEND = 'https://www.googleapis.com/auth/gmail.send'
 AUTH = 'https://accounts.google.com/o/oauth2/v2/auth'
