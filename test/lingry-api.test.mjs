@@ -305,14 +305,14 @@ test('starter grant deployment config is enabled with funding limits', () => {
 	assert.doesNotMatch(source, /This funding route has moved/);
 });
 
-test('cron configuration keeps hourly feed refresh and retries historical gaps every 15 minutes', () => {
-	assert.deepEqual(wrangler.triggers.crons, ['0 * * * *', '5,20,35,50 * * * *']);
+test('cron configuration schedules resumable minute batches', () => {
+	assert.deepEqual(wrangler.triggers.crons, ['* * * * *']);
 	const source = fs.readFileSync(new URL('../src/worker.mjs', import.meta.url), 'utf8');
 	assert.match(source, /const LINGRY_BLOCK_SECONDS = 5/);
 	assert.match(source, /const LINGRY_HOURLY_SCAN_BLOCKS = Math\.ceil\(LINGRY_HOURLY_REFRESH_MS \/ \(LINGRY_BLOCK_SECONDS \* 1000\)\)/);
 	assert.match(source, /lastScannedHeight \+ 1/);
 	assert.match(source, /const LINGRY_PUBLIC_INDEX_MAX_BLOCKS_PER_RUN = 1000/);
-	assert.match(source, /startHeight \+ LINGRY_PUBLIC_INDEX_MAX_BLOCKS_PER_RUN - 1/);
+	assert.match(source, /startHeight \+ \(recentMode \? WORKER_LIVE_SCAN_LIMIT : LINGRY_PUBLIC_INDEX_MAX_BLOCKS_PER_RUN\) - 1/);
 	assert.match(source, /Number\(height \|\| 0\) - LINGRY_PUBLIC_INDEX_CONFIRMATION_DEPTH - LINGRY_PUBLIC_INDEX_REORG_OVERLAP_BLOCKS/);
 	assert.match(source, /LINGRY_PUBLIC_INDEX/);
 	assert.match(source, /public_index_latest_snapshot_json/);

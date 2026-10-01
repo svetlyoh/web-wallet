@@ -12,6 +12,7 @@ import {
 	WebhookDO
 } from './lingry-api.mjs';
 import { parseSugarWordPayload } from './lingry-protocol.mjs';
+import { createScanBudget, isScanBudgetError } from './lingry-scan-budget.mjs';
 
 export { ActorDO, FeedDO, LexiconShardDO, WebhookDO };
 
@@ -39,7 +40,7 @@ const LINGRY_PUBLIC_INDEX_REORG_OVERLAP_BLOCKS = 12;
 const LINGRY_PUBLIC_INDEX_STREAM_LIMIT = 500;
 const LINGRY_PUBLIC_INDEX_LEADERBOARD_LIMIT = 100;
 const LINGRY_PUBLIC_INDEX_STALE_MS = 2 * LINGRY_HOURLY_REFRESH_MS;
-const LINGRY_PUBLIC_INDEX_LEASE_MS = 20 * 60 * 1000;
+const LINGRY_PUBLIC_INDEX_LEASE_MS = 2 * 60 * 1000;
 const LINGRY_PUBLIC_INDEX_MAX_BLOCKS_PER_RUN = 1000;
 const LINGRY_PUBLIC_INDEX_RECENT_BLOCKS = 1800;
 const LINGRY_PUBLIC_INDEX_RECOVERY_CRON = '5,20,35,50 * * * *';
@@ -540,18 +541,16 @@ async function setLingryIndexMeta(env, key, value) {
 async function acquirePublicIndexLease(env) {
 	const now = Date.now();
 	const nowIso = new Date(now).toISOString();
-	const expiresAt = await getLingryIndexMeta(env, 'public_index_refresh_lease_expires_at');
-	const expiresMs = Date.parse(expiresAt || '');
-	if (Number.isFinite(expiresMs) && expiresMs > now) {
-		return false;
-	}
+	await ensureLingryIndexMetaDb(env);
+	const expiresAt = new Date(now + LINGRY_PUBLIC_INDEX_LEASE_MS).toISOString();
+	const acquired = await env.LINGRY_DB.prepare(`INSERT INTO lingry_index_meta (key, value, updated_at) VALUES ('public_index_refresh_lease_expires_at', ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at WHERE lingry_index_meta.value <= ?`).bind(expiresAt, nowIso, nowIso).run();
+	if (!acquired.meta?.changes) return null;
 	await setLingryIndexMeta(env, 'public_index_refresh_started_at', nowIso);
-	await setLingryIndexMeta(env, 'public_index_refresh_lease_expires_at', new Date(now + LINGRY_PUBLIC_INDEX_LEASE_MS).toISOString());
-	return true;
+	return expiresAt;
 }
 
-async function releasePublicIndexLease(env) {
-	await setLingryIndexMeta(env, 'public_index_refresh_lease_expires_at', '');
+async function releasePublicIndexLease(env, lease) {
+	await env.LINGRY_DB.prepare("UPDATE lingry_index_meta SET value = '', updated_at = ? WHERE key = 'public_index_refresh_lease_expires_at' AND value = ?").bind(new Date().toISOString(), lease).run();
 }
 
 function sanitizePublicIndexError(error, fallback = 'Lingry public index refresh failed.') {
@@ -1565,14 +1564,16 @@ async function handleClawhubGeneration(request, env) {
 	}
 }
 
-async function fetchSugarJson(path, timeoutMs = 8000) {
+async function fetchSugarJson(path, timeoutMs = 8000, budget = null) {
 	let lastError = null;
 	for (let attempt = 0; attempt < SUGAR_API_RETRIES; attempt++) {
-		for (const base of SUGAR_API_BASES) {
+		const bases = budget?.preferredBase ? [budget.preferredBase, ...SUGAR_API_BASES.filter(base => base !== budget.preferredBase)] : SUGAR_API_BASES;
+		for (const base of bases) {
+			budget?.take();
 			const controller = new AbortController();
 			const timeout = setTimeout(() => controller.abort(), timeoutMs);
 			try {
-				const response = await fetch(base + path, { signal: controller.signal });
+				const response = await fetch(base + path, { signal: controller.signal, redirect: 'manual' });
 				const text = await response.text().catch(() => '');
 				let json = null;
 				try {
@@ -1587,8 +1588,14 @@ async function fetchSugarJson(path, timeoutMs = 8000) {
 					const detail = [statusMessage, apiMessage || bodyMessage || 'Sugarchain API request failed.'].filter(Boolean).join(': ');
 					throw new Error(detail + ' [' + base + path + ']');
 				}
+				if (budget) budget.preferredBase = base;
 				return json.result;
 			} catch (error) {
+				if (isScanBudgetError(error)) throw error;
+				if (budget && /too many subrequests/i.test(error?.message || '')) {
+					error.code = 'scan_budget_exhausted';
+					throw error;
+				}
 				lastError = error && error.name === 'AbortError' ? new Error('Sugarchain API request timed out. [' + base + path + ']') : error;
 			} finally {
 				clearTimeout(timeout);
@@ -2143,13 +2150,14 @@ async function handleFaucetFund(request, env) {
 	}
 }
 
-async function indexSugarTxid(txid, knownBlock = null) {
+async function indexSugarTxid(txid, knownBlock = null, budget = null) {
 	let txInfo;
 	for (let attempt = 0; attempt < SUGAR_TX_LOOKUP_ATTEMPTS; attempt++) {
 		try {
-			txInfo = await fetchSugarJson('/transaction/' + txid);
+			txInfo = await fetchSugarJson('/transaction/' + txid, 8000, budget);
 			break;
 		} catch (error) {
+			if (isScanBudgetError(error)) throw error;
 			if (attempt + 1 === SUGAR_TX_LOOKUP_ATTEMPTS) throw error;
 			await delay(100 * (attempt + 1));
 		}
@@ -2207,16 +2215,17 @@ async function mapWithConcurrency(items, limit, mapper) {
 	return results;
 }
 
-async function fetchSugarBlockByHeight(height) {
-	const block = await fetchSugarJson('/height/' + height + '?offset=0', 10000);
+async function fetchSugarBlockByHeight(height, budget = null) {
+	const block = await fetchSugarJson('/height/' + height + '?offset=0', 8000, budget);
 	const txids = Array.isArray(block.tx) ? block.tx.slice() : [];
 	const txcount = Math.max(txids.length, Number(block.txcount || block.nTx || 0));
 	for (let offset = txids.length; offset < txcount; offset += SUGAR_API_TX_PAGE_SIZE) {
-		const page = await fetchSugarJson('/height/' + height + '?offset=' + offset, 10000);
+		const page = await fetchSugarJson('/height/' + height + '?offset=' + offset, 8000, budget);
 		if (Array.isArray(page.tx)) {
 			txids.push(...page.tx);
 		}
 	}
+	if (!txids.length || uniqueTxids(txids).length < txcount) throw new Error('Sugarchain block transaction list is incomplete.');
 	return {
 		...block,
 		height: block.height != null ? block.height : height,
@@ -2238,6 +2247,7 @@ function normalizeCompleteSugarBlockRange(range, startHeight, endHeight) {
 		if (!String(block && block.hash || '').trim()) {
 			throw new Error('Sugarchain range response contained a block without a hash.');
 		}
+		if (!Array.isArray(block.tx) || !block.tx.length) throw new Error('Sugarchain range contained a block without transaction IDs.');
 		byHeight.set(height, {
 			height,
 			block: { ...block, height, tx: uniqueTxids(Array.isArray(block.tx) ? block.tx : []) }
@@ -2258,8 +2268,8 @@ export async function fetchSugarBlockBatch(startHeight, endHeight, allowHeightFa
 	if (!count) {
 		return { blocks: [], rangeError: null, fallbackUsed: false, complete: true, failedHeight: null };
 	}
-	const fetchRange = options.fetchRange || (async () => fetchSugarJson('/range/' + endHeight + '?offset=' + count, 20000));
-	const fetchHeight = options.fetchHeight || fetchSugarBlockByHeight;
+	const fetchRange = options.fetchRange || (async (start, end) => fetchSugarJson('/range/' + end + '?offset=' + (end - start + 1), 8000, options.budget));
+	const fetchHeight = options.fetchHeight || (height => fetchSugarBlockByHeight(height, options.budget));
 
 	let rangeError = null;
 	for (let attempt = 0; attempt < (options.rangeAttempts || SUGAR_RANGE_VALIDATION_ATTEMPTS); attempt++) {
@@ -2268,6 +2278,7 @@ export async function fetchSugarBlockBatch(startHeight, endHeight, allowHeightFa
 			return { blocks, rangeError: null, fallbackUsed: false, complete: true, failedHeight: null };
 		} catch (error) {
 			rangeError = error;
+			if (isScanBudgetError(error)) return { blocks: [], rangeError, fallbackUsed: false, complete: false, failedHeight: startHeight };
 			if (attempt + 1 < (options.rangeAttempts || SUGAR_RANGE_VALIDATION_ATTEMPTS)) {
 				await delay(100 * (attempt + 1));
 			}
@@ -2282,6 +2293,7 @@ export async function fetchSugarBlockBatch(startHeight, endHeight, allowHeightFa
 			for (let segmentStart = startHeight; segmentStart <= endHeight; segmentStart += SUGAR_RANGE_SPLIT_SIZE) {
 				const segmentEnd = Math.min(endHeight, segmentStart + SUGAR_RANGE_SPLIT_SIZE - 1);
 				parts.push(await fetchSugarBlockBatch(segmentStart, segmentEnd, true, { ...options, skipSplit: true }));
+				if (!parts[parts.length - 1].complete) break;
 			}
 			const blocks = parts.flatMap(part => part.blocks);
 			const failed = blocks.find(item => item.error);
@@ -2290,7 +2302,8 @@ export async function fetchSugarBlockBatch(startHeight, endHeight, allowHeightFa
 				rangeError,
 				fallbackUsed: true,
 				complete: parts.every(part => part.complete),
-				failedHeight: failed ? failed.height : null
+				failedHeight: failed ? failed.height : parts.find(part => !part.complete)?.failedHeight || null,
+				budgetExhausted: parts.some(part => isScanBudgetError(part.rangeError) || part.budgetExhausted)
 			};
 		}
 		const heights = [];
@@ -2308,6 +2321,7 @@ export async function fetchSugarBlockBatch(startHeight, endHeight, allowHeightFa
 					return { height, block };
 				} catch (failure) {
 					error = failure;
+					if (isScanBudgetError(failure)) break;
 					if (attempt + 1 < (options.heightAttempts || SUGAR_HEIGHT_FALLBACK_ATTEMPTS)) {
 						await delay(100 * (attempt + 1));
 					}
@@ -2321,7 +2335,8 @@ export async function fetchSugarBlockBatch(startHeight, endHeight, allowHeightFa
 			rangeError,
 			fallbackUsed: true,
 			complete: !failed,
-			failedHeight: failed ? failed.height : null
+			failedHeight: failed ? failed.height : null,
+			budgetExhausted: blocks.some(item => isScanBudgetError(item.error))
 		};
 	}
 }
@@ -2479,6 +2494,7 @@ export async function scanSugarBlockRange(startHeight, endHeight, options = {}) 
 		indexed_records: 0,
 		fallback_batches: 0,
 		complete: true,
+		yielded: false,
 		highest_contiguous_scanned_height: Number(initialCheckpoint && initialCheckpoint.height || start - 1),
 		highest_contiguous_scanned_hash: String(initialCheckpoint && initialCheckpoint.hash || ''),
 		failed_height: null,
@@ -2494,30 +2510,42 @@ export async function scanSugarBlockRange(startHeight, endHeight, options = {}) 
 	let stop = false;
 	for (let batchStart = start; batchStart <= end && !stop; batchStart += WORKER_RANGE_BATCH_SIZE) {
 		const batchEnd = Math.min(end, batchStart + WORKER_RANGE_BATCH_SIZE - 1);
-		const batch = await fetchSugarBlockBatch(batchStart, batchEnd, true, options.blockFetchOptions || {});
+		const batch = await fetchSugarBlockBatch(batchStart, batchEnd, true, { budget: options.budget, rangeAttempts: options.budget ? 2 : undefined, heightAttempts: options.budget ? 2 : undefined, ...(options.blockFetchOptions || {}) });
 		if (batch.fallbackUsed) {
 			summary.fallback_batches += 1;
 			summary.warnings.push({ start_height: batchStart, end_height: batchEnd, warning: 'Range lookup failed validation; individual height fallback was used.' });
 		}
 		for (const item of batch.blocks || []) {
 			if (item.error) {
+				if (isScanBudgetError(item.error)) { summary.yielded = true; stop = true; break; }
 				summary.failed_height = item.height;
 				summary.failed_range = { start_height: batchStart, end_height: batchEnd };
 				summary.errors.push({ height: item.height, error: item.error.message || 'Block lookup failed.' });
 				stop = true;
 				break;
 			}
-			const block = item.block || {};
+			let block = item.block || {};
+			try {
+				if (Number(block.txcount || block.nTx || 0) > (block.tx || []).length) block = await fetchSugarBlockByHeight(item.height, options.budget);
+			} catch (error) {
+				if (isScanBudgetError(error)) summary.yielded = true;
+				else { summary.failed_height = item.height; summary.errors.push({ height: item.height, error: error.message }); }
+				stop = true; break;
+			}
 			const txids = Array.isArray(block.tx) ? block.tx.slice(1) : [];
+			const cached = txids.length && options.readBlockTransactions ? await options.readBlockTransactions(block) : new Map();
 			const txResults = await mapWithConcurrency(txids, WORKER_TX_LOOKUP_CONCURRENCY, async txid => {
 				try {
-					return { txid, records: await (options.indexTxid || indexSugarTxid)(txid, block) };
+					if (cached.has(txid)) return { txid, records: cached.get(txid) };
+					return { txid, records: await (options.indexTxid || indexSugarTxid)(txid, block, options.budget) };
 				} catch (error) {
 					return { txid, error };
 				}
 			});
 			const failedTx = txResults.find(result => result && result.error);
 			if (failedTx) {
+				if (options.saveBlockTransactions) await options.saveBlockTransactions(block, txResults.filter(result => !result.error && !cached.has(result.txid)));
+				if (isScanBudgetError(failedTx.error)) { summary.yielded = true; stop = true; break; }
 				summary.failed_height = item.height;
 				summary.failed_range = { start_height: batchStart, end_height: batchEnd };
 				summary.errors.push({ height: item.height, txid: failedTx.txid, error: failedTx.error.message || 'Transaction lookup failed.' });
@@ -2530,12 +2558,14 @@ export async function scanSugarBlockRange(startHeight, endHeight, options = {}) 
 				summary.indexed_records += records.length;
 				matches.push(...records);
 			}
+			if (cached.size && options.clearBlockTransactions) await options.clearBlockTransactions(block);
 			summary.scanned_blocks += 1;
 			checkpoint = { height: item.height, hash: String(block.hash || '') };
 			summary.highest_contiguous_scanned_height = item.height;
 			summary.highest_contiguous_scanned_hash = checkpoint.hash;
 		}
 		if (!stop && !batch.complete) {
+			if (isScanBudgetError(batch.rangeError) || batch.budgetExhausted) { summary.yielded = true; stop = true; break; }
 			summary.failed_height = batch.failedHeight || batchStart;
 			summary.failed_range = { start_height: batchStart, end_height: batchEnd };
 			summary.errors.push({ height: summary.failed_height, error: batch.rangeError?.message || 'Block range could not be recovered.' });
@@ -2618,6 +2648,9 @@ export async function buildPublicIndexSnapshot(env, previousSnapshot, scanResult
 			scanned_transactions: Number(scanSummary.scanned_transactions || 0),
 			indexed_records: Number(scanSummary.indexed_records || 0),
 			complete: scanSummary.complete !== false,
+			yielded: Boolean(scanSummary.yielded),
+			upstream_requests: Number(scanSummary.upstream_requests || 0),
+			mode: scanSummary.mode || 'historical',
 			catchup: blocksBehind > 0,
 			blocks_behind: blocksBehind,
 			failed_height: scanSummary.failed_height == null ? null : Number(scanSummary.failed_height),
@@ -2636,41 +2669,51 @@ export async function buildPublicIndexSnapshot(env, previousSnapshot, scanResult
 	};
 }
 
-async function readSafeChainTip() {
-	const info = await fetchSugarJson('/info');
+async function readSafeChainTip(budget = null) {
+	const info = await fetchSugarJson('/info', 8000, budget);
 	const currentHeight = Number(info.blocks || info.headers || 0);
 	return Math.max(0, currentHeight - LINGRY_PUBLIC_INDEX_CONFIRMATION_DEPTH);
 }
 
-async function refreshLingryPublicIndex(env, options = {}) {
-	const includeRecent = options.includeRecent !== false;
+export async function refreshLingryPublicIndex(env, options = {}) {
+	const mode = options.mode || (options.includeRecent === false ? 'recovery' : 'recent');
+	const recentMode = mode === 'recent';
+	const budget = options.budget || createScanBudget();
+	const audit = { id: crypto.randomUUID(), mode, started_at: new Date().toISOString(), status: 'failed', start_height: null, end_height: null, checkpoint_height: null, scanned_blocks: 0, error: '' };
 	if (!(await ensureLingrySocialDb(env))) {
 		throw new Error('Lingry social database is not configured.');
 	}
+	await env.LINGRY_DB.prepare(`CREATE TABLE IF NOT EXISTS lingry_index_runs (run_id TEXT PRIMARY KEY, mode TEXT NOT NULL, started_at TEXT NOT NULL, finished_at TEXT NOT NULL, status TEXT NOT NULL, start_height INTEGER, end_height INTEGER, checkpoint_height INTEGER, scanned_blocks INTEGER NOT NULL, upstream_requests INTEGER NOT NULL, error TEXT NOT NULL)`).run();
+	await env.LINGRY_DB.prepare('CREATE INDEX IF NOT EXISTS idx_lingry_index_runs_started ON lingry_index_runs (started_at DESC)').run();
+	await env.LINGRY_DB.prepare('CREATE TABLE IF NOT EXISTS lingry_index_tx_checks (block_hash TEXT NOT NULL, txid TEXT NOT NULL, records_json TEXT NOT NULL, PRIMARY KEY (block_hash, txid))').run();
 	const acquired = await acquirePublicIndexLease(env);
 	if (!acquired) {
+		audit.status = 'skipped';
+		await recordPublicIndexRun(env, audit, budget);
 		return { skipped: true, reason: 'refresh lease is already active' };
 	}
 	try {
 		const attemptedAt = new Date().toISOString();
 		await setLingryIndexMeta(env, 'public_index_last_attempt_at', attemptedAt);
-		if (!includeRecent) {
+		if (!recentMode) {
 			await setLingryIndexMeta(env, 'public_index_last_recovery_attempt_at', attemptedAt);
 		}
 		const previousSnapshot = await readPublicIndexSnapshot(env).catch(() => null);
 		const previousCheckpoint = previousSnapshot && previousSnapshot.checkpoint || {};
-		const safeTip = await readSafeChainTip();
-		let lastScannedHeight = Number(await getLingryIndexMeta(env, 'public_index_last_scanned_height') || previousCheckpoint.last_scanned_height || 0);
-		let storedHash = await getLingryIndexMeta(env, 'public_index_last_scanned_block_hash') || previousCheckpoint.last_scanned_block_hash || '';
+		const safeTip = await readSafeChainTip(budget);
+		const historicalHeight = Number(await getLingryIndexMeta(env, 'public_index_last_scanned_height') || previousCheckpoint.last_scanned_height || LINGRY_WORD_START_HEIGHT - 1);
+		const historicalHash = await getLingryIndexMeta(env, 'public_index_last_scanned_block_hash') || previousCheckpoint.last_scanned_block_hash || '';
+		let lastScannedHeight = recentMode ? Number(await getLingryIndexMeta(env, 'public_index_recent_last_scanned_height') || Math.max(LINGRY_WORD_START_HEIGHT - 1, safeTip - LINGRY_PUBLIC_INDEX_RECENT_BLOCKS)) : historicalHeight;
+		let storedHash = recentMode ? await getLingryIndexMeta(env, 'public_index_recent_last_scanned_block_hash') || '' : historicalHash;
 		if (lastScannedHeight > 0 && storedHash) {
-			const checkpoint = await fetchSugarBlockByHeight(lastScannedHeight);
+			const checkpoint = await fetchSugarBlockByHeight(lastScannedHeight, budget);
 			if (!checkpoint.hash) {
 				throw new Error('Stored public index checkpoint could not be validated.');
 			}
 			if (checkpoint.hash !== storedHash) {
 				lastScannedHeight = publicIndexRewindHeight(lastScannedHeight);
 				if (lastScannedHeight >= LINGRY_WORD_START_HEIGHT) {
-					const rewindBlock = await fetchSugarBlockByHeight(lastScannedHeight);
+					const rewindBlock = await fetchSugarBlockByHeight(lastScannedHeight, budget);
 					storedHash = String(rewindBlock.hash || '');
 				} else {
 					storedHash = '';
@@ -2681,64 +2724,69 @@ async function refreshLingryPublicIndex(env, options = {}) {
 			lastScannedHeight = LINGRY_WORD_START_HEIGHT - 1;
 			storedHash = '';
 		}
-		if (!includeRecent && lastScannedHeight >= safeTip) {
-			return { skipped: true, reason: 'historical index is caught up' };
-		}
-		// Keep the shared feed current while a historical gap is being repaired.
-		// This window never advances the contiguous historical checkpoint.
-		const recentScan = includeRecent && safeTip - lastScannedHeight > LINGRY_PUBLIC_INDEX_MAX_BLOCKS_PER_RUN
-			? await scanRecentPublicWords(safeTip)
-			: null;
-		if (recentScan) {
-			await persistLingrySocialWords(env, recentScan.records);
-			// Publish verified recent words before historical repair, which can be
-			// delayed by an unreliable upstream height or transaction lookup.
-			const interim = await buildPublicIndexSnapshot(env, previousSnapshot, {
-				checkpoint: { height: lastScannedHeight, hash: storedHash },
-				summary: { start_height: lastScannedHeight + 1, end_height: lastScannedHeight, complete: false }
-			}, safeTip);
-			interim.scan.recent = recentScan.summary;
-			await setLingryIndexMeta(env, 'public_index_last_snapshot_key', await writePublicIndexSnapshot(env, interim));
-		}
 		const startHeight = Math.min(safeTip + 1, lastScannedHeight + 1);
-		const requestedEndHeight = Math.min(safeTip, startHeight + LINGRY_PUBLIC_INDEX_MAX_BLOCKS_PER_RUN - 1);
+		const requestedEndHeight = Math.min(safeTip, startHeight + (recentMode ? WORKER_LIVE_SCAN_LIMIT : LINGRY_PUBLIC_INDEX_MAX_BLOCKS_PER_RUN) - 1);
+		Object.assign(audit, { start_height: startHeight, end_height: requestedEndHeight, checkpoint_height: lastScannedHeight });
 		const scan = await scanSugarBlockRange(startHeight, requestedEndHeight, {
-			initialCheckpoint: { height: lastScannedHeight, hash: storedHash }
+			initialCheckpoint: { height: lastScannedHeight, hash: storedHash }, budget,
+			readBlockTransactions: async block => {
+				const rows = await env.LINGRY_DB.prepare('SELECT txid, records_json FROM lingry_index_tx_checks WHERE block_hash = ?').bind(block.hash).all();
+				return new Map((rows.results || []).map(row => [row.txid, JSON.parse(row.records_json)]));
+			},
+			saveBlockTransactions: async (block, results) => {
+				if (results.length) await env.LINGRY_DB.batch(results.map(result => env.LINGRY_DB.prepare('INSERT OR REPLACE INTO lingry_index_tx_checks (block_hash, txid, records_json) VALUES (?, ?, ?)').bind(block.hash, result.txid, JSON.stringify(result.records))));
+			},
+			clearBlockTransactions: block => env.LINGRY_DB.prepare('DELETE FROM lingry_index_tx_checks WHERE block_hash = ?').bind(block.hash).run()
 		});
 		scan.summary.safe_tip_height = safeTip;
+		scan.summary.upstream_requests = budget.used;
+		scan.summary.mode = mode;
+		Object.assign(audit, { start_height: startHeight, end_height: requestedEndHeight, checkpoint_height: scan.checkpoint.height, scanned_blocks: scan.summary.scanned_blocks });
 		await persistLingrySocialWords(env, scan.records);
-		const snapshot = await buildPublicIndexSnapshot(env, previousSnapshot, scan, safeTip);
-		snapshot.scan.recent = recentScan ? recentScan.summary : previousSnapshot?.scan?.recent || null;
+		if (scan.records.length && env.LINGRY_LEXICON) await reconcileConfirmedAgentCoin(env, scan.records);
+		const snapshot = await buildPublicIndexSnapshot(env, previousSnapshot, recentMode ? { ...scan, checkpoint: { height: historicalHeight, hash: historicalHash } } : scan, safeTip);
+		snapshot.scan.recent = recentMode ? { ...scan.summary, last_scanned_height: scan.checkpoint.height, last_scanned_block_hash: scan.checkpoint.hash, blocks_behind: Math.max(0, safeTip - scan.checkpoint.height), complete: scan.complete && scan.checkpoint.height >= safeTip, scanned_at: snapshot.generated_at } : previousSnapshot?.scan?.recent || null;
 		const snapshotKey = await writePublicIndexSnapshot(env, snapshot);
 		await setLingryIndexMeta(env, 'public_index_last_snapshot_key', snapshotKey);
-		await setLingryIndexMeta(env, 'public_index_last_scanned_height', String(snapshot.checkpoint.last_scanned_height || 0));
-		await setLingryIndexMeta(env, 'public_index_last_scanned_block_hash', snapshot.checkpoint.last_scanned_block_hash || '');
+		const prefix = recentMode ? 'public_index_recent' : 'public_index';
+		await setLingryIndexMeta(env, prefix + '_last_scanned_height', String(scan.checkpoint.height));
+		await setLingryIndexMeta(env, prefix + '_last_scanned_block_hash', scan.checkpoint.hash || '');
 		await setLingryIndexMeta(env, 'public_index_safe_tip_height', String(safeTip));
 		await setLingryIndexMeta(env, 'public_index_blocks_behind', String(snapshot.scan.blocks_behind));
 		await setLingryIndexMeta(env, 'public_index_last_scan_blocks', String(snapshot.scan.scanned_blocks));
 		await setLingryIndexMeta(env, 'public_index_last_scan_records', String(snapshot.scan.indexed_records));
-		await setLingryIndexMeta(env, 'public_index_last_failed_height', scan.summary.failed_height == null ? '' : String(scan.summary.failed_height));
-		await setLingryIndexMeta(env, 'public_index_last_failed_range_start', scan.summary.failed_range ? String(scan.summary.failed_range.start_height) : '');
-		await setLingryIndexMeta(env, 'public_index_last_failed_range_end', scan.summary.failed_range ? String(scan.summary.failed_range.end_height) : '');
-		if (!scan.complete) {
+		await setLingryIndexMeta(env, prefix + '_last_failed_height', scan.summary.failed_height == null ? '' : String(scan.summary.failed_height));
+		await setLingryIndexMeta(env, prefix + '_last_failed_range_start', scan.summary.failed_range ? String(scan.summary.failed_range.start_height) : '');
+		await setLingryIndexMeta(env, prefix + '_last_failed_range_end', scan.summary.failed_range ? String(scan.summary.failed_range.end_height) : '');
+		if (!scan.complete && !scan.summary.yielded) {
 			const gapError = new Error('Lingry public index scan stopped at an unresolved blockchain gap.');
-			gapError.publicIndexSafeMessage = 'Unresolved Sugarchain block at height ' + scan.summary.failed_height + '; checkpoint retained at ' + snapshot.checkpoint.last_scanned_height + '.';
+			gapError.publicIndexSafeMessage = 'Unresolved Sugarchain block at height ' + scan.summary.failed_height + '; checkpoint retained at ' + scan.checkpoint.height + '.';
 			throw gapError;
 		}
-		if (recentScan && !recentScan.summary.complete) {
-			const recentError = new Error('Recent Sugarchain scan incomplete.');
-			recentError.publicIndexSafeMessage = 'Recent Sugarchain scan was incomplete; the public feed may be missing new words.';
-			throw recentError;
-		}
+		audit.status = scan.summary.yielded ? 'yielded' : scan.checkpoint.height >= safeTip ? 'caught_up' : 'progress';
 		await setLingryIndexMeta(env, 'public_index_last_success_at', snapshot.generated_at);
-		await setLingryIndexMeta(env, 'public_index_last_error', '');
+		await setLingryIndexMeta(env, prefix + '_last_error', '');
+		await setLingryIndexMeta(env, 'public_index_last_upstream_requests', String(budget.used));
 		return { ok: true, snapshot_key: snapshotKey, snapshot };
 	} catch (error) {
-		await setLingryIndexMeta(env, 'public_index_last_error', sanitizePublicIndexError(error));
+		if (isScanBudgetError(error)) {
+			audit.status = 'yielded';
+			return { ok: true, yielded: true };
+		}
+		audit.error = sanitizePublicIndexError(error);
+		console.error(JSON.stringify({ service: 'lingry-index-diagnostic', name: error?.name, message: String(error?.message || '').slice(0, 500), stack: String(error?.stack || '').split('\n').slice(1, 5).join('\n') }));
+		await setLingryIndexMeta(env, (recentMode ? 'public_index_recent' : 'public_index') + '_last_error', audit.error);
 		throw error;
 	} finally {
-		await releasePublicIndexLease(env).catch(() => {});
+		await recordPublicIndexRun(env, audit, budget).catch(error => console.error(JSON.stringify({ service: 'lingry-index-audit', error: sanitizePublicIndexError(error) })));
+		await releasePublicIndexLease(env, acquired).catch(() => {});
 	}
+}
+
+async function recordPublicIndexRun(env, audit, budget) {
+	await env.LINGRY_DB.prepare('INSERT INTO lingry_index_runs (run_id, mode, started_at, finished_at, status, start_height, end_height, checkpoint_height, scanned_blocks, upstream_requests, error) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').bind(audit.id, audit.mode, audit.started_at, new Date().toISOString(), audit.status, audit.start_height, audit.end_height, audit.checkpoint_height, audit.scanned_blocks, budget.used, audit.error).run();
+	await env.LINGRY_DB.prepare('DELETE FROM lingry_index_runs WHERE started_at < ?').bind(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()).run();
+	console.log(JSON.stringify({ service: 'lingry-public-index', ...audit, upstream_requests: budget.used }));
 }
 
 async function seedPublicIndexSnapshotFromD1(env) {
@@ -2784,7 +2832,7 @@ function publicSnapshotEnvelope(snapshot, body) {
 async function handlePublicIndexHealth(env) {
 	const snapshot = await readPublicIndexSnapshot(env).catch(() => null);
 	const observedSafeTip = await readSafeChainTip().catch(() => null);
-	const [lastSuccessAt, lastError, lastScannedHeightText, lastScannedHash, safeTipText, blocksBehindText, failedHeight, lastAttemptAt, lastRecoveryAttemptAt] = await Promise.all([
+	const [lastSuccessAt, lastError, lastScannedHeightText, lastScannedHash, safeTipText, blocksBehindText, failedHeight, lastAttemptAt, lastRecoveryAttemptAt, recentError] = await Promise.all([
 		getLingryIndexMeta(env, 'public_index_last_success_at'),
 		getLingryIndexMeta(env, 'public_index_last_error'),
 		getLingryIndexMeta(env, 'public_index_last_scanned_height'),
@@ -2793,7 +2841,8 @@ async function handlePublicIndexHealth(env) {
 		getLingryIndexMeta(env, 'public_index_blocks_behind'),
 		getLingryIndexMeta(env, 'public_index_last_failed_height'),
 		getLingryIndexMeta(env, 'public_index_last_attempt_at'),
-		getLingryIndexMeta(env, 'public_index_last_recovery_attempt_at')
+		getLingryIndexMeta(env, 'public_index_last_recovery_attempt_at'),
+		getLingryIndexMeta(env, 'public_index_recent_last_error')
 	]);
 	const lastScannedHeight = Number(lastScannedHeightText || snapshot?.checkpoint?.last_scanned_height || 0);
 	const recordedSafeTip = Number(safeTipText || snapshot?.checkpoint?.safe_tip_height || 0);
@@ -2801,8 +2850,12 @@ async function handlePublicIndexHealth(env) {
 	const blocksBehind = Math.max(0, Number(blocksBehindText || 0), safeTipHeight - lastScannedHeight);
 	const stale = !snapshot || snapshotStale(snapshot);
 	const checkpointInvalid = lastScannedHeight < 0 || safeTipHeight < lastScannedHeight || (lastScannedHeight > 0 && !lastScannedHash && !snapshot?.checkpoint?.last_scanned_block_hash);
-	const unhealthy = Boolean(lastError || failedHeight || stale || checkpointInvalid || observedSafeTip == null || snapshot?.scan?.recent?.complete === false);
-	const status = unhealthy ? 'unhealthy' : blocksBehind > 0 ? 'catching_up' : 'healthy';
+	const recent = snapshot?.scan?.recent;
+	const recentStale = !recent?.scanned_at || Date.now() - Date.parse(recent.scanned_at) > 15 * 60 * 1000;
+	const unhealthy = Boolean(lastError || recentError || failedHeight || stale || checkpointInvalid || observedSafeTip == null || recentStale || recent?.errors?.length);
+	const status = unhealthy ? 'unhealthy' : blocksBehind > 0 || recent?.blocks_behind > 0 ? 'catching_up' : 'healthy';
+	let lastBatches = [];
+	try { lastBatches = (await env.LINGRY_DB.prepare('SELECT mode, started_at, finished_at, status, start_height, end_height, checkpoint_height, scanned_blocks, upstream_requests, error FROM lingry_index_runs ORDER BY started_at DESC LIMIT 8').all()).results || []; } catch { /* The ledger is created by the first repaired batch. */ }
 	return jsonResponse({
 		ok: !unhealthy,
 		status,
@@ -2811,6 +2864,7 @@ async function handlePublicIndexHealth(env) {
 		last_attempt_at: lastAttemptAt || '',
 		last_recovery_attempt_at: lastRecoveryAttemptAt || '',
 		last_error: lastError || '',
+		recent_error: recentError || '',
 		last_snapshot_at: snapshot?.generated_at || '',
 		last_scanned_height: lastScannedHeight,
 		last_scanned_block_hash: lastScannedHash || snapshot?.checkpoint?.last_scanned_block_hash || '',
@@ -2821,8 +2875,10 @@ async function handlePublicIndexHealth(env) {
 		snapshot_stale: stale,
 		failed_height: failedHeight ? Number(failedHeight) : null,
 		recent_scan: snapshot?.scan?.recent || null,
-		cron_expected_every_minutes: 60,
-		historical_retry_every_minutes: 15
+		last_batches: lastBatches,
+		upstream_request_budget: 32,
+		cron_expected_every_minutes: 5,
+		historical_retry_every_minutes: 1
 	});
 }
 
@@ -3083,10 +3139,12 @@ async function handleTxWord(request, env, txid) {
 }
 
 export async function reconcileConfirmedAgentCoin(env, records) {
-	const result = await confirmLingryChainRecords(env, records);
-	if (!result.confirmed_word_ids.length || !env.LINGRY_DB) return result;
+	const confirmed = [];
 	for (const record of records) {
 		if (Number(record.confirmations || 0) < LINGRY_PUBLIC_INDEX_CONFIRMATION_DEPTH) continue;
+		const result = await confirmLingryChainRecords(env, [record]);
+		confirmed.push(...result.confirmed_word_ids);
+		if (!result.confirmed_word_ids.length || !env.LINGRY_DB) continue;
 		const txid = String(record.txid || '').toLowerCase();
 		if (!/^[a-f0-9]{64}$/.test(txid)) continue;
 		const row = await env.LINGRY_DB.prepare("SELECT operation_id, response_json FROM lingry_agent_coin_operations WHERE txid = ? AND status = 'broadcasted' LIMIT 1").bind(txid).first();
@@ -3095,17 +3153,21 @@ export async function reconcileConfirmedAgentCoin(env, records) {
 		try { response = JSON.parse(row.response_json || '{}'); } catch { /* Preserve the confirmed txid even if old response JSON was malformed. */ }
 		await env.LINGRY_DB.prepare("UPDATE lingry_agent_coin_operations SET status = 'confirmed', response_json = ?, updated_at = ? WHERE operation_id = ? AND status = 'broadcasted'").bind(JSON.stringify({ ...response, txid, status: 'confirmed' }), new Date().toISOString(), row.operation_id).run();
 	}
-	return result;
+	return { confirmed_word_ids: confirmed };
 }
 
-async function reconcilePendingAgentCoins(env) {
+async function reconcilePendingAgentCoins(env, budget = null) {
 	if (!env.LINGRY_DB || !env.LINGRY_LEXICON) return;
 	const rows = await env.LINGRY_DB.prepare("SELECT operation_id, txid FROM lingry_agent_coin_operations WHERE status = 'broadcasted' AND txid != '' ORDER BY updated_at ASC LIMIT 4").all();
 	for (const row of rows.results || []) {
 		try {
-			const records = await indexSugarTxid(row.txid);
+			const records = await indexSugarTxid(row.txid, null, budget);
 			await reconcileConfirmedAgentCoin(env, records);
 		} catch (error) {
+			if (isScanBudgetError(error)) {
+				await env.LINGRY_DB.prepare("UPDATE lingry_agent_coin_operations SET updated_at = ? WHERE operation_id = ? AND status = 'broadcasted'").bind(new Date().toISOString(), row.operation_id).run();
+				break;
+			}
 			console.error(JSON.stringify({ service: 'lingry-agent-coin-confirmation', status: 'lookup_failed', error: sanitizePublicIndexError(error) }));
 		}
 		// Rotate unresolved transactions so an unavailable provider cannot starve newer coins.
@@ -3113,16 +3175,17 @@ async function reconcilePendingAgentCoins(env) {
 	}
 }
 
-export function publicIndexScheduleMode(cron) {
-	return cron === LINGRY_PUBLIC_INDEX_RECOVERY_CRON ? 'recovery' : 'hourly';
+export function publicIndexScheduleMode(cron, scheduledTime = Date.now()) {
+	if (cron === '* * * * *') return new Date(scheduledTime).getUTCMinutes() % 5 === 0 ? 'recent' : 'recovery';
+	return cron === LINGRY_PUBLIC_INDEX_RECOVERY_CRON ? 'recovery' : 'recent';
 }
 
 export default {
 	async scheduled(controller, env, ctx) {
-		const mode = publicIndexScheduleMode(controller?.cron);
-		const refresh = reconcilePendingAgentCoins(env).catch(error => {
+		const mode = publicIndexScheduleMode(controller?.cron, controller?.scheduledTime);
+		const refresh = (mode === 'recent' ? reconcilePendingAgentCoins(env, createScanBudget(8, 10000)) : Promise.resolve()).catch(error => {
 			console.error(JSON.stringify({ service: 'lingry-agent-coin-confirmation', status: 'batch_failed', error: sanitizePublicIndexError(error) }));
-		}).then(() => refreshLingryPublicIndex(env, { includeRecent: mode !== 'recovery' }));
+		}).then(() => refreshLingryPublicIndex(env, { mode }));
 		if (ctx && typeof ctx.waitUntil === 'function') {
 			ctx.waitUntil(refresh.catch(error => {
 				console.error(JSON.stringify({ service: 'lingry-public-index', mode, status: 'refresh_failed', error: sanitizePublicIndexError(error) }));

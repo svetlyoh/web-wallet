@@ -7,10 +7,91 @@ import worker, {
 	publicStreamItem,
 	publicIndexScheduleMode,
 	publicIndexRewindHeight,
+	refreshLingryPublicIndex,
 	scanSugarBlockRange
 } from '../src/worker.mjs';
 import { parseLingryPayload } from '../src/lingry-api.mjs';
 import { parseSugarWordPayload } from '../src/lingry-protocol.mjs';
+import { createScanBudget } from '../src/lingry-scan-budget.mjs';
+let DatabaseSync;
+try { ({ DatabaseSync } = await import('node:sqlite')); } catch { /* Test-only adapter requires recent Node. */ }
+
+function indexEnvironment(height = 42900000) {
+	const db = new DatabaseSync(':memory:');
+	db.exec(fs.readFileSync(new URL('../migrations/0001_lingry_social.sql', import.meta.url), 'utf8'));
+	db.exec(fs.readFileSync(new URL('../migrations/0005_lingry_public_index_meta.sql', import.meta.url), 'utf8'));
+	db.prepare('INSERT INTO lingry_index_meta (key, value) VALUES (?, ?)').run('public_index_last_scanned_height', String(height));
+	db.prepare('INSERT INTO lingry_index_meta (key, value) VALUES (?, ?)').run('public_index_last_scanned_block_hash', 'hash-' + height);
+	const env = { LINGRY_DB: {
+		prepare(sql) {
+			const wrap = (bindings = []) => ({ bind: (...values) => wrap(values),
+				first: async () => db.prepare(sql).get(...bindings) || null,
+				all: async () => ({ results: db.prepare(sql).all(...bindings) }),
+				run: async () => ({ meta: { changes: Number(db.prepare(sql).run(...bindings).changes) } })
+			});
+			return wrap();
+		},
+		batch: async statements => Promise.all(statements.map(statement => statement.run()))
+	} };
+	return { env, db, get: key => db.prepare('SELECT value FROM lingry_index_meta WHERE key = ?').get(key)?.value };
+}
+
+function mockBlockProvider(tip, requested = []) {
+	return async url => {
+		const parsed = new URL(url); requested.push(parsed.pathname);
+		if (parsed.pathname === '/info') return Response.json({ result: { blocks: tip + 6 } });
+		if (parsed.pathname.startsWith('/height/')) return Response.json({ result: block(Number(parsed.pathname.split('/').pop())) });
+		if (parsed.pathname.startsWith('/range/')) {
+			const end = Number(parsed.pathname.split('/').pop());
+			return Response.json({ result: range(end - Number(parsed.searchParams.get('offset')) + 1, end) });
+		}
+		throw new Error('Unexpected provider request');
+	};
+}
+
+test('a bounded batch persists partial history and resumes the first unchecked block', { skip: !DatabaseSync }, async () => {
+	const originalFetch = globalThis.fetch;
+	const { env, db, get } = indexEnvironment();
+	const requested = []; globalThis.fetch = mockBlockProvider(42903000, requested);
+	try {
+		const first = await refreshLingryPublicIndex(env, { mode: 'recovery', budget: createScanBudget(5) });
+		assert.equal(first.snapshot.scan.yielded, true);
+		assert.equal(get('public_index_last_scanned_height'), '42900300');
+		assert.equal(get('public_index_last_error'), '');
+		assert.equal(requested.length, 5);
+		const second = await refreshLingryPublicIndex(env, { mode: 'recovery', budget: createScanBudget(5) });
+		assert.equal(second.snapshot.scan.start_height, 42900301);
+		assert.equal(get('public_index_last_scanned_height'), '42900600');
+		assert.equal(db.prepare("SELECT COUNT(*) AS n FROM lingry_index_runs WHERE status = 'yielded' AND upstream_requests = 5").get().n, 2);
+	} finally { globalThis.fetch = originalFetch; db.close(); }
+});
+
+test('recent batches preserve their own contiguous cursor without moving history', { skip: !DatabaseSync }, async () => {
+	const originalFetch = globalThis.fetch;
+	const { env, db, get } = indexEnvironment();
+	globalThis.fetch = mockBlockProvider(42903000);
+	try {
+		const first = await refreshLingryPublicIndex(env, { mode: 'recent' });
+		assert.equal(first.snapshot.scan.recent.last_scanned_height, 42901700);
+		assert.equal(first.snapshot.scan.recent.blocks_behind, 1300);
+		assert.equal(get('public_index_last_scanned_height'), '42900000');
+		const second = await refreshLingryPublicIndex(env, { mode: 'recent' });
+		assert.equal(second.snapshot.scan.recent.start_height, 42901701);
+		assert.equal(get('public_index_recent_last_scanned_height'), '42902200');
+		assert.equal(get('public_index_last_scanned_height'), '42900000');
+	} finally { globalThis.fetch = originalFetch; db.close(); }
+});
+
+test('overlapping invocations cannot acquire the same index lease', { skip: !DatabaseSync }, async () => {
+	const originalFetch = globalThis.fetch;
+	const { env, db } = indexEnvironment();
+	globalThis.fetch = mockBlockProvider(42903000);
+	try {
+		const runs = await Promise.all([refreshLingryPublicIndex(env, { mode: 'recovery' }), refreshLingryPublicIndex(env, { mode: 'recovery' })]);
+		assert.equal(runs.filter(run => run.skipped).length, 1);
+		assert.equal(db.prepare("SELECT COUNT(*) AS n FROM lingry_index_runs WHERE status = 'skipped'").get().n, 1);
+	} finally { globalThis.fetch = originalFetch; db.close(); }
+});
 
 function block(height) {
 	return { height, hash: 'hash-' + height, tx: ['coinbase-' + height] };
@@ -20,10 +101,94 @@ function range(start, end) {
 	return Array.from({ length: end - start + 1 }, (_, index) => block(start + index));
 }
 
-test('recovery cron retries history without running the hourly recent-feed scan', () => {
+test('minute schedule reserves every fifth run for recent coverage and supports old triggers during propagation', () => {
 	assert.equal(publicIndexScheduleMode('5,20,35,50 * * * *'), 'recovery');
-	assert.equal(publicIndexScheduleMode('0 * * * *'), 'hourly');
-	assert.equal(publicIndexScheduleMode(undefined), 'hourly');
+	assert.equal(publicIndexScheduleMode('0 * * * *'), 'recent');
+	assert.equal(publicIndexScheduleMode(undefined), 'recent');
+	assert.equal(publicIndexScheduleMode('* * * * *', Date.parse('2026-10-01T15:05:00Z')), 'recent');
+	assert.equal(publicIndexScheduleMode('* * * * *', Date.parse('2026-10-01T15:06:00Z')), 'recovery');
+});
+
+test('request budget counts retries and stops without advancing past an unchecked transaction', async () => {
+	const budget = createScanBudget(2);
+	const results = await scanSugarBlockRange(100, 103, {
+		initialCheckpoint: { height: 99, hash: 'hash-99' }, budget,
+		blockFetchOptions: { fetchRange: async (start, end) => { budget.take(); return range(start, end).map(item => ({ ...item, tx: [item.tx[0], 'tx-' + item.height] })); } },
+		indexTxid: async () => { budget.take(); return []; }
+	});
+	assert.equal(budget.used, 2);
+	assert.equal(results.summary.yielded, true);
+	assert.equal(results.checkpoint.height, 100);
+	assert.equal(results.summary.failed_height, null);
+	assert.deepEqual(results.summary.errors, []);
+	const resumed = await scanSugarBlockRange(results.checkpoint.height + 1, 103, { initialCheckpoint: results.checkpoint, blockFetchOptions: { fetchRange: async (start, end) => range(start, end) } });
+	assert.equal(resumed.checkpoint.height, 103);
+});
+
+test('time budget stops upstream work before starting the next request', () => {
+	let now = 1000;
+	const budget = createScanBudget(32, 50, () => now);
+	budget.take(); now += 51;
+	assert.throws(() => budget.take(), error => error.code === 'scan_budget_exhausted');
+	assert.equal(budget.used, 1);
+});
+
+test('Workers-compatible manual redirects remain counted and use provider fallback', async () => {
+	const originalFetch = globalThis.fetch;
+	const budget = createScanBudget(2);
+	const calls = [];
+	globalThis.fetch = async (url, options) => {
+		assert.equal(options.redirect, 'manual');
+		calls.push(url);
+		if (calls.length === 1) return new Response('', { status: 302, headers: { location: 'https://untrusted.example/' } });
+		return Response.json({ result: range(100, 100) });
+	};
+	try {
+		const result = await fetchSugarBlockBatch(100, 100, true, { budget });
+		assert.equal(result.complete, true);
+		assert.equal(budget.used, 2);
+		assert.equal(calls.length, 2);
+		assert.ok(calls.every(url => !url.includes('untrusted.example')));
+	} finally { globalThis.fetch = originalFetch; }
+});
+
+test('a busy block finishes across budgets without repeating completed transaction lookups', async () => {
+	const cache = new Map();
+	const calls = [];
+	const busy = { ...block(100), tx: ['coinbase', ...Array.from({ length: 64 }, (_, i) => 'tx-' + i)] };
+	const scan = budget => scanSugarBlockRange(100, 100, {
+		initialCheckpoint: { height: 99, hash: 'hash-99' }, budget,
+		blockFetchOptions: { fetchRange: async () => { budget.take(); return [busy]; } },
+		readBlockTransactions: async () => new Map(cache),
+		saveBlockTransactions: async (_, results) => { for (const result of results) cache.set(result.txid, result.records); },
+		clearBlockTransactions: async () => cache.clear(),
+		indexTxid: async txid => { budget.take(); calls.push(txid); return []; }
+	});
+	assert.equal((await scan(createScanBudget())).checkpoint.height, 99);
+	assert.equal(cache.size, 31);
+	assert.equal((await scan(createScanBudget())).checkpoint.height, 99);
+	assert.equal(cache.size, 62);
+	const final = await scan(createScanBudget());
+	assert.equal(final.complete, true);
+	assert.equal(final.checkpoint.height, 100);
+	assert.equal(cache.size, 0);
+	assert.equal(calls.length, 64);
+	assert.equal(new Set(calls).size, 64);
+});
+
+test('partial height fallback preserves completed blocks when its budget is exhausted', async () => {
+	const budget = createScanBudget(5);
+	const result = await scanSugarBlockRange(100, 104, {
+		initialCheckpoint: { height: 99, hash: 'hash-99' }, budget,
+		blockFetchOptions: { rangeAttempts: 1, heightAttempts: 1,
+			fetchRange: async () => { budget.take(); return []; },
+			fetchHeight: async height => { budget.take(); return block(height); }
+		}
+	});
+	assert.equal(budget.used, 5);
+	assert.equal(result.summary.yielded, true);
+	assert.equal(result.checkpoint.height, 103);
+	assert.equal(result.summary.failed_height, null);
 });
 
 test('complete range advances the contiguous checkpoint to its final block', async () => {
@@ -260,7 +425,8 @@ test('index health compares a legacy snapshot checkpoint with the live safe tip'
 		const snapshot = {
 			schema_version: 1,
 			generated_at: new Date().toISOString(),
-			checkpoint: { last_scanned_height: 150, last_scanned_block_hash: 'hash-150', safe_tip_height: 150 }
+			checkpoint: { last_scanned_height: 150, last_scanned_block_hash: 'hash-150', safe_tip_height: 150 },
+			scan: { recent: { scanned_at: new Date().toISOString(), errors: [], blocks_behind: 0 } }
 		};
 		const env = {
 			LINGRY_PUBLIC_INDEX: {
