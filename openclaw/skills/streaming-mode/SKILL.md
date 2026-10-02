@@ -1,6 +1,6 @@
 ---
 name: streaming-mode
-description: Install, verify, update, or roll back the bundled Streaming Mode Control UI for OpenClaw 2026.9.6 on Linux.
+description: Install, verify, update, or roll back the bundled Streaming Mode Control UI for OpenClaw 2026.9.6 on Linux, macOS, or Windows.
 metadata:
   openclaw:
     requires:
@@ -16,6 +16,8 @@ metadata:
         description: Optional OpenClaw state directory; defaults to ~/.openclaw.
     os:
       - linux
+      - darwin
+      - win32
     emoji: "📺"
     homepage: https://github.com/svetlyoh/web-wallet/tree/master/openclaw/skills/streaming-mode
 ---
@@ -28,16 +30,16 @@ Streaming Mode expands the transcript and composer across almost the full browse
 
 ## Safety and compatibility
 
-- Run only on Linux with OpenClaw 2026.9.6. The installer refuses every other host version before changing files.
+- Run on Linux, macOS, or native Windows with OpenClaw 2026.9.6. The installer refuses every other host version before changing files. For a Gateway in Windows WSL2, run installation inside that same WSL distribution.
 - Run commands from this skill directory so `scripts/install.mjs` can find the bundled payload.
-- Do not use `sudo`, weaken file permissions, disable checksum verification, or download a replacement payload.
+- Run as the account that owns the Gateway installation. Do not use `sudo` or an elevated Windows terminal, weaken file permissions, disable checksum verification, or download a replacement payload.
 - The bundle requires no credentials and makes no network requests during installation.
 - The installer uses only Node.js filesystem, crypto, and gzip APIs. It does not start shell commands or subprocesses.
 - Existing native Control UI plugins remain enabled. Streaming Mode keeps the `session-header` accessory host mounted, so the Gear Engine widget remains visible and responsive while Streaming Mode is active.
 - The installer verifies the bundled archive against `payload/manifest.json`, stages the new UI, and swaps directories atomically.
 - The installer verifies that the installed Gateway, payload manifest, and extracted Control UI all carry the same official build identity. Stop on any mismatch; do not bypass this check.
 - The payload is built from the OpenClaw source commit recorded in the manifest. Its upstream MIT license and third-party notices are included under `licenses/`.
-- State and the first backup are stored under `${OPENCLAW_STATE_DIR:-~/.openclaw}`. Preserve them until the user no longer needs rollback.
+- State and the first backup are stored under `OPENCLAW_STATE_DIR`, or the current user's `.openclaw` home folder (`~/.openclaw` on Linux/macOS and `$HOME\.openclaw` in Windows PowerShell). Preserve them until the user no longer needs rollback.
 - If automatic discovery cannot locate OpenClaw, set `OPENCLAW_INSTALL_ROOT` only to the package directory whose `package.json` name is `openclaw`.
 
 ## Check status
@@ -59,6 +61,8 @@ node scripts/install.mjs install
 ```
 
 The backup and copy step can take a couple of minutes. Do not interrupt it. On success, tell the user to hard-refresh the Control UI. The Gateway does not need a restart.
+
+The same Node commands work in Linux/macOS terminals and Windows PowerShell. Install on the machine running the Gateway; a Mac or Windows browser viewing a remote Linux Gateway does not need a local patch. This updates the browser Control UI, not a separately bundled native companion app.
 
 For a skill installed from a local directory, refresh the skill itself by rerunning `openclaw skills install /path/to/streaming-mode --as streaming-mode --global --force`; `openclaw skills update` refreshes ClawHub-tracked installs only. The repository's local transfer bundle runs the payload installer before this registration step so it can repair a broken Control UI.
 

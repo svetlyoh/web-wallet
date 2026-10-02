@@ -4,7 +4,9 @@ An optional Control UI view for OBS and video streaming. It gives the conversati
 
 Compatible host: **OpenClaw 2026.9.6** (source `eb377ac59e6c9fd6c7705028034812becf00271b`). The installer stops before changing files on any other version and never upgrades OpenClaw.
 
-## Install or update on Linux
+Compatible Gateway operating systems: **Linux, macOS, and Windows**. This is a browser Control UI bundle with no native binaries. Install it on the machine running the Gateway as the account that owns the OpenClaw package. For Windows WSL2, run the Linux commands inside the same WSL distribution. A browser on another operating system needs only a hard refresh after the Gateway's UI is updated; separately bundled companion apps are outside this patch's scope.
+
+## Install or update
 
 ### Local folder (recommended for direct PC-to-PC updates)
 
@@ -19,17 +21,36 @@ The command verifies the copied files, applies the corrected payload directly fr
 
 ### ClawHub
 
+Run in a Linux/macOS terminal or Windows PowerShell:
+
 ```bash
-openclaw skills install @svetlyoh/streaming-mode
+openclaw skills install @svetlyoh/streaming-mode --version 1.0.8 --global --force
 ```
 
 Then ask your OpenClaw agent: **Install Streaming Mode using the streaming-mode skill.** The skill uses its bundled, checksum-verified payload and keeps the original Control UI for rollback. Update the skill later with `openclaw skills update --all`, then ask the agent to install the updated payload.
+
+To apply it yourself on Linux/macOS:
+
+```bash
+cd "${OPENCLAW_STATE_DIR:-$HOME/.openclaw}/skills/streaming-mode"
+node scripts/install.mjs install
+```
+
+On native Windows in PowerShell:
+
+```powershell
+$streamingState = if ($env:OPENCLAW_STATE_DIR) { $env:OPENCLAW_STATE_DIR } else { Join-Path $HOME '.openclaw' }
+Set-Location (Join-Path $streamingState 'skills/streaming-mode')
+node scripts/install.mjs install
+```
+
+Use `node scripts/install.mjs status` to check it, or `node scripts/install.mjs rollback` to restore the saved original UI. Windows package discovery recognizes npm `.cmd`/`.ps1` shims and the roaming npm prefix; macOS/Linux discovery follows symlinks and Node version-manager prefixes. If discovery fails, set `OPENCLAW_INSTALL_ROOT` to the verified OpenClaw package directory. Do not use an elevated terminal or `sudo`.
 
 The installer now verifies the official Gateway build identity in `dist/build-info.json` before changing files and refuses a payload built for a different Gateway artifact.
 
 ### Direct from GitHub
 
-Run this as the Linux account that owns and runs the existing OpenClaw installation, without `sudo`:
+Run this on Linux or macOS as the account that owns and runs the existing OpenClaw installation, without `sudo`. Windows users can use the ClawHub or local folder route above:
 
 ```bash
 curl -fL https://raw.githubusercontent.com/svetlyoh/web-wallet/master/openclaw/widgets/streaming-mode/scripts/download-install.sh -o /tmp/openclaw-streaming-install.sh && bash /tmp/openclaw-streaming-install.sh
@@ -78,6 +99,8 @@ Streaming Mode 1.0.5 replaces the installer's shell process calls with validated
 Streaming Mode 1.0.6 adds stream-scale typography for 16:9 OBS capture. Model prose, lists, tables, receipts, and code now share one readable response scale; the message editor and model, effort, permission, search, and exit controls are enlarged as well. Responsive floors preserve readability on a phone-sized viewport, while short capture windows retain OpenClaw's bounded composer behavior.
 
 Streaming Mode 1.0.7 separates fenced output from prose typography. Code and receipt blocks now use a responsive 20–24 px size with 1.4 line spacing, overriding OpenClaw's compact block-art spacing so adjacent rows remain distinct. Prose, tables, composer text, and command controls keep the larger 1.0.6 sizes.
+
+Streaming Mode 1.0.8 adds native Windows package discovery, enables the macOS download installer, and advertises Linux/macOS/Windows in the skill metadata. Archive extraction rejects Windows device names and alternate data stream paths on every platform. CI exercises installation, status, repeat updates, and rollback using the official matching npm package on Ubuntu, macOS, and Windows. The UI payload is unchanged from 1.0.7.
 
 ## Why this is a patch
 

@@ -2,6 +2,8 @@
 
 This creates a self-contained Linux folder for Streaming Mode and Gear Engine. Installation and later updates use only that folder; they do not fetch GitHub or ClawHub.
 
+Streaming Mode's Node installer also supports macOS and native Windows. Copy or extract the same bundle, enter its `streaming-mode` folder, and run `node scripts/install.mjs install`, then register it with `openclaw skills install . --as streaming-mode --global --force`. Use the same Node command with `status` or `rollback` as needed. The combined `install-local.sh` launcher remains Linux-only; on macOS/Windows use these direct Streaming Mode commands. Run them on the Gateway host as its owning account, without `sudo` or an elevated terminal.
+
 ## Build the transfer folder on Windows
 
 From `Open_Claw3` in PowerShell:
