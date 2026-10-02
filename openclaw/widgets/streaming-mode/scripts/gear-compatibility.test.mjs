@@ -8,6 +8,9 @@ import { spawnSync } from 'node:child_process';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const repoOpenClaw = join(root, '..', '..');
+const tarExecutable = process.platform === 'win32'
+  ? join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'tar.exe')
+  : 'tar';
 
 function read(path) {
   return readFileSync(path, 'utf8');
@@ -16,7 +19,7 @@ function read(path) {
 function archiveText(archive) {
   const extractedRoot = mkdtempSync(join(tmpdir(), 'streaming-mode-contract-'));
   try {
-    const extracted = spawnSync('tar', ['-xzf', archive, '-C', extractedRoot], {
+    const extracted = spawnSync(tarExecutable, ['-xzf', archive, '-C', extractedRoot], {
       encoding: 'utf8',
       maxBuffer: 16 * 1024 * 1024,
     });
@@ -39,7 +42,7 @@ function archiveText(archive) {
 }
 
 function archiveFile(archive, entry) {
-  const extracted = spawnSync('tar', ['-xOzf', archive, entry], {
+  const extracted = spawnSync(tarExecutable, ['-xOzf', archive, entry], {
     encoding: 'utf8',
     maxBuffer: 1024 * 1024,
   });

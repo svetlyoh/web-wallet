@@ -9,6 +9,11 @@ import { gzipSync } from 'node:zlib';
 import { HOST_VERSION, ID, findOpenClawRoot, install } from './install.mjs';
 
 const BUILD_ID = 'fixture-build';
+// Git Bash's GNU tar treats C:/... archive arguments as remote hosts. Use the
+// Windows-provided tar for fixtures; the shipped installer uses Node only.
+const tarExecutable = process.platform === 'win32'
+  ? join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'tar.exe')
+  : 'tar';
 const publicBuildId = (buildId) => `${buildId}-${'a'.repeat(64)}`;
 const index = (buildId, body) => `<html data-openclaw-control-ui-build-id="${publicBuildId(buildId)}"><body>${body}</body></html>`;
 
@@ -38,7 +43,7 @@ function fixture(t, {
   writeFileSync(join(payloadFiles, 'asset-manifest.json'), JSON.stringify({ version: 1, assets: [] }));
   writeFileSync(join(payloadFiles, 'sw.js'), 'self.skipWaiting()');
   const archive = join(payloadRoot, 'control-ui.tar.gz');
-  const packed = spawnSync('tar', ['-czf', archive, '-C', payloadFiles, '.'], { encoding: 'utf8' });
+  const packed = spawnSync(tarExecutable, ['-czf', archive, '-C', payloadFiles, '.'], { encoding: 'utf8' });
   assert.equal(packed.status, 0, packed.stderr);
   if (unsafePath) {
     const header = Buffer.alloc(512);
