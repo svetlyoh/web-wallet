@@ -1,14 +1,19 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { gzipSync } from 'node:zlib';
-import { HOST_VERSION, ID, install } from './install.mjs';
+import { HOST_VERSION, ID, findOpenClawRoot, install } from './install.mjs';
 
 const BUILD_ID = 'fixture-build';
+// Git Bash's GNU tar treats C:/... archive arguments as remote hosts. Use the
+// Windows-provided tar for fixtures; the shipped installer uses Node only.
+const tarExecutable = process.platform === 'win32'
+  ? join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'tar.exe')
+  : 'tar';
 const publicBuildId = (buildId) => `${buildId}-${'a'.repeat(64)}`;
 const index = (buildId, body) => `<html data-openclaw-control-ui-build-id="${publicBuildId(buildId)}"><body>${body}</body></html>`;
 
@@ -18,10 +23,11 @@ function fixture(t, {
   chunked = false,
   payloadBuildId = BUILD_ID,
   unsafePath = false,
+  archivePath = '../escaped.txt',
 } = {}) {
   const temp = mkdtempSync(join(tmpdir(), 'streaming-mode-installer-'));
   t.after(() => rmSync(temp, { recursive: true, force: true }));
-  const root = join(temp, 'openclaw');
+  const root = join(temp, 'OpenClaw package with spaces');
   const target = join(root, 'dist', 'control-ui');
   const payloadRoot = join(temp, 'payload');
   const payloadFiles = join(temp, 'payload-files');
@@ -37,11 +43,11 @@ function fixture(t, {
   writeFileSync(join(payloadFiles, 'asset-manifest.json'), JSON.stringify({ version: 1, assets: [] }));
   writeFileSync(join(payloadFiles, 'sw.js'), 'self.skipWaiting()');
   const archive = join(payloadRoot, 'control-ui.tar.gz');
-  const packed = spawnSync('tar', ['-czf', archive, '-C', payloadFiles, '.'], { encoding: 'utf8' });
+  const packed = spawnSync(tarExecutable, ['-czf', archive, '-C', payloadFiles, '.'], { encoding: 'utf8' });
   assert.equal(packed.status, 0, packed.stderr);
   if (unsafePath) {
     const header = Buffer.alloc(512);
-    header.write('../escaped.txt', 0, 'utf8');
+    header.write(archivePath, 0, 'utf8');
     header.write('0000644\0', 100, 'ascii');
     header.write('0000000\0', 108, 'ascii');
     header.write('0000000\0', 116, 'ascii');
@@ -136,3 +142,54 @@ test('refuses rollback when another UI replaced the installed payload', (t) => {
   rmSync(join(f.target, 'streaming-mode-build.json'));
   assert.throws(() => f.invoke('rollback'), /not the active Control UI/);
 });
+
+function discoveryFixture(t) {
+  const temp = mkdtempSync(join(tmpdir(), 'streaming-discovery-'));
+  t.after(() => rmSync(temp, { recursive: true, force: true }));
+  const bin = join(temp, 'npm prefix with spaces');
+  const root = join(bin, 'node_modules', 'openclaw');
+  mkdirSync(root, { recursive: true });
+  writeFileSync(join(root, 'package.json'), JSON.stringify({ name: 'openclaw', version: HOST_VERSION }));
+  return { temp, bin, root, options: { home: temp, execPath: join(temp, 'missing-node') } };
+}
+
+for (const shim of ['openclaw.cmd', 'openclaw.ps1']) {
+  test(`discovers a Windows npm installation through ${shim} without executing it`, (t) => {
+    const f = discoveryFixture(t);
+    writeFileSync(join(f.bin, shim), 'this shim must never execute');
+    assert.equal(findOpenClawRoot({ ...f.options, platform: 'win32', env: { PATH: f.bin } }).root, realpathSync(f.root));
+  });
+}
+
+test('discovers Windows roaming npm prefix when it is absent from PATH', (t) => {
+  const f = discoveryFixture(t);
+  const appData = join(f.temp, 'AppData', 'Roaming');
+  const root = join(appData, 'npm', 'node_modules', 'openclaw');
+  mkdirSync(root, { recursive: true });
+  writeFileSync(join(root, 'package.json'), JSON.stringify({ name: 'openclaw' }));
+  assert.equal(findOpenClawRoot({ ...f.options, platform: 'win32', env: { APPDATA: appData } }).root, realpathSync(root));
+});
+
+test('discovers macOS/Linux npm symlinks into the package', { skip: process.platform === 'win32' }, (t) => {
+  const f = discoveryFixture(t);
+  const entry = join(f.root, 'openclaw.mjs');
+  writeFileSync(entry, 'not executed');
+  symlinkSync(entry, join(f.bin, 'openclaw'));
+  for (const platform of ['linux', 'darwin']) {
+    assert.equal(findOpenClawRoot({ ...f.options, platform, env: { PATH: f.bin } }).root, realpathSync(f.root));
+  }
+});
+
+test('rejects an invalid explicit package root instead of patching another installation', (t) => {
+  const f = discoveryFixture(t);
+  writeFileSync(join(f.bin, 'openclaw.cmd'), 'not executed');
+  assert.throws(() => findOpenClawRoot({ ...f.options, platform: 'win32', env: { PATH: f.bin, OPENCLAW_INSTALL_ROOT: f.temp } }), /not an OpenClaw package/);
+});
+
+for (const archivePath of ['C:/escaped.txt', 'assets/file.txt:stream', 'assets/NUL.txt', 'assets/trailing.']) {
+  test(`rejects nonportable archive path ${archivePath} before changing the UI`, (t) => {
+    const f = fixture(t, { unsafePath: true, archivePath });
+    assert.throws(() => f.invoke(), /unsafe path/);
+    assert.match(readFileSync(join(f.target, 'index.html'), 'utf8'), /original/);
+  });
+}

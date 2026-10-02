@@ -46,17 +46,32 @@ function ancestors(start) {
   return rows;
 }
 
-export function findOpenClawRoot({ env = process.env } = {}) {
+export function findOpenClawRoot({
+  env = process.env,
+  platform = process.platform,
+  home = homedir(),
+  execPath = process.execPath,
+} = {}) {
   const candidates = [];
-  if (env.OPENCLAW_INSTALL_ROOT) candidates.push(env.OPENCLAW_INSTALL_ROOT);
+  if (env.OPENCLAW_INSTALL_ROOT) {
+    const found = packageAt(env.OPENCLAW_INSTALL_ROOT);
+    if (!found) throw new Error('OPENCLAW_INSTALL_ROOT is not an OpenClaw package directory.');
+    return found;
+  }
 
   for (const directory of (env.PATH || '').split(delimiter).filter(Boolean)) {
-    const executable = join(directory, 'openclaw');
-    if (!existsSync(executable)) continue;
-    try {
-      candidates.push(...ancestors(dirname(realpathSync(executable))));
-    } catch {
-      // Ignore stale or unreadable PATH entries.
+    const names = platform === 'win32' ? ['openclaw.cmd', 'openclaw.ps1', 'openclaw.exe', 'openclaw'] : ['openclaw'];
+    for (const name of names) {
+      const executable = join(directory, name);
+      if (!existsSync(executable)) continue;
+      // npm shims sit beside node_modules on Windows; POSIX commands normally
+      // symlink into the package. A local .bin shim uses its parent node_modules.
+      candidates.push(join(directory, 'node_modules', 'openclaw'), join(directory, '..', 'openclaw'));
+      try {
+        candidates.push(...ancestors(dirname(realpathSync(executable))));
+      } catch {
+        // Ignore stale or unreadable PATH entries.
+      }
     }
   }
 
@@ -64,11 +79,21 @@ export function findOpenClawRoot({ env = process.env } = {}) {
     candidates.push(join(nodePath, 'openclaw'));
   }
   candidates.push(
-    resolve(dirname(process.execPath), '..', 'lib', 'node_modules', 'openclaw'),
-    join(homedir(), '.local', 'lib', 'node_modules', 'openclaw'),
+    join(dirname(execPath), 'node_modules', 'openclaw'),
+    resolve(dirname(execPath), '..', 'lib', 'node_modules', 'openclaw'),
+    join(home, '.local', 'lib', 'node_modules', 'openclaw'),
     '/usr/local/lib/node_modules/openclaw',
     '/usr/lib/node_modules/openclaw',
   );
+  if (platform === 'win32' && env.APPDATA) {
+    candidates.push(join(env.APPDATA, 'npm', 'node_modules', 'openclaw'));
+  }
+  // Resolve Homebrew/version-manager Node symlinks without invoking npm or a shell.
+  try {
+    candidates.push(resolve(dirname(realpathSync(execPath)), '..', 'lib', 'node_modules', 'openclaw'));
+  } catch {
+    // An unavailable runtime fallback does not invalidate PATH discovery.
+  }
 
   for (const candidate of candidates) {
     const found = packageAt(candidate);
@@ -123,7 +148,9 @@ function safeArchivePath(destination, archivePath) {
   }
   const parts = archivePath.split('/').filter((part) => part && part !== '.');
   if (parts.length === 0) return destination;
-  if (parts.some((part) => part === '..' || part.includes('\0'))) {
+  if (parts.some((part) => part === '..' || /[\x00-\x1f<>:"|?*]/u.test(part)
+    || /[. ]$/u.test(part)
+    || /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/iu.test(part))) {
     throw new Error('Streaming Mode payload contains an unsafe path.');
   }
   const output = resolve(destination, ...parts);

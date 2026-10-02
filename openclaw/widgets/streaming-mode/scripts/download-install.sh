@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Run as the Linux user who owns the OpenClaw installation; do not use sudo.
+# Run as the Linux/macOS user who owns the OpenClaw installation; do not use sudo.
 repository='https://github.com/svetlyoh/web-wallet.git'
 folder='openclaw/widgets/streaming-mode'
 source_dir="${STREAMING_MODE_SOURCE_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/openclaw-streaming-mode-source}"
 
-if [[ "$(uname -s)" != 'Linux' ]]; then
-  echo 'Run this download installer on the Linux OpenClaw machine.' >&2
-  exit 1
-fi
-for command in git node openclaw tar; do
+case "$(uname -s)" in
+  Linux|Darwin) ;;
+  *) echo 'Use this download installer on Linux/macOS, or install the ClawHub skill from Windows PowerShell.' >&2; exit 1 ;;
+esac
+for command in git node openclaw; do
   if ! command -v "$command" >/dev/null 2>&1; then
     echo "Required command is missing: $command" >&2
     exit 1
