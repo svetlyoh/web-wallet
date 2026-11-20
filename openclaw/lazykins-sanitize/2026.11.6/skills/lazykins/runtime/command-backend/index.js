@@ -34,11 +34,12 @@ export default {
         if (typeof ctx.getCron !== "function" || ctx.scheduler?.version !== 1) throw new Error("Command Desk needs the Gateway-owned Cron and service scheduler capabilities.");
         service = ctx;
         stopping = false;
-        store = new QueueStore(ctx.stateDir);
+        store = new QueueStore(ctx.stateDir, (phase) => ctx.startupTrace?.detail?.("queue-worker", [["phase", phase]]));
         owner.store = store;
+        const measure = (name, run) => ctx.startupTrace ? ctx.startupTrace.measure(name, run) : run();
         try {
-          await owner.initialize();
-          await tick();
+          await measure("sqlite-initialize", () => owner.initialize());
+          await measure("initial-native-reconcile", tick);
           scheduled = ctx.scheduler.schedule({ id: "commanddesk-reconcile", delayMs: 2000, everyMs: 2000, run: tick });
         } catch (error) {
           stopping = true;

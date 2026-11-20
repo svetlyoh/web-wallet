@@ -2,10 +2,11 @@ import {Worker} from "node:worker_threads";
 
 /** Local plugins cannot use trusted-only shared state. Own a private async SQLite CAS worker. */
 export class QueueStore {
-  constructor(stateDir) {
+  constructor(stateDir, startupPhase = () => {}) {
     this.authority=new Int32Array(new SharedArrayBuffer(4));Atomics.store(this.authority,0,1);
     this.sequence=0;this.pending=new Map();this.closed=false;
     this.worker=new Worker(new URL("./store-worker.js",import.meta.url),{workerData:{stateDir,authority:this.authority.buffer}});
+    this.worker.once("online",()=>startupPhase("online"));
     this.worker.on("message",message=>{const waiter=this.pending.get(message.id);if(!waiter)return;this.pending.delete(message.id);message.error ? waiter.reject(new Error(message.error)) : waiter.resolve(message.value);});
     this.worker.on("error",()=>this.fail(new Error("Queue SQLite worker failed. Inspect local state and service logs.")));
     this.worker.on("exit",code=>{this.closed=true;if(code!==0 || this.pending.size) this.fail(new Error("Queue SQLite worker exited before acknowledgement."));});

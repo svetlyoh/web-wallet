@@ -86,6 +86,15 @@ try {
       const acceptedPromise = new Promise<void>((resolve) => { accepted = resolve; });
       services = await startPluginServices({ registry, config, scheduler, workspaceDir: workspace,
         getCronService: () => native, throwOnStartError: true, onHandle: (handle: any) => { services = handle; },
+        startupTrace: {
+          detail: (name: string, metrics: any) => console.log(JSON.stringify({ phase: name, metrics })),
+          measure: async (name: string, run: () => any) => {
+            const started = performance.now();
+            console.log(JSON.stringify({ phase: name, started: true }));
+            try { return await run(); }
+            finally { console.log(JSON.stringify({ phase: name, elapsedMs: Math.round(performance.now() - started) })); }
+          },
+        },
         broadcastPluginEvent: (event: string, payload: any, scope: string) => {
           broadcasts.push({ event, payload, scope });
           if (payload.revision >= 3) accepted?.();
