@@ -10,7 +10,7 @@ export type DeskMode = "quiet" | "openclaw";
 // The existing origin normalizer removes credentials; authenticated profiles
 // cannot inherit another participant's layout selection on this browser.
 export function quietDeskStorageKey(context: ApplicationContext): string {
-  return `lazykins.quiet-desk.v2:${gatewayOriginScope(context.gateway.connection.gatewayUrl)}:${encodeURIComponent(context.gateway.snapshot.selfUser?.id ?? "unpaired")}`;
+  return `lazykins.quiet-desk.v1:${gatewayOriginScope(context.gateway.connection.gatewayUrl)}:${encodeURIComponent(context.gateway.snapshot.selfUser?.id ?? "unpaired")}`;
 }
 export function readQuietDeskMode(context: ApplicationContext): DeskMode {
   try { return getSafeLocalStorage()?.getItem(quietDeskStorageKey(context)) === "openclaw" ? "openclaw" : "quiet"; }

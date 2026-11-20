@@ -64,7 +64,7 @@ try {
   assert(await composer.evaluate(e => (window as Window & {lazykinsComposer?:Element}).lazykinsComposer === e));
   assert.equal(await gateway.getSocketCount(),sockets);
   await page.screenshot({path:path.join(proof,"openclaw-view-1440.png"),animations:"disabled"});
-  assert(await page.evaluate(() => Object.keys(localStorage).some(k => k.startsWith("lazykins.quiet-desk.v2:") && k.endsWith(":profile-a") && localStorage.getItem(k) === "openclaw")));
+  assert(await page.evaluate(() => Object.keys(localStorage).some(k => k.startsWith("lazykins.quiet-desk.v1:") && k.endsWith(":profile-a") && localStorage.getItem(k) === "openclaw")));
   const otherPage = await context.newPage();
   await installMockGateway(otherPage,{serverVersion:"2026.11.6",controlUiBuildSource:"configured",presenceUsers:[{self:true,id:"profile-b",name:"Blair"}]});
   await otherPage.goto(`${base}chat`);
@@ -165,7 +165,7 @@ try {
   observations.push("The native abort action remains visible beside a sendable draft on desktop and mobile, aborting the selected run exactly once.");
   const mismatch = await browser.newContext({viewport:{width:1280,height:720},serviceWorkers:"block"});
   const mismatchPage = await mismatch.newPage(); activePage = mismatchPage;
-  const mismatchGateway = await installMockGateway(mismatchPage,{serverVersion:"2026.11.10-beta.1",controlUiBuildSource:"configured"});
+  const mismatchGateway = await installMockGateway(mismatchPage,{serverVersion:"2026.11.10-beta.1",controlUiBuildSource:"configured",awaitInitialRoster:false});
   await mismatchPage.goto(`${base}chat`);
   await mismatchPage.getByRole("heading",{name:"Quiet Desk needs a matching OpenClaw build"}).waitFor();
   assert.equal(await mismatchPage.locator(".agent-chat__composer-combobox textarea").count(),0);
@@ -176,7 +176,7 @@ try {
   const styleFailure = await browser.newContext({viewport:{width:1280,height:720},serviceWorkers:"block"});
   const stylePage = await styleFailure.newPage(); activePage = stylePage;
   await stylePage.route("**/themes/lazykins-quiet-desk.css*", route => route.fulfill({status:404,contentType:"text/css",body:""}));
-  const styleGateway = await installMockGateway(stylePage,{serverVersion:"2026.11.6",controlUiBuildSource:"configured"});
+  const styleGateway = await installMockGateway(stylePage,{serverVersion:"2026.11.6",controlUiBuildSource:"configured",awaitInitialRoster:false});
   await stylePage.goto(`${base}chat`);
   await stylePage.getByRole("heading",{name:"Quiet Desk styles could not load"}).waitFor();
   assert(await stylePage.getByRole("button",{name:"Reload",exact:true}).isVisible());
