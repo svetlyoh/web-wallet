@@ -55,12 +55,12 @@ index a9155b6d..77b9a41a 100644
      routeReady: host.routeState.routeId !== undefined || host.routeState.routeFailed,
      workspaceChromeVisible: host.workspaceChromeVisible,
 diff --git a/ui/src/app/app-shell-view.tsx b/ui/src/app/app-shell-view.tsx
-index ca041699..a12fd951 100644
+index ca041699..ebece7f3 100644
 --- a/ui/src/app/app-shell-view.tsx
 +++ b/ui/src/app/app-shell-view.tsx
 @@ -1,4 +1,6 @@
  import "../lib/toast-host.tsx";
-+import { DeskAppearance, DeskCompatibilityFailure, DeskModeSwitch } from "../lazykins/quiet-desk.tsx";
++import { DeskAppearance, DeskCompatibilityFailure, DeskModeSwitch, DeskStyles } from "../lazykins/quiet-desk.tsx";
 +import { isQuietDeskCompatible, saveQuietDeskMode, type DeskMode } from "../lazykins/quiet-desk-preference.ts";
  import type { JSX as SolidJSX } from "@solidjs/web";
  import { createMemo, createSignal, lazy, onSettled, Show } from "solid-js";
@@ -115,20 +115,22 @@ index ca041699..a12fd951 100644
            <ShellLayoutProvider
              value={{
                get owner() {
-@@ -541,6 +558,8 @@ export function ApplicationShell(props: {
+@@ -541,6 +558,9 @@ export function ApplicationShell(props: {
            return null;
          }}
        </Show>
++      <DeskStyles resourceBasePath={view().context.resourceBasePath} mode={view().deskMode} onFallback={() => changeDeskMode("openclaw")}>
 +      <Show when={(!view().gatewayConnected && !view().gatewaySnapshot.hello) || isQuietDeskCompatible(view().gatewaySnapshot.hello?.server?.version)}
 +        fallback={<DeskCompatibilityFailure version={view().gatewaySnapshot.hello?.server?.version ?? "unknown"} />}>
        <Show when={view().routeReady} fallback={<ConnectingSplash />}>
          <PluginSurface
            surface="workspace"
-@@ -562,6 +581,7 @@ export function ApplicationShell(props: {
+@@ -562,6 +582,8 @@ export function ApplicationShell(props: {
            renderDefault={() => workspace}
          />
        </Show>
 +      </Show>
++      </DeskStyles>
      </>
    );
  }
@@ -238,15 +240,3 @@ index 8e0ecbba..6e2d147a 100644
        {props.voiceActive && props.onToggleVoice ? (
          <>
            <span class="chat-talk-control chat-talk-control--active" style={microphoneHoverStyle}>
-diff --git a/ui/src/styles.css b/ui/src/styles.css
-index ea47c77e..17d8775e 100644
---- a/ui/src/styles.css
-+++ b/ui/src/styles.css
-@@ -7,6 +7,7 @@
- @import "./styles/approval-boot.css";
- @import "./styles/settings-controls.css";
- @import "./styles/settings-native-controls.css";
-+@import "./lazykins/quiet-desk.css";
- 
- /* Contract read by stale-chunk-reload.ts to detect a failed entry stylesheet load.
-  * Removing it leaves a fully unstyled page undetected. */

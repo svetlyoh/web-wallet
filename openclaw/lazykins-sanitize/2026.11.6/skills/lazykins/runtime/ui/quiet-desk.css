@@ -1,6 +1,6 @@
 /* Tokens in the default palette are design constants. Personal catalog themes
    keep their own palette; this branch does not write theme preferences. */
-@font-face { font-family: "Inter"; src: url("./fonts/InterVariable.woff2") format("woff2"); font-style: normal; font-weight: 100 900; font-display: swap; }
+@font-face { font-family: "Inter"; src: url("../fonts/lazykins-inter-693b77d4f32e.woff2") format("woff2"); font-style: normal; font-weight: 100 900; font-display: swap; }
 .shell--quiet-desk {
   --shell-nav-expanded-width: 208px !important;
   --chat-thread-max-width: 760px;
@@ -102,3 +102,8 @@
   .shell--lazykins-installed .topnav-shell__content { min-width: 0; }
   .lazykins-mode-switch { font-size: 12px; }
 }
+
+/* Chat owns canvas/participant link projections; override only the default
+   Quiet Desk prose surface, preserving personal catalog themes. */
+.shell--quiet-desk-default .chat-text { --chat-text-link: var(--link); --chat-text-link-hover: var(--link-hover); }
+.shell--quiet-desk-default { --chat-composer-surface: var(--card); --chat-user-surface: var(--bg-muted); }

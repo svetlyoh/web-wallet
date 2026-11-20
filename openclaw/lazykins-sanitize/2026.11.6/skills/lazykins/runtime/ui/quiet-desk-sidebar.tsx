@@ -24,8 +24,8 @@ export function QuietDeskSidebar(props: { host: AppSidebarRenderHost; recent: ()
         onClick={(event) => handleNavigationClick(event, () => props.host.onNavigate?.("workboard"))}><Icon name="layoutGrid" />Tasks</a>
       <a href={filesPath()} class="lazykins-nav-link" onClick={(event) => handleNavigationClick(event, () => props.host.onNavigate?.("agents", {pathname: filesPath()}))}><Icon name="file" />Files</a>
     </nav>
-    <p class="lazykins-note">Tasks opens OpenClaw Workboard when that plugin is enabled. Files opens the selected agent's workspace files.</p>
-    <div class="lazykins-recents"><h2>Recent conversations</h2>
+    <p class="lazykins-note">{new Text("Tasks opens OpenClaw Workboard when that plugin is enabled. Files opens the selected agent's workspace files.")}</p>
+    <div class="lazykins-recents"><h2>{new Text("Recent conversations")}</h2>
       <For each={props.recent()} keyed={(row) => row.key}>{(row) =>
         <a class="lazykins-recent" href={props.host.sidebarSessionHref(row())}
           aria-current={row().active ? "page" : undefined}
@@ -35,7 +35,7 @@ export function QuietDeskSidebar(props: { host: AppSidebarRenderHost; recent: ()
         </a>
       }</For>
       <a class="lazykins-nav-link" href={pathForRoute("sessions", props.host.basePath)}
-        onClick={(event) => handleNavigationClick(event, () => props.host.onNavigate?.("sessions"))}>All conversations</a>
+        onClick={(event) => handleNavigationClick(event, () => props.host.onNavigate?.("sessions"))}>{new Text("All conversations")}</a>
     </div>
     <div class="lazykins-sidebar-bottom">
       <a href={pathForRoute("appearance", props.host.basePath)} class="lazykins-nav-link"

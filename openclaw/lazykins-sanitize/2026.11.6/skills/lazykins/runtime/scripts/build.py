@@ -2,6 +2,7 @@
 """Build one verified UI generation from an isolated, exact upstream checkout."""
 import argparse
 import hashlib
+import gzip
 import json
 import re
 import shutil
@@ -76,7 +77,21 @@ def main():
         if hashlib.sha256((source / name).read_bytes().replace(b"\r\n", b"\n")).hexdigest() != expected:
             raise ValueError(f"Exact patch output differs: {name}")
     shutil.copytree(RUNTIME / "ui", source / "ui" / "src" / "lazykins")
-    shutil.copytree(RUNTIME / "assets" / "fonts", source / "ui" / "src" / "lazykins" / "fonts")
+    # Keep the upstream compiled-CSS ceilings intact. This independently bounded
+    # optional appearance asset uses the existing public themes/fonts contract.
+    css = (RUNTIME / "ui" / "quiet-desk.css").read_bytes()
+    font = RUNTIME / "assets" / "fonts" / "InterVariable.woff2"
+    font_name = "lazykins-inter-" + digest(font)[:12] + ".woff2"
+    overlay_budget = {"cssRawBytes": len(css), "cssGzipBytes": len(gzip.compress(css, compresslevel=9, mtime=0)),
+                      "fontBytes": font.stat().st_size, "stylesheetRequests": 1,
+                      "limits": {"cssRawBytes": 16 * 1024, "cssGzipBytes": 4 * 1024, "fontBytes": 400 * 1024, "stylesheetRequests": 1}}
+    if any(overlay_budget[key] > limit for key, limit in overlay_budget["limits"].items()):
+        raise ValueError("Quiet Desk public appearance asset exceeds its explicit size budget")
+    if ("../fonts/" + font_name).encode() not in css:
+        raise ValueError("Quiet Desk font URL does not match the bundled content-addressed font")
+    (source / "ui" / "public" / "themes" / "lazykins-quiet-desk.css").write_bytes(css)
+    shutil.copy2(font, source / "ui" / "public" / "fonts" / font_name)
+    print(json.dumps({"overlayAssetBudget": overlay_budget}), flush=True)
     shutil.copy2(RUNTIME / "tests" / "verify-ui.mts", source / "ui" / "lazykins-verify.mts")
     run([shutil.which("pnpm") or "pnpm", "ui:build"], source)
     proof = source / ".artifacts" / "lazykins-verification"
@@ -108,6 +123,7 @@ def main():
                     "packageManager": package["packageManager"], "sourcemap": "generated upstream; omitted from payload",
                     "lockfileSha256": digest(source / "pnpm-lock.yaml"),
                     "patchSha256": digest(patch), "overlayFiles": inventory(RUNTIME / "ui"),
+                    "overlayAssetBudget": overlay_budget,
                     "files": inventory(stage / "control-ui")}
         (stage / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
         stage.replace(output)

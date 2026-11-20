@@ -7,16 +7,14 @@
     "ui/src/components/app-sidebar-base.ts": "6c4af2a4caab73ac82a2f87fcb956dba944e51f5ae0d1e69906c3d413d216bad",
     "ui/src/components/app-sidebar-owner.tsx": "1b42e0f2609c8beeadb5e86706501494bbb8fd98f152a61e67cbccee4c8b4d10",
     "ui/src/components/app-topbar-solid.tsx": "120b7d50d1d073664c489894285d021294720b86c8fa4278bdd05166f68194dd",
-    "ui/src/pages/chat/components/chat-composer-controls.tsx": "b6423a1182d68e5580adb99b065a6deaab5c347c00cafabbc7bcddf6cc76d9e1",
-    "ui/src/styles.css": "64a655be3788dac7a4bba5cc3a4b325670842ce9714dda1ef0b8b8bd284601cf"
+    "ui/src/pages/chat/components/chat-composer-controls.tsx": "b6423a1182d68e5580adb99b065a6deaab5c347c00cafabbc7bcddf6cc76d9e1"
   },
   "patchedFiles": {
     "ui/src/app/app-shell-view-state.ts": "ef23bbc3e20ed7123184fc64fd15044229f11d3a472d8f02a266140a10b0748c",
-    "ui/src/app/app-shell-view.tsx": "072a108439278952dc1b08bbb9e149103126fb6216f702994e3f4e2b19805888",
+    "ui/src/app/app-shell-view.tsx": "7aa443338a4d63d10adbd2dcbda5e7531f6910cccd16d0b90f9ce4280c642eb5",
     "ui/src/components/app-sidebar-base.ts": "725df0991b026b5967656cb2d37276a6555afa720e2e6c8af214fc75e0cc4efd",
     "ui/src/components/app-sidebar-owner.tsx": "06b454f5e5d58ede3438b85e8ab42682b37ec98f78128147322ba6001a7f8830",
     "ui/src/components/app-topbar-solid.tsx": "f66f3bb60fa491a60b71b165ccf769b29bf65a944fa278597041b0999d136260",
-    "ui/src/pages/chat/components/chat-composer-controls.tsx": "34550c7d24546e7dc677c5e34319ee5f61687b2ee0838050767d96fe8a738ea2",
-    "ui/src/styles.css": "b9d8541317bd4f65e0dac7602b5e185b92a04a4149eb78582d9f758f991aca54"
+    "ui/src/pages/chat/components/chat-composer-controls.tsx": "34550c7d24546e7dc677c5e34319ee5f61687b2ee0838050767d96fe8a738ea2"
   }
 }

@@ -51,6 +51,9 @@ try {
   await composer.waitFor({state:"visible"});
   await page.getByText("Your workspace is ready.",{exact:false}).waitFor();
   assert.equal(Math.round(await page.locator(".shell-nav").evaluate(e => e.getBoundingClientRect().width)),208);
+  assert.equal(await page.getByRole("button",{name:"OpenClaw view",exact:true}).textContent(),"OpenClaw view");
+  assert((await page.locator(".lazykins-sidebar .lazykins-note").textContent())?.includes("Tasks opens OpenClaw"));
+  assert.equal(await page.locator(".chat-text a").first().evaluate(e => getComputedStyle(e).color),"rgb(36, 69, 50)");
   await page.screenshot({path:path.join(proof,"quiet-desk-light-1440.png"),animations:"disabled"});
   await composer.fill("Preserve this unsent draft.");
   await composer.evaluate(e => { (window as Window & {lazykinsComposer?: Element}).lazykinsComposer = e; });
@@ -83,7 +86,7 @@ try {
   const params = sent.params as {message:string;idempotencyKey:string};
   assert.equal(params.message,"Check the draft.");
   await gateway.emitChatFinal({runId:params.idempotencyKey,text:"The draft is ready to review."});
-  await page.getByText("The draft is ready to review.",{exact:false}).waitFor();
+  await page.locator(".chat-text").getByText("The draft is ready to review.",{exact:false}).waitFor();
   assert.equal((await gateway.getRequests("chat.send")).length,1);
   observations.push("The existing chat owner sends once and renders its terminal Gateway event.");
   for (const width of [1280,1024,768,390,360]) {
@@ -164,6 +167,21 @@ try {
   await mismatchPage.screenshot({path:path.join(proof,"version-mismatch.png"),animations:"disabled"});
   await mismatch.close();
   observations.push("An unmatched Gateway is visibly refused before work controls; this fixture does not certify any newer release.");
+  const styleFailure = await browser.newContext({viewport:{width:1280,height:720},serviceWorkers:"block"});
+  const stylePage = await styleFailure.newPage(); activePage = stylePage;
+  await stylePage.route("**/themes/lazykins-quiet-desk.css*", route => route.fulfill({status:404,contentType:"text/css",body:""}));
+  const styleGateway = await installMockGateway(stylePage,{serverVersion:"2026.11.6",controlUiBuildSource:"configured"});
+  await stylePage.goto(`${base}chat`);
+  await stylePage.getByRole("heading",{name:"Quiet Desk styles could not load"}).waitFor();
+  assert(await stylePage.getByRole("button",{name:"Reload",exact:true}).isVisible());
+  assert.equal(await stylePage.locator(".agent-chat__composer-combobox textarea").count(),0);
+  assert.equal((await styleGateway.getRequests("chat.send")).length,0);
+  await stylePage.screenshot({path:path.join(proof,"stylesheet-load-failure.png"),animations:"disabled"});
+  await stylePage.getByRole("button",{name:"Open OpenClaw view",exact:true}).click();
+  await stylePage.locator(".shell:not(.shell--quiet-desk)").waitFor();
+  await stylePage.locator(".agent-chat__composer-combobox textarea").waitFor({state:"visible"});
+  await styleFailure.close();
+  observations.push("A missing local appearance stylesheet blocks malformed work UI and exposes a visible Reload action and host rollback guidance.");
   await fs.writeFile(path.join(proof,"results.json"),JSON.stringify({passed:true,version:"2026.11.6",sha:"06afb10d3272cc9deaf38ca6a3b7b839d5935638",observations,limits:["Synthetic Gateway fixture, no real provider or Linux deployment exercised.","CSS zoom is not native browser zoom.","Workboard route is a native plugin destination; plugin execution and legacy streaming/gear integrations need host verification."]},null,2));
   console.log(JSON.stringify({passed:true,proof,observations}));
 } catch (error) {
