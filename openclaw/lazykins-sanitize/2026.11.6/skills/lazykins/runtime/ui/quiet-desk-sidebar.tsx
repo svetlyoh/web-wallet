@@ -24,7 +24,7 @@ export function QuietDeskSidebar(props: { host: AppSidebarRenderHost; recent: ()
         onClick={(event) => handleNavigationClick(event, () => props.host.onNavigate?.("workboard"))}><Icon name="layoutGrid" />Tasks</a>
       <a href={filesPath()} class="lazykins-nav-link" onClick={(event) => handleNavigationClick(event, () => props.host.onNavigate?.("agents", {pathname: filesPath()}))}><Icon name="file" />Files</a>
     </nav>
-    <p class="lazykins-note">{new Text("Tasks opens OpenClaw Workboard when that plugin is enabled. Files opens the selected agent's workspace files.")}</p>
+    <p class="lazykins-note">{new Text("Tasks: Workboard when enabled. Files: this agent's workspace.")}</p>
     <div class="lazykins-recents"><h2>{new Text("Recent conversations")}</h2>
       <For each={props.recent()} keyed={(row) => row.key}>{(row) =>
         <a class="lazykins-recent" href={props.host.sidebarSessionHref(row())}

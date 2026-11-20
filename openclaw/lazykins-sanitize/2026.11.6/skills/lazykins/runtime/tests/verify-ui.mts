@@ -52,7 +52,7 @@ try {
   await page.getByText("Your workspace is ready.",{exact:false}).waitFor();
   assert.equal(Math.round(await page.locator(".shell-nav").evaluate(e => e.getBoundingClientRect().width)),208);
   assert.equal(await page.getByRole("button",{name:"OpenClaw view",exact:true}).textContent(),"OpenClaw view");
-  assert((await page.locator(".lazykins-sidebar .lazykins-note").textContent())?.includes("Tasks opens OpenClaw"));
+  assert.equal(await page.locator(".lazykins-sidebar .lazykins-note").textContent(),"Tasks: Workboard when enabled. Files: this agent's workspace.");
   assert.equal(await page.locator(".chat-text a").first().evaluate(e => getComputedStyle(e).color),"rgb(36, 69, 50)");
   await page.screenshot({path:path.join(proof,"quiet-desk-light-1440.png"),animations:"disabled"});
   await composer.fill("Preserve this unsent draft.");
@@ -104,6 +104,12 @@ try {
   await page.keyboard.press("Tab");
   assert(await page.locator(".shell-nav").evaluate(e => e.contains(document.activeElement)));
   await page.screenshot({path:path.join(proof,"quiet-desk-mobile-drawer.png"),animations:"disabled"});
+  // The native new-conversation shortcut tooltip owns its own Escape, even
+  // while reveal is pending. Move to the next plain link before proving the
+  // drawer's Escape, preserving the existing overlay dismissal order.
+  await page.keyboard.press("Tab");
+  assert(await page.getByRole("link",{name:"Conversations",exact:true}).evaluate(e => e === document.activeElement));
+  await page.waitForFunction(() => [...document.querySelectorAll("openclaw-tooltip")].every(e => !e.hasAttribute("open")));
   await page.keyboard.press("Escape");
   await page.locator(".shell:not(.shell--nav-drawer-open)").waitFor();
   assert(await drawer.evaluate(e => e === document.activeElement));

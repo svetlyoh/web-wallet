@@ -94,6 +94,7 @@ def main():
     print(json.dumps({"overlayAssetBudget": overlay_budget}), flush=True)
     shutil.copy2(RUNTIME / "tests" / "verify-ui.mts", source / "ui" / "lazykins-verify.mts")
     run([shutil.which("pnpm") or "pnpm", "ui:build"], source)
+    run([shutil.which("pnpm") or "pnpm", "ui:check-performance"], source)
     proof = source / ".artifacts" / "lazykins-verification"
     run(["node", "--import", str(source / "scripts" / "tsx.mjs"), "lazykins-verify.mts", str(proof)], source / "ui")
     successful = list(proof.glob("*/results.json"))
