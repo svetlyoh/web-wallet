@@ -36,7 +36,7 @@ Handshake gating permits the existing preconnection authentication/bootstrap flo
 
 ## Verification status and limits
 
-Local source/pin/patch syntax checks are recorded separately from production CI. The current Windows workspace cannot install the new complete dependency graph within its disk budget; it must not reuse the older Lit dependencies. The public Linux GitHub Actions job supplies the exact new dependencies and actual build/browser proof. Until it passes, this generation is source prepared, not a tested installable UI payload.
+Local source/pin/patch syntax checks are recorded separately from production CI. The current Windows workspace cannot install the new complete dependency graph within its disk budget; it must not reuse the older Lit dependencies. The public Linux GitHub Actions job supplies the exact new dependencies and actual build/browser proof. Linux run [44797380473](https://github.com/svetlyoh/web-wallet/actions/runs/44797380473) passed the production build, strict native performance gate and browser fixtures. Its generated transfer ZIPs are verified installable artifacts; this source folder omits the generated payload.
 
 Even a passing synthetic-Gateway production test does not prove a live Linux deployment, real model stream, native browser zoom, Workboard plugin execution, real approvals, existing streaming-mode adapter, or gear widget telemetry. Those remain host checks. The old Lit streaming patch cannot safely be transplanted into Solid; the port does not claim that migration is finished.
 

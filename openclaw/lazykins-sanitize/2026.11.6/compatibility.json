@@ -6,10 +6,11 @@
   "admittedVersions": [
     "2026.11.6"
   ],
-  "integration": "exact-pinned-Solid-layout-overlay",
+  "integration": "exact-pinned-Solid2-Quiet-Desk-layout-overlay",
   "voiceMechanism": "agent-workspace-SOUL-marked-policy",
   "linuxDeploymentVerified": false,
   "ordinaryModelResponsesVerified": false,
-  "status": "build validation pending",
-  "futureUpdatePolicy": "Retain files; validate each tagged release before admitting it."
+  "status": "production build and browser fixtures passed",
+  "futureUpdatePolicy": "Retain files; validate each tagged release before admitting it.",
+  "browserFixtureVerified": true
 }
