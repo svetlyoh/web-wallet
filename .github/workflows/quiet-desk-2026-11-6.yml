@@ -1,10 +1,5 @@
-name: Build Quiet Desk 2026.11.6
+name: Build LazyKins Modes 2026.11.6
 on:
-  push:
-    branches: [feat/openclaw-quiet-desk-2026-11-6]
-    paths:
-      - 'openclaw/lazykins-sanitize/2026.11.6/**'
-      - '.github/workflows/quiet-desk-2026-11-6.yml'
   workflow_dispatch:
 permissions:
   contents: read
@@ -23,6 +18,8 @@ jobs:
           node-version: '24.18.0'
       - name: Controller tests
         run: python3 -m unittest discover -s "$PACKAGE/tests" -p 'test_*.py' -v
+      - name: Command queue storage and lifecycle tests
+        run: node --test "$PACKAGE/skills/lazykins/runtime/command-backend/tests/backend.test.js"
       - name: Fetch exact upstream source
         run: |
           git clone --depth 1 --branch v2026.11.6 https://github.com/openclaw/openclaw.git "$RUNNER_TEMP/openclaw"
@@ -34,6 +31,8 @@ jobs:
           corepack prepare pnpm@12.15.0 --activate
           pnpm install --frozen-lockfile
           pnpm --filter openclaw-control-ui exec playwright install --with-deps chromium
+      - name: Native Command queue plugin and Cron proof
+        run: node --import "$RUNNER_TEMP/openclaw/scripts/tsx.mjs" "$PACKAGE/skills/lazykins/runtime/command-backend/tests/native-proof.mts" "$RUNNER_TEMP/openclaw"
       - name: Build and verify production UI
         run: |
           python3 "$PACKAGE/skills/lazykins/runtime/scripts/build.py" --source "$RUNNER_TEMP/openclaw" --output "$GITHUB_WORKSPACE/$PACKAGE/skills/lazykins/runtime/payload"
@@ -47,9 +46,9 @@ jobs:
           if-no-files-found: ignore
       - uses: actions/upload-artifact@v4
         with:
-          name: LazyKins-Sanitize-2026.11.6
+          name: LazyKins-Modes-2026.11.6-r2
           path: |
-            openclaw/lazykins-sanitize/LazyKins-Sanitize-2026.11.6.zip
+            openclaw/lazykins-sanitize/LazyKins-Modes-2026.11.6-r2.zip
             openclaw/lazykins-sanitize/LazyKins-2026.11.6.zip
             openclaw/lazykins-sanitize/Sanitize-2026.11.6.zip
             openclaw/lazykins-sanitize/archives.sha256

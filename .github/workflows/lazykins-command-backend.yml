@@ -1,10 +1,6 @@
 name: Verify Command Deck backend
 on:
-  push:
-    branches: [feat/lazykins-modes-2026-11-6-r2]
-    paths:
-      - 'openclaw/lazykins-sanitize/2026.11.6/skills/lazykins/runtime/command-backend/**'
-      - '.github/workflows/lazykins-command-backend.yml'
+  workflow_dispatch:
 permissions:
   contents: read
 jobs:
