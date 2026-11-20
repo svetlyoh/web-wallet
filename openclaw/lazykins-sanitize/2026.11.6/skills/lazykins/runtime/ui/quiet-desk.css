@@ -1,0 +1,104 @@
+/* Tokens in the default palette are design constants. Personal catalog themes
+   keep their own palette; this branch does not write theme preferences. */
+@font-face { font-family: "Inter"; src: url("./fonts/InterVariable.woff2") format("woff2"); font-style: normal; font-weight: 100 900; font-display: swap; }
+.shell--quiet-desk {
+  --shell-nav-expanded-width: 208px !important;
+  --chat-thread-max-width: 760px;
+  --font-chat: "Inter", "Noto Sans", system-ui, sans-serif;
+  --shell-topbar-height: 56px;
+  --shell-pad: 24px;
+  --radius-md: 12px;
+  --app-background-image: none;
+}
+.shell--quiet-desk-default { --bg: #F7F6F2; --bg-content: #F7F6F2; --card: #FFFFFF; --bg-elevated: #FFFFFF; --panel: #FFFFFF; --popover: #FFFFFF; --text: #242D29; --text-strong: #242D29; --chat-text: #242D29; --muted: #606B63; --muted-foreground: #606B63; --bg-muted: #E9EDE5; --bg-hover: #E9EDE5; --border: #E0E4DC; --border-strong: #BDC7B8; --primary: #335B48; --primary-foreground: #FFFFFF; --accent: #335B48; --accent-foreground: #FFFFFF; --accent-hover: #244532; --ring: #335B48; --font-body: "Inter", "Noto Sans", system-ui, sans-serif; --font-display: var(--font-body); }
+.shell--quiet-desk-default[data-lazykins-color-mode="dark"] { --bg: #202320; --bg-content: #202320; --card: #292D29; --bg-elevated: #292D29; --panel: #292D29; --popover: #292D29; --text: #EDF0E9; --text-strong: #EDF0E9; --chat-text: #EDF0E9; --muted: #AAB6AD; --muted-foreground: #AAB6AD; --bg-muted: #353E35; --bg-hover: #353E35; --border: #414940; --border-strong: #667462; --primary: #BBD7BF; --primary-foreground: #172B20; --accent: #BBD7BF; --accent-foreground: #172B20; --accent-hover: #D1E4D2; --ring: #BBD7BF; }
+.shell--quiet-desk-default { --link: var(--accent-hover); --link-hover: var(--text); --accent-muted: var(--accent); --accent-subtle: color-mix(in srgb, var(--accent) 10%, transparent); --accent-glow: color-mix(in srgb, var(--accent) 18%, transparent); --focus-ring: 0 0 0 2px var(--bg), 0 0 0 3px var(--accent); }
+.shell--quiet-desk .chat { --chat-thread-max-width: 760px; }
+.shell--quiet-desk .topbar { display: block; grid-area: topbar; height: 56px; background: var(--bg); border-bottom: 1px solid var(--border); }
+.shell--quiet-desk .topbar-brand__logo { display: none; }
+.shell--quiet-desk .topbar-brand__title { font-size: 14px; font-weight: 500; }
+.shell--quiet-desk .topnav-shell { height: 56px; }
+.shell--quiet-desk .topbar-brand { display: flex; justify-content: flex-start; gap: 8px; }
+.shell--quiet-desk .topbar .topbar-nav-toggle { display: inline-flex; }
+.shell--quiet-desk .topnav-shell { padding: 0 16px; }
+.shell--quiet-desk .topbar-search { display: inline-flex; min-width: 32px; width: 32px; padding: 0; justify-content: center; }
+.shell--lazykins-installed.shell--settings:not(.shell--mobile-nav) { grid-template-rows: 56px auto minmax(0, 1fr); }
+.shell--quiet-desk .content { padding: 24px 32px; min-width: 0; }
+.shell--quiet-desk .content--chat { padding: 0 24px; }
+.shell--quiet-desk .sidebar-resizer { display: none; }
+.shell--quiet-desk .lazykins-sidebar { padding: 24px 16px 8px; background: var(--bg-muted); border-right: 1px solid var(--border); gap: 16px; display: flex; flex-direction: column; height: 100%; min-height: 0; overflow: auto; }
+.shell--quiet-desk .lazykins-brand { display: flex; align-items: start; justify-content: space-between; min-height: 40px; }
+.shell--quiet-desk .lazykins-brand strong { display: block; font-size: 18px; font-weight: 500; letter-spacing: -0.4px; }
+.shell--quiet-desk .lazykins-brand small { display: block; font-size: 12px; color: var(--muted); }
+.shell--quiet-desk .lazykins-nav { display: grid; gap: 8px; }
+.shell--quiet-desk .lazykins-new-conversation { display: flex; align-items: center; gap: 8px; border: 0; background: var(--primary); color: var(--primary-foreground); border-radius: 12px; padding: 12px; font: inherit; font-size: 14px; text-decoration: none; margin-bottom: 8px; }
+.shell--quiet-desk .lazykins-new-conversation:disabled { opacity: 0.55; }
+.shell--quiet-desk .lazykins-new-conversation svg { width: 16px; height: 16px; }
+.shell--quiet-desk .lazykins-nav-link, .shell--quiet-desk .lazykins-recent { display: flex; align-items: center; gap: 8px; width: 100%; border: 0; background: transparent; text-align: left; color: var(--text); font: inherit; font-size: 14px; border-radius: 8px; padding: 8px; min-height: 40px; }
+.shell--quiet-desk .lazykins-nav-link svg { width: 16px; height: 16px; }
+.shell--quiet-desk .lazykins-nav-link:hover, .shell--quiet-desk .lazykins-recent:hover, .shell--quiet-desk .lazykins-nav-link--selected { background: var(--bg-hover); }
+.shell--quiet-desk .lazykins-recents { display: grid; gap: 4px; }
+.shell--quiet-desk .lazykins-recents h2 { margin: 16px 8px 4px; color: var(--muted); font-size: 12px; font-weight: 500; }
+.shell--quiet-desk .lazykins-recent { display: grid; gap: 4px; }
+.shell--quiet-desk .lazykins-recent-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.shell--quiet-desk .lazykins-recent small { font-size: 12px; color: var(--muted); }
+.shell--quiet-desk .lazykins-sidebar-bottom { display: grid; gap: 8px; margin-top: auto; padding-top: 24px; }
+.lazykins-note { color: var(--muted); font-size: 12px; line-height: 1.5; margin: 4px 0; }
+.shell--quiet-desk .lazykins-files-note { margin: 0 8px; }
+.shell--quiet-desk .chat-text, .shell--quiet-desk .agent-chat__composer-combobox textarea { font-size: 17px; line-height: 1.6; }
+.shell--quiet-desk .chat-group.user .chat-text { background: var(--bg-muted); color: var(--text); border-radius: 12px; }
+.shell--quiet-desk .chat-group.user .chat-bubble { background: var(--bg-muted); color: var(--text); border-color: var(--border); }
+.shell--quiet-desk .chat-group.assistant .chat-text { background: transparent; box-shadow: none; }
+.shell--quiet-desk .agent-chat__input { border-radius: 18px; background: var(--card); box-shadow: none; }
+.shell--quiet-desk .agent-chat__composer-combobox textarea { max-height: 240px; overflow-y: auto; }
+.shell--quiet-desk .chat-thread-inner { max-width: 760px; margin-inline: auto; }
+.shell--quiet-desk .chat-text pre { max-width: 100%; overflow-x: auto; }
+.shell--quiet-desk .chat-text table { display: block; max-width: 100%; overflow-x: auto; }
+.shell--quiet-desk .chat-text a { overflow-wrap: anywhere; }
+.shell--quiet-desk :is(button, a, textarea, summary):focus-visible { outline: 2px solid var(--ring, var(--accent)); outline-offset: 3px; }
+.lazykins-settings { margin: 0 auto 16px; max-width: 760px; display: grid; gap: 12px; padding: 16px; border: 1px solid var(--border); border-radius: 12px; background: var(--card); }
+.lazykins-settings .lazykins-mode-switch { justify-self: start; }
+.lazykins-settings details { font-size: 14px; line-height: 1.6; }
+.lazykins-compatibility { margin: 10vh auto; max-width: 760px; padding: 24px; font: 17px/1.6 system-ui; color: var(--text); background: var(--card); border: 1px solid var(--border); border-radius: 12px; }
+.lazykins-independent-stop { display: none; }
+.shell--quiet-desk .lazykins-independent-stop { display: inline-flex; }
+.shell--quiet-desk .lazykins-independent-stop .chat-send-btn { background: var(--bg-muted); color: var(--text); border: 1px solid var(--border); }
+@media (max-width: 900px) {
+  .shell--quiet-desk .content { padding: 16px; }
+  .shell--quiet-desk .content--chat { padding: 0 8px; }
+  .shell--quiet-desk .lazykins-sidebar { padding-top: 16px; }
+}
+@media (max-width: 560px) {
+  .shell--quiet-desk .chat-text, .shell--quiet-desk .agent-chat__composer-combobox textarea { font-size: 16px; }
+  .shell--quiet-desk .lazykins-nav-link, .shell--quiet-desk .lazykins-recent { min-height: 44px; }
+  .shell--quiet-desk .content--chat { padding: 0; }
+  .lazykins-compatibility { margin: 16px; }
+}
+@media (prefers-reduced-motion: reduce) { .shell--quiet-desk *, .shell--quiet-desk *::before, .shell--quiet-desk *::after { transition: none !important; animation: none !important; } }
+@media (prefers-reduced-transparency: reduce) { .shell--quiet-desk .topbar { backdrop-filter: none; } }
+@media (forced-colors: active) { .shell--quiet-desk :is(button, a, textarea, summary):focus-visible { outline-color: Highlight; } }
+
+.shell--lazykins-installed { --shell-topbar-height: 56px; }
+.shell--lazykins-installed .topbar { display: block; height: 56px; grid-area: topbar; }
+.shell--lazykins-installed .topnav-shell { height: 56px; }
+.shell--lazykins-installed .topbar-brand__logo { display: none; }
+.shell--lazykins-installed .topbar-brand__title { font-size: 14px; }
+.shell--lazykins-installed .topnav-shell__actions { flex-shrink: 0; }
+.shell--quiet-desk .lazykins-recents { min-height: 0; display: block; overflow: auto; }
+.shell--quiet-desk .lazykins-sidebar .sidebar-footer-bar { width: 100%; }
+.shell--quiet-desk .lazykins-sidebar .sidebar-identity-card__text { display: block; }
+.shell--quiet-desk .lazykins-new-conversation { min-height: 44px; }
+.shell--quiet-desk .lazykins-new-conversation::after { content: "New conversation"; }
+.shell--quiet-desk .lazykins-brand button svg { width: 16px; height: 16px; }
+.shell--quiet-desk:not(.shell--mobile-nav):not(.shell--nav-collapsed):not(.shell--settings) { --shell-nav-width: 208px; }
+.shell--quiet-desk.shell--mobile-nav .shell-nav { width: min(90vw, 280px); }
+.shell--quiet-desk .lazykins-sidebar { padding: 20px 12px 8px; }
+.lazykins-settings h2, .lazykins-settings p { margin: 0; }
+.lazykins-settings select { margin-inline-start: 12px; padding: 8px; color: var(--text); background: var(--bg); border: 1px solid var(--border); border-radius: 8px; }
+.lazykins-mode-switch { white-space: nowrap; min-height: 36px; }
+@media (max-width: 560px) {
+  .shell--lazykins-installed .topnav-shell { padding-inline: 8px; }
+  .shell--lazykins-installed .topbar-brand { display: none; }
+  .shell--lazykins-installed .topnav-shell__content { min-width: 0; }
+  .lazykins-mode-switch { font-size: 12px; }
+}

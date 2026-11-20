@@ -1,0 +1,56 @@
+name: Build Quiet Desk 2026.11.6
+on:
+  push:
+    branches: [feat/openclaw-quiet-desk-2026-11-6]
+    paths:
+      - 'openclaw/lazykins-sanitize/2026.11.6/**'
+      - '.github/workflows/quiet-desk-2026-11-6.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      PACKAGE: openclaw/lazykins-sanitize/2026.11.6
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.18.0'
+      - name: Controller tests
+        run: python3 -m unittest discover -s "$PACKAGE/tests" -p 'test_*.py' -v
+      - name: Fetch exact upstream source
+        run: |
+          git clone --depth 1 --branch v2026.11.6 https://github.com/openclaw/openclaw.git "$RUNNER_TEMP/openclaw"
+          test "$(git -C "$RUNNER_TEMP/openclaw" rev-parse HEAD)" = 06afb10d3272cc9deaf38ca6a3b7b839d5935638
+      - name: Install pinned build dependencies
+        working-directory: ${{ runner.temp }}/openclaw
+        run: |
+          corepack enable
+          corepack prepare pnpm@12.15.0 --activate
+          pnpm install --frozen-lockfile
+          pnpm --filter openclaw-control-ui exec playwright install --with-deps chromium
+      - name: Build and verify production UI
+        run: |
+          python3 "$PACKAGE/skills/lazykins/runtime/scripts/build.py" --source "$RUNNER_TEMP/openclaw" --output "$GITHUB_WORKSPACE/$PACKAGE/skills/lazykins/runtime/payload"
+          cd "$PACKAGE"
+          python3 build-transfer.py
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: Quiet-Desk-fixture-diagnostics
+          path: ${{ runner.temp }}/openclaw/.artifacts/lazykins-verification
+          if-no-files-found: ignore
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LazyKins-Sanitize-2026.11.6
+          path: |
+            openclaw/lazykins-sanitize/LazyKins-Sanitize-2026.11.6.zip
+            openclaw/lazykins-sanitize/LazyKins-2026.11.6.zip
+            openclaw/lazykins-sanitize/Sanitize-2026.11.6.zip
+            openclaw/lazykins-sanitize/archives.sha256
+          if-no-files-found: error

@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "baseline": "2026.11.6",
+  "sourceTag": "v2026.11.6",
+  "sourceSha": "06afb10d3272cc9deaf38ca6a3b7b839d5935638",
+  "admittedVersions": [
+    "2026.11.6"
+  ],
+  "integration": "exact-pinned-Solid-layout-overlay",
+  "voiceMechanism": "agent-workspace-SOUL-marked-policy",
+  "linuxDeploymentVerified": false,
+  "ordinaryModelResponsesVerified": false,
+  "status": "build validation pending",
+  "futureUpdatePolicy": "Retain files; validate each tagged release before admitting it."
+}

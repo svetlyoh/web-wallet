@@ -1,0 +1,247 @@
+diff --git a/ui/src/app/app-shell-view-state.ts b/ui/src/app/app-shell-view-state.ts
+index a9155b6d..43c07a35 100644
+--- a/ui/src/app/app-shell-view-state.ts
++++ b/ui/src/app/app-shell-view-state.ts
+@@ -1,3 +1,4 @@
++import { readQuietDeskMode } from "../lazykins/quiet-desk-preference.ts";
+ import { isSettingsNavigationRoute, isSettingsTakeover } from "../app-navigation.ts";
+ import { isSessionRouteId } from "../app-route-paths.ts";
+ import { APP_ROUTE_IDS } from "../app-routes.ts";
+@@ -119,6 +120,8 @@ export function readShellView(host: ShellViewHost) {
+   // Onboarding renders without any navigation chrome, so the settings takeover
+   // must not reserve its fixed sidebar column (the grid would stay off-center).
+   const nativeEmbed = isNativeEmbedHost();
++  const deskMode = readQuietDeskMode(context);
++  const quietDesk = deskMode === "quiet" && !nativeEmbed && !host.onboardingMode;
+   const embedSettingsRoot = nativeEmbed && activeRoute === "settings";
+   const embedSettings =
+     nativeEmbed &&
+@@ -132,7 +135,7 @@ export function readShellView(host: ShellViewHost) {
+   const navDrawerOpen = host.navDrawerOpen && !onboarding && !nativeEmbed;
+   const mobileNavLayout = isMobileNavLayout();
+   const nativeWebChrome = isNativeWebChromeHost() && !nativeEmbed;
+-  const mergedChatChrome = shouldMergeChatChrome({
++  const mergedChatChrome = nativeEmbed && shouldMergeChatChrome({
+     mobileNavLayout,
+     routeId: activeRoute,
+     onboarding,
+@@ -146,7 +149,7 @@ export function readShellView(host: ShellViewHost) {
+     !host.desktopNavigationExpanded &&
+     !navDrawerOpen &&
+     !settingsTakeover;
+-  const railAvailable = !nativeEmbed && !settingsTakeover && !onboarding;
++  const railAvailable = !quietDesk && !nativeEmbed && !settingsTakeover && !onboarding;
+   const railWidth = railAvailable ? NAVIGATION_RAIL_WIDTH : 0;
+   const expandedNavWidth = navigationSnapshot.navWidth + railWidth;
+   const navigationSurfaceHidden = navigationSurfaceIsHidden({
+@@ -195,6 +198,7 @@ export function readShellView(host: ShellViewHost) {
+   // its scrolling and pins the composer dock to the bottom.
+   const chatLikeRoute = sessionRoute || activeRoute === "new-session" || activeRoute === "systems";
+   const sidebarProperties = {
++    quietDesk,
+     basePath: context.basePath,
+     activeRouteId: activeRoute,
+     router: runtime.router,
+@@ -274,6 +278,8 @@ export function readShellView(host: ShellViewHost) {
+     nativeDeviceSettings: context.nativeDeviceSettings,
+   };
+   return {
++    quietDesk,
++    deskMode,
+     nowMs: Date.now(),
+     routeReady: host.routeState.routeId !== undefined || host.routeState.routeFailed,
+     workspaceChromeVisible: host.workspaceChromeVisible,
+diff --git a/ui/src/app/app-shell-view.tsx b/ui/src/app/app-shell-view.tsx
+index ca041699..a12fd951 100644
+--- a/ui/src/app/app-shell-view.tsx
++++ b/ui/src/app/app-shell-view.tsx
+@@ -1,4 +1,6 @@
+ import "../lib/toast-host.tsx";
++import { DeskAppearance, DeskCompatibilityFailure, DeskModeSwitch } from "../lazykins/quiet-desk.tsx";
++import { isQuietDeskCompatible, saveQuietDeskMode, type DeskMode } from "../lazykins/quiet-desk-preference.ts";
+ import type { JSX as SolidJSX } from "@solidjs/web";
+ import { createMemo, createSignal, lazy, onSettled, Show } from "solid-js";
+ import { registerModalSurface } from "../components/overlay-registry.ts";
+@@ -97,6 +99,12 @@ export function ApplicationShell(props: {
+     props.host.shellRevision();
+     return readShellView(props.host);
+   });
++  const [deskError, setDeskError] = createSignal<string | null>(null);
++  const changeDeskMode = (mode: DeskMode) => {
++    const error = saveQuietDeskMode(view().context, mode);
++    setDeskError(error);
++    if (!error) props.host.invalidate();
++  };
+   const sessionOwner = createMemo(() => view().context.sessions);
+   const sessionRows = createMemo(() =>
+     projectOwner(sessionOwner(), (sessions) => sessions.state.result?.sessions),
+@@ -145,6 +153,9 @@ export function ApplicationShell(props: {
+         class={[
+           "shell",
+           {
++            "shell--lazykins-installed": !view().nativeEmbed && !view().onboarding,
++            "shell--quiet-desk": view().quietDesk,
++            "shell--quiet-desk-default": view().quietDesk && view().uiSettings.theme === "claw",
+             "shell--navigation-rail": view().railAvailable,
+             "shell--chat": view().chatLikeRoute,
+             "shell--nav-collapsed": view().navCollapsed,
+@@ -161,6 +172,7 @@ export function ApplicationShell(props: {
+             "shell--nav-resizing": navResizing(),
+           },
+         ]}
++        data-lazykins-color-mode={view().context.theme.resolvedMode}
+         data-background-managed={
+           !view().backgroundReady || view().uiSettings.background !== undefined ? "" : undefined
+         }
+@@ -207,6 +219,7 @@ export function ApplicationShell(props: {
+                 />
+               </Show>
+             )}
++            prop:appearanceAction={() => <DeskModeSwitch mode={view().deskMode} onChange={changeDeskMode} />}
+             prop:onOpenPalette={props.host.openPalette}
+             prop:onToggleDrawer={props.host.toggleNavigationSurface}
+           />
+@@ -397,6 +410,10 @@ export function ApplicationShell(props: {
+           <Show when={view().embedNavigation}>
+             <LazySettingsSidebar host={props.host} sidebarProps={view().settingsSidebarProps} />
+           </Show>
++          <Show when={view().activeRoute === "appearance"}>
++            <DeskAppearance mode={view().deskMode} error={deskError()} onChange={changeDeskMode} />
++          </Show>
++          <Show when={deskError() && view().activeRoute !== "appearance"}><p role="alert" class="callout danger">{deskError()}</p></Show>
+           <ShellLayoutProvider
+             value={{
+               get owner() {
+@@ -541,6 +558,8 @@ export function ApplicationShell(props: {
+           return null;
+         }}
+       </Show>
++      <Show when={(!view().gatewayConnected && !view().gatewaySnapshot.hello) || isQuietDeskCompatible(view().gatewaySnapshot.hello?.server?.version)}
++        fallback={<DeskCompatibilityFailure version={view().gatewaySnapshot.hello?.server?.version ?? "unknown"} />}>
+       <Show when={view().routeReady} fallback={<ConnectingSplash />}>
+         <PluginSurface
+           surface="workspace"
+@@ -562,6 +581,7 @@ export function ApplicationShell(props: {
+           renderDefault={() => workspace}
+         />
+       </Show>
++      </Show>
+     </>
+   );
+ }
+diff --git a/ui/src/components/app-sidebar-base.ts b/ui/src/components/app-sidebar-base.ts
+index 857c0bd2..b96f4216 100644
+--- a/ui/src/components/app-sidebar-base.ts
++++ b/ui/src/components/app-sidebar-base.ts
+@@ -28,6 +28,7 @@ import { selectSidebarContext, type ContextualSidebar } from "./sidebar-context-
+ import type { SidebarSnapshotModel } from "./sidebar-snapshot-model.ts";
+ 
+ export type AppSidebarProps = {
++  quietDesk: boolean;
+   basePath: string;
+   activeRouteId: NavigationRouteId | undefined;
+   router: Pick<ApplicationRouter, "getState" | "subscribeSelector"> | undefined;
+@@ -70,6 +71,7 @@ export type AppSidebarProps = {
+ };
+ 
+ export const appSidebarProperties = {
++  quietDesk: { default: false, attribute: false },
+   basePath: { default: "", attribute: false },
+   activeRouteId: { default: undefined, attribute: false },
+   router: { default: undefined, attribute: false },
+@@ -115,6 +117,7 @@ export const appSidebarProperties = {
+ 
+ /** Synchronous sidebar state and native attachment; Solid owns its DOM. */
+ export abstract class AppSidebarBase {
++  declare quietDesk: AppSidebarProps["quietDesk"];
+   declare basePath: AppSidebarProps["basePath"];
+   declare activeRouteId: AppSidebarProps["activeRouteId"];
+   declare router: AppSidebarProps["router"];
+diff --git a/ui/src/components/app-sidebar-owner.tsx b/ui/src/components/app-sidebar-owner.tsx
+index 3948fd7a..86428a98 100644
+--- a/ui/src/components/app-sidebar-owner.tsx
++++ b/ui/src/components/app-sidebar-owner.tsx
+@@ -1,3 +1,4 @@
++import { QuietDeskSidebar } from "../lazykins/quiet-desk-sidebar.tsx";
+ import type { JSX } from "@solidjs/web";
+ import { createMemo, lazy, onSettled, Show } from "solid-js";
+ import type { SessionObserverDigest } from "../../../packages/gateway-protocol/src/schema/sessions.js";
+@@ -524,7 +525,6 @@ export class AppSidebarOwner extends AppSidebarSessionNavigationElement implemen
+         </SidebarViewBoundary>
+       );
+       const toolbar = renderSessionListToolbar(this);
+-      const menus = this.sidebarMenus.render(this);
+       return (
+         <aside
+           class="sidebar sidebar--rail"
+@@ -617,13 +617,15 @@ export class AppSidebarOwner extends AppSidebarSessionNavigationElement implemen
+               />
+             </Show>
+           </div>
+-          {menus}
+         </aside>
+       );
+     };
+     return (
+       <Show when={!snapshot.pending()}>
+-        <SidebarFrame />
++        <Show when={this.quietDesk} fallback={<SidebarFrame />}>
++          <QuietDeskSidebar host={this} sessions={Sessions} />
++        </Show>
++        {this.sidebarMenus.render(this)}
+       </Show>
+     );
+   }
+diff --git a/ui/src/components/app-topbar-solid.tsx b/ui/src/components/app-topbar-solid.tsx
+index 9e79bdb8..170a461a 100644
+--- a/ui/src/components/app-topbar-solid.tsx
++++ b/ui/src/components/app-topbar-solid.tsx
+@@ -14,6 +14,7 @@ import { Kbd, ShortcutText } from "./solid/kbd.tsx";
+ import "./tooltip.ts";
+ 
+ type Props = {
++  appearanceAction: (() => JSX.Element) | undefined;
+   navDrawerOpen: boolean;
+   gatewayStatus?: GatewayStatusProps | null;
+   newSessionAction: (() => JSX.Element) | undefined;
+@@ -74,6 +75,7 @@ defineSolidBridge<Props>(
+             </div>
+           </div>
+           <div class="topnav-shell__actions">
++            {props.appearanceAction?.()}
+             {props.newSessionAction?.()}
+             <openclaw-tooltip prop:content={t("chat.commandPaletteTitle")}>
+               <span slot="content">
+@@ -98,6 +100,7 @@ defineSolidBridge<Props>(
+   },
+   {
+     properties: {
++      appearanceAction: { default: undefined, attribute: false },
+       navDrawerOpen: { default: false, attribute: false },
+       gatewayStatus: { default: null, attribute: false },
+       newSessionAction: { default: undefined, attribute: false },
+diff --git a/ui/src/pages/chat/components/chat-composer-controls.tsx b/ui/src/pages/chat/components/chat-composer-controls.tsx
+index 8e0ecbba..6e2d147a 100644
+--- a/ui/src/pages/chat/components/chat-composer-controls.tsx
++++ b/ui/src/pages/chat/components/chat-composer-controls.tsx
+@@ -454,6 +454,10 @@ export function renderChatPrimaryActionsSolid(props: ChatRunControlsProps) {
+   );
+   return (
+     <>
++      {/* Quiet Desk keeps the native abort action reachable beside a sendable follow-up. */}
++      {!props.voiceActive && props.canAbort && hasSendableContent() ? (
++        <span class="lazykins-independent-stop"><AbortAction {...props} /></span>
++      ) : null}
+       {props.voiceActive && props.onToggleVoice ? (
+         <>
+           <span class="chat-talk-control chat-talk-control--active" style={microphoneHoverStyle}>
+diff --git a/ui/src/styles.css b/ui/src/styles.css
+index ea47c77e..69ccc6d1 100644
+--- a/ui/src/styles.css
++++ b/ui/src/styles.css
+@@ -13,3 +13,5 @@
+ :root {
+   --openclaw-css-ok: 1;
+ }
++
++@import "./lazykins/quiet-desk.css";
