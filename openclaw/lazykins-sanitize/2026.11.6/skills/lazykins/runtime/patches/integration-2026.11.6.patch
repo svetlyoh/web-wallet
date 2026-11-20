@@ -158,7 +158,7 @@ index 857c0bd2..b96f4216 100644
    declare activeRouteId: AppSidebarProps["activeRouteId"];
    declare router: AppSidebarProps["router"];
 diff --git a/ui/src/components/app-sidebar-owner.tsx b/ui/src/components/app-sidebar-owner.tsx
-index 3948fd7a..86428a98 100644
+index 3948fd7a..70e5b9f3 100644
 --- a/ui/src/components/app-sidebar-owner.tsx
 +++ b/ui/src/components/app-sidebar-owner.tsx
 @@ -1,3 +1,4 @@
@@ -186,7 +186,7 @@ index 3948fd7a..86428a98 100644
        <Show when={!snapshot.pending()}>
 -        <SidebarFrame />
 +        <Show when={this.quietDesk} fallback={<SidebarFrame />}>
-+          <QuietDeskSidebar host={this} sessions={Sessions} />
++          <QuietDeskSidebar host={this} recent={() => this.selectedAgentSessionRows(this.getSessionNavigationState()).slice(0, 5)} />
 +        </Show>
 +        {this.sidebarMenus.render(this)}
        </Show>
