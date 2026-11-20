@@ -10,7 +10,7 @@ unzip LazyKins-Sanitize-2026.11.6.zip -d "$HOME/Documents/LazyKins-Sanitize"
 cd "$HOME/Documents/LazyKins-Sanitize"
 ```
 
-Python 3 and the installed `openclaw` executable are needed. The ready-built UI requires no Node/pnpm toolchain on the Linux host. Check transfer checksums before running the package:
+Python 3.11 or newer and the installed `openclaw` executable are needed. Check `python3 --version` first. The ready-built UI requires no Node/pnpm toolchain on the Linux host. Check transfer checksums before running the package:
 
 ```bash
 sha256sum -c SHA256SUMS
