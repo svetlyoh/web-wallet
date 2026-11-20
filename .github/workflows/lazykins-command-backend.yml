@@ -1,0 +1,34 @@
+name: Verify Command Deck backend
+on:
+  push:
+    branches: [feat/lazykins-modes-2026-11-6-r2]
+    paths:
+      - 'openclaw/lazykins-sanitize/2026.11.6/skills/lazykins/runtime/command-backend/**'
+      - '.github/workflows/lazykins-command-backend.yml'
+permissions:
+  contents: read
+jobs:
+  native:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      BACKEND: openclaw/lazykins-sanitize/2026.11.6/skills/lazykins/runtime/command-backend
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.18.0'
+      - name: Portable queue and storage tests
+        run: node --test "$BACKEND/tests/backend.test.js"
+      - name: Exact source and dependencies
+        run: |
+          git clone --depth 1 --branch v2026.11.6 https://github.com/openclaw/openclaw.git "$RUNNER_TEMP/openclaw"
+          test "$(git -C "$RUNNER_TEMP/openclaw" rev-parse HEAD)" = 06afb10d3272cc9deaf38ca6a3b7b839d5935638
+          corepack enable
+          corepack prepare pnpm@12.15.0 --activate
+          cd "$RUNNER_TEMP/openclaw"
+          pnpm install --frozen-lockfile
+      - name: Actual native plugin, service scheduler and Cron proof
+        run: node --import "$RUNNER_TEMP/openclaw/scripts/tsx.mjs" "$BACKEND/tests/native-proof.mts" "$RUNNER_TEMP/openclaw"

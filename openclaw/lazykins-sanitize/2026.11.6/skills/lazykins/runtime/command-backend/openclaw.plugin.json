@@ -1,0 +1,11 @@
+{
+  "id": "lazykins-command-desk",
+  "name": "LazyKins Command Desk",
+  "description": "Durable Command Desk-owned priority queue using native SQLite state and Cron execution.",
+  "activation": { "onStartup": true },
+  "configSchema": { "type": "object", "additionalProperties": false, "properties": {
+    "voiceAgents": {"type":"array","items":{"type":"string","pattern":"^[A-Za-z0-9_-]+$"},"uniqueItems":true,"default":[],"description":"Deprecated and ignored. Use the separate Sanitize skill."},
+    "profile": {"type":"string","pattern":"^[A-Za-z0-9_-]+$","description":"Deprecated and ignored; queue state uses the active service context."},
+    "skillRoot": {"type":"string","description":"Deprecated and ignored. This backend never invokes voice controls."}
+  } }
+}
