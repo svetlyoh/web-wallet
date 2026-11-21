@@ -1,7 +1,6 @@
 import { readDeckNavigation } from "./command-deck-navigation-storage.ts";
 import { readDeckChoice, readDeckDefault, rememberDeckChoice, writeDeckDefault } from "./command-deck-preferences.ts";
 import type { ApplicationContext } from "../app/context.ts";
-import { selectApplicationSession } from "../app/agent-selection.ts";
 import { loadGatewaySessionSelection, patchSettings } from "../app/settings.ts";
 import { sessionRefFromPath } from "../app-session-route-paths.ts";
 import { createChangeListeners } from "../../../src/shared/listeners.js";

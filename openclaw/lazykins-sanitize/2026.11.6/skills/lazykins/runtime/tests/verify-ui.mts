@@ -5,7 +5,7 @@ import http from "node:http";
 import { chromium, type Page } from "playwright";
 import { createControlUiE2eArtifactDir } from "./src/test-helpers/control-ui-e2e-artifacts.ts";
 import { defaultControlUiFeatureMethods } from "./src/test-helpers/control-ui-e2e-defaults.ts";
-import { installMockGateway, waitForControlUiRoute } from "./src/test-helpers/control-ui-e2e.ts";
+import { installMockGateway } from "./src/test-helpers/control-ui-e2e.ts";
 
 // This executable lives in the isolated upstream ui/ directory during tests.
 // It drives the real production bundle with upstream's deterministic Gateway.
@@ -375,13 +375,13 @@ try {
   assert((await crewGateway.getRequests("sessions.list",{spawnedBy:"agent:helm:main"})).some(request=>!(request.params as {agentId?:string}).agentId));
   await crewPage.screenshot({path:path.join(proof,"command-deck-helm-delegation-running.png"),animations:"disabled"});
   childRunning=false;
-  await crewGateway.setMethodResponse("sessions.list",{sessions:[...crewSessions,child()]});
+  await crewGateway.setSessionsListResponse({sessions:[...crewSessions,child()]});
   await crewGateway.emitGatewayEvent("sessions.changed",{sessionKey:childKey,session:child()});
   await crewPage.locator(".command-helm-child").getByText("completed",{exact:true}).waitFor();
   await crewPage.locator(".command-crew-roster").getByRole("button",{name:"Chat with Jace",exact:true}).click();
   await crewPage.locator(".command-deck-contact").getByText("Jace",{exact:false}).waitFor();
   console.log("Crew Jace navigation",crewPage.url(),JSON.stringify(await crewGateway.getRequests("chat.startup")));
-  await waitForControlUiRoute(crewPage,{pathname:"/chat/jace",routeId:"chat"});
+  await crewPage.waitForFunction(()=>window.openclawControlUi?.snapshot().routeReady && location.pathname==="/chat/jace");
   await crewComposerFor("jace").fill("Synthetic direct message to Jace");
   await crewPage.getByRole("button",{name:"Send message",exact:true}).click();
   assert.equal(((await crewGateway.waitForRequest("chat.send")).params as {sessionKey:string}).sessionKey,"agent:jace:main");
@@ -407,6 +407,7 @@ try {
   await crewPage.locator(".shell:not(.shell--command-deck)").waitFor();
   assert.deepEqual(await ordinarySelection(),ordinaryBefore);
   for(const method of ["agents.create","templates.add.plan","templates.add.apply","config.patch"]) assert.equal((await crewGateway.getRequests(method)).length,0);
+  assert.deepEqual(crewErrors,[]);
   await crewContext.close();
   observations.push("Crew Gateway fixture: authored bootstrap hash admission, Helm-first actual Home navigation, Jace/Cruz direct chat.send session keys without Helm forwarding, original main draft and remembered selection restoration, Jace reentry, real child-session running-to-completed projection, and no automatic creation/config writes. Authored persona output and live provider delegation remain untested.");
   const mismatch = await browser.newContext({viewport:{width:1280,height:720},serviceWorkers:"block"});
