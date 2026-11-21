@@ -35,6 +35,14 @@ const base = `http://127.0.0.1:${address.port}/`;
 const browser = await chromium.launch();
 const observations: string[] = [];
 let activePage: Page | undefined;
+const watchdog = setTimeout(async () => {
+  console.error("Mode verification exceeded 150 seconds");
+  if (activePage && !activePage.isClosed()) {
+    await fs.writeFile(path.join(proof,"timeout.txt"),activePage.url()+"\n"+await activePage.locator("body").innerText({timeout:5000})).catch(()=>{});
+    await activePage.screenshot({path:path.join(proof,"timeout.png"),timeout:5000}).catch(()=>{});
+  }
+  process.exit(1);
+},150_000);
 try {
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, colorScheme: "light", serviceWorkers: "block" });
   const page = await context.newPage(); activePage = page;
@@ -313,6 +321,7 @@ try {
   }
   throw error;
 } finally {
+  clearTimeout(watchdog);
   await browser.close();
   await new Promise<void>(resolve => server.close(() => resolve()));
 }
