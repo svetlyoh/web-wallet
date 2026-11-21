@@ -1,7 +1,7 @@
 import { readDeckChoice, readDeckDefault, rememberDeckChoice, writeDeckDefault } from "./command-deck-preferences.ts";
 import type { ApplicationContext } from "../app/context.ts";
 import { selectApplicationSession } from "../app/agent-selection.ts";
-import { loadOrdinaryGatewaySessionSelection, patchSettings } from "../app/settings.ts";
+import { loadGatewaySessionSelection, patchSettings } from "../app/settings.ts";
 import { sessionRefFromPath } from "../app-session-route-paths.ts";
 import { createChangeListeners } from "../../../src/shared/listeners.js";
 import { sessionNavigationTarget } from "../lib/sessions/route-navigation.ts";
@@ -29,7 +29,7 @@ export class CommandDeckNavigation {
   }
   start():()=>void {
     this.scope=quietDeskStorageKey(this.context);
-    this.ordinary=loadOrdinaryGatewaySessionSelection(this.context.gateway.connection.gatewayUrl);
+    this.ordinary=loadGatewaySessionSelection(this.context.gateway.connection.gatewayUrl);
     this.applied=false;this.state.error="";
     this.entryIntent=this.context.agentSelection.intentRevision;
     const url=this.context.gateway.connection.gatewayUrl;const profile=this.context.gateway.snapshot.selfUser?.id;

@@ -168,7 +168,7 @@ index ca041699..afe3a90d 100644
    );
  }
 diff --git a/ui/src/app/settings.ts b/ui/src/app/settings.ts
-index 2b09504f..f481720b 100644
+index 2b09504f..97ef5dae 100644
 --- a/ui/src/app/settings.ts
 +++ b/ui/src/app/settings.ts
 @@ -1,3 +1,4 @@
@@ -176,22 +176,7 @@ index 2b09504f..f481720b 100644
  import { gatewayCredentialScope, gatewayOriginScope } from "@openclaw/gateway-client/browser";
  import { safeParseJson } from "@openclaw/normalization-core";
  import { normalizeAgentId } from "@openclaw/normalization-core/agent-id";
-@@ -271,6 +272,14 @@ function resolveScopedSessionSelection(
-   return fallback;
- }
- 
-+export function loadOrdinaryGatewaySessionSelection(gatewayUrl: string): ScopedSessionSelection {
-+  const fallback = { sessionKey: "main", lastActiveSessionKey: "main" };
-+  try {
-+    const source = readSettingsForGateway(getSafeLocalStorage(), gatewayUrl);
-+    return source ? resolveScopedSessionSelection(gatewayUrl, source.parsed, fallback) : fallback;
-+  } catch { return fallback; }
-+}
-+
- export function loadGatewaySessionSelection(gatewayUrl: string): ScopedSessionSelection {
-   const fallback = { sessionKey: "main", lastActiveSessionKey: "main" };
-   try {
-@@ -606,13 +615,13 @@ export function saveSettings(
+@@ -606,13 +607,13 @@ export function saveSettings(
        ...Object.entries(existingSessionsByGateway).filter(([key]) => key !== scope),
        [
          scope,
@@ -203,7 +188,7 @@ index 2b09504f..f481720b 100644
              ? { selectedAgentId: normalizeAgentId(next.selectedAgentId) }
              : {}),
 -        },
-+        }, loadOrdinaryGatewaySessionSelection(next.gatewayUrl)),
++        }, loadGatewaySessionSelection(next.gatewayUrl)),
        ],
      ].slice(-MAX_SCOPED_SESSION_ENTRIES),
    );
