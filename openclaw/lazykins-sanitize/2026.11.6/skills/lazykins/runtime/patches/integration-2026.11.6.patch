@@ -200,18 +200,14 @@ index 857c0bd2..9e1c84e7 100644
    declare activeRouteId: AppSidebarProps["activeRouteId"];
    declare router: AppSidebarProps["router"];
 diff --git a/ui/src/components/app-sidebar-owner.tsx b/ui/src/components/app-sidebar-owner.tsx
-index 3948fd7a..509aa66a 100644
+index 3948fd7a..3ab8a36d 100644
 --- a/ui/src/components/app-sidebar-owner.tsx
 +++ b/ui/src/components/app-sidebar-owner.tsx
-@@ -1,3 +1,4 @@
-+import { QuietDeskSidebar } from "../lazykins/quiet-desk-sidebar.tsx";
- import type { JSX } from "@solidjs/web";
- import { createMemo, lazy, onSettled, Show } from "solid-js";
- import type { SessionObserverDigest } from "../../../packages/gateway-protocol/src/schema/sessions.js";
-@@ -56,6 +57,8 @@ import { Icon } from "./solid/icon.tsx";
+@@ -56,6 +56,9 @@ import { Icon } from "./solid/icon.tsx";
  import { PanelRefreshStatus } from "./solid/panel-refresh-status.tsx";
  import { SidebarCommunityInvite } from "./solid/sidebar-community-invite.tsx";
  
++const QuietDeskSidebar = lazy(() => import("../lazykins/quiet-desk-sidebar.tsx"), { export: "QuietDeskSidebar" });
 +const CommandDeckSidebar = lazy(() => import("../lazykins/command-deck-sidebar.tsx"), { export: "CommandDeckSidebar" });
 +
  const SidebarAgentRoster = lazy(() => import("./sidebar-agent-roster.tsx"), {

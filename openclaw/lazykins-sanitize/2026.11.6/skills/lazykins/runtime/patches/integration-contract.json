@@ -14,7 +14,7 @@
     "ui/src/app/app-shell-view-state.ts": "2542d8dc048ef4450f15bb31aed8938d9ec7aa5c3e9f96c5a93df286322c54bc",
     "ui/src/app/app-shell-view.tsx": "3b9ce8af9641a248a8e34d4f085ab5f162ccfe0109d1b1ac2d8dcf77ac947f35",
     "ui/src/components/app-sidebar-base.ts": "64668321e6899388bddd73e269a92fb7b5cadb36b1f40d1f7bb18d94c3044e3d",
-    "ui/src/components/app-sidebar-owner.tsx": "7f1c58a6381d43b018e709af727af64e307859e455f20c371a361767e4cf15f9",
+    "ui/src/components/app-sidebar-owner.tsx": "2c1b62bb997a1f8d79cc8c623859b524952a44c30172baa0d94c04b794b7845a",
     "ui/src/components/app-sidebar-rail.tsx": "ff53a6cee88b4c6586f14db1bf01170b68c60f99f4a16f55e831e27cb0e82021",
     "ui/src/components/app-topbar-solid.tsx": "f66f3bb60fa491a60b71b165ccf769b29bf65a944fa278597041b0999d136260",
     "ui/src/pages/chat/components/chat-composer-controls.tsx": "34550c7d24546e7dc677c5e34319ee5f61687b2ee0838050767d96fe8a738ea2"
