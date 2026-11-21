@@ -354,11 +354,7 @@ try {
       return {agentId:query.agentId,workspace:`/synthetic/${query.agentId}`,file:{name:query.name,path:query.name,missing:false,hash:metadata.bootstrapHashes[query.name],content:"Synthetic content; the mocked Gateway owns this hash fixture."}};
     },
     "sessions.describe":async()=>({session:crewSessions.find(row=>row.key==="agent:helm:main"),nativeSubagents:{coverage:"live",children:[],truncated:false}}),
-    "sessions.list":async(params:unknown)=>{
-      const query=params as {spawnedBy?:string;agentId?:string};
-      const rows=query.spawnedBy ? (query.spawnedBy==="agent:helm:main" ? [child()] : []) : [...crewSessions,child()].filter(row=>!query.agentId || row.key.startsWith(`agent:${query.agentId}:`));
-      return {ts:Date.now(),path:"",count:rows.length,sessions:rows};
-    },
+
   }});
   await crewPage.goto(`${base}chat`);
   const crewComposer=crewPage.locator(".agent-chat__composer-combobox textarea");
@@ -377,6 +373,7 @@ try {
   assert((await crewGateway.getRequests("sessions.list",{spawnedBy:"agent:helm:main"})).some(request=>!(request.params as {agentId?:string}).agentId));
   await crewPage.screenshot({path:path.join(proof,"command-deck-helm-delegation-running.png"),animations:"disabled"});
   childRunning=false;
+  await crewGateway.setMethodResponse("sessions.list",{sessions:[...crewSessions,child()]});
   await crewGateway.emitGatewayEvent("sessions.changed",{sessionKey:childKey,session:child()});
   await crewPage.locator(".command-helm-child").getByText("completed",{exact:true}).waitFor();
   await crewPage.locator(".command-crew-roster").getByRole("button",{name:"Chat with Jace",exact:true}).click();
