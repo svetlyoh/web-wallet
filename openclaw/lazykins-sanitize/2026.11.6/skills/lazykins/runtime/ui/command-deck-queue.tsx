@@ -85,6 +85,6 @@ function CommandQueuePanel(props:Props) {
   // Hiding this surface avoids disposing its owner subscriptions on resize.
   return <>
     <aside class="command-deck-queue" aria-label="Command Deck task queue" hidden={narrow() || props.open === false}><Content/></aside>
-    <Show when={narrow() && props.open === true}><ModalDialog label="Command Deck task queue" onOpenChange={open=>{if(!open)props.onOpenChange(false);}}><section class="command-deck-queue command-deck-queue--drawer"><Content/></section></ModalDialog></Show>
+    <ModalDialog open={narrow() && props.open === true} label="Command Deck task queue" onOpenChange={open=>{if(!open)props.onOpenChange(false);}}><section class="command-deck-queue command-deck-queue--drawer"><Content/></section></ModalDialog>
   </>;
 }
