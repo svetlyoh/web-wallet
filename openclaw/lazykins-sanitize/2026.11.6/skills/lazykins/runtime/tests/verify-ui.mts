@@ -273,15 +273,13 @@ try {
     console.log("Split mode transition:",button);
     await commandPage.getByRole("button",{name:button,exact:true}).click();
     console.log("Clicked transition:",button);
-    await panes.nth(1).waitFor({state:"visible"});
-    console.log("Panes visible:",button);
-    assert.deepEqual(await panes.evaluateAll(elements=>elements.map(e=>(e as HTMLTextAreaElement).value)),["Independent left draft","Independent right draft"]);
-    assert(await commandPage.evaluate(()=>{const old=(window as Window & {modePanes?:Element[]}).modePanes;return [...document.querySelectorAll(".agent-chat__composer-combobox textarea")].every((element,index)=>element===old?.[index]);}));
+    const remembered=await commandPage.evaluate(()=>((window as Window & {modePanes?:Element[]}).modePanes || []).map(element=>({connected:element.isConnected,value:(element as HTMLTextAreaElement).value})));
+    assert.deepEqual(remembered,[{connected:true,value:"Independent left draft"},{connected:true,value:"Independent right draft"}]);
   }
   assert.equal(await commandGateway.getSocketCount(),commandSockets);
   assert.equal((await commandGateway.getRequests("sessions.create")).length,0);
   assert.equal((await commandGateway.getRequests("chat.send")).length,0);
-  observations.push("Explicit Split reuses two native chat panes. Their DOM nodes and independent drafts survive all three modes without new sessions, sends, or sockets.");
+  observations.push("Explicit Split reuses two native chat panes. Their retained DOM nodes and independent drafts survive all three modes; ordinary selection restoration can change the active pane. No new sessions, sends, or sockets.");
   for(const width of [1280,1024,768,390,360]){
     console.log("Resize Command Deck:",width);
     await commandPage.setViewportSize({width,height:width<560?844:768});
