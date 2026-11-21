@@ -101,6 +101,8 @@ def main():
     shutil.copy2(RUNTIME / "tests" / "verify-crew-owner.mts", source / "ui" / "lazykins-crew-owner-proof.mts")
     run(["node", "--import", str(source / "scripts" / "tsx.mjs"), "lazykins-crew-owner-proof.mts", str(RUNTIME / "crew")], source / "ui")
     run([shutil.which("pnpm") or "pnpm", "ui:build"], source)
+    shutil.copy2(RUNTIME / "scripts" / "compress-ui.mts", source / "ui" / "lazykins-compress.mts")
+    run(["node", "--import", str(source / "scripts" / "tsx.mjs"), "lazykins-compress.mts", str(source / "dist" / "control-ui")], source / "ui")
     proof = source / ".artifacts" / "lazykins-verification"
     run(["node", "--import", str(source / "scripts" / "tsx.mjs"), "lazykins-verify.mts", str(proof)], source / "ui")
     run([shutil.which("pnpm") or "pnpm", "ui:check-performance"], source)
