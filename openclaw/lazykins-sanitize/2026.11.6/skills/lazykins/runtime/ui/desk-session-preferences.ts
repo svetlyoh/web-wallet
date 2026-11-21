@@ -24,7 +24,7 @@ export function readDeskMode(gatewayUrl: string, profileId: string | null | unde
 }
 export function writeDeskMode(gatewayUrl: string, profileId: string | null | undefined, mode: DeskMode): void {
   const storage = getSafeLocalStorage();
-  if (!storage) throw new Error("Browser storage is unavailable. Allow site storage to save this appearance choice.");
+  if (!storage) throw new Error("Allow browser storage to save this mode.");
   const key = deskPreferenceKey(gatewayUrl, profileId);
   const previous=readDeskMode(gatewayUrl,profileId);
   storage.setItem(key, mode);

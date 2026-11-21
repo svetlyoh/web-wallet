@@ -17,7 +17,7 @@ export function readQuietDeskMode(context: ApplicationContext): DeskMode {
 }
 export function saveQuietDeskMode(context: ApplicationContext, mode: DeskMode): string | null {
   try { writeDeskMode(context.gateway.connection.gatewayUrl, context.gateway.snapshot.selfUser?.id, mode); return null; }
-  catch(error) { return error instanceof Error ? error.message : "The appearance choice could not be saved."; }
+  catch(error) { return error instanceof Error ? error.message : "Could not save mode."; }
 }
 export function isQuietDeskCompatible(version: string | undefined): boolean {
   return version === LAZYKINS_VERSION;
