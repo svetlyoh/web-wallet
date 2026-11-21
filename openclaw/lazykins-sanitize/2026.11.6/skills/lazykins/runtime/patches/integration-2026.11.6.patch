@@ -1,74 +1,93 @@
 diff --git a/ui/src/app/app-shell-view-state.ts b/ui/src/app/app-shell-view-state.ts
-index a9155b6d..77b9a41a 100644
+index a9155b6d..ab7ae376 100644
 --- a/ui/src/app/app-shell-view-state.ts
 +++ b/ui/src/app/app-shell-view-state.ts
 @@ -1,3 +1,4 @@
-+import { readQuietDeskMode } from "../lazykins/quiet-desk-preference.ts";
++import { readQuietDeskMode, saveQuietDeskMode, type DeskMode } from "../lazykins/quiet-desk-preference.ts";
  import { isSettingsNavigationRoute, isSettingsTakeover } from "../app-navigation.ts";
  import { isSessionRouteId } from "../app-route-paths.ts";
  import { APP_ROUTE_IDS } from "../app-routes.ts";
-@@ -119,6 +120,8 @@ export function readShellView(host: ShellViewHost) {
+@@ -119,6 +120,9 @@ export function readShellView(host: ShellViewHost) {
    // Onboarding renders without any navigation chrome, so the settings takeover
    // must not reserve its fixed sidebar column (the grid would stay off-center).
    const nativeEmbed = isNativeEmbedHost();
 +  const deskMode = readQuietDeskMode(context);
 +  const quietDesk = deskMode === "quiet" && !nativeEmbed && !host.onboardingMode;
++  const commandDesk = deskMode === "command" && !nativeEmbed && !host.onboardingMode;
    const embedSettingsRoot = nativeEmbed && activeRoute === "settings";
    const embedSettings =
      nativeEmbed &&
-@@ -132,7 +135,7 @@ export function readShellView(host: ShellViewHost) {
+@@ -132,7 +136,7 @@ export function readShellView(host: ShellViewHost) {
    const navDrawerOpen = host.navDrawerOpen && !onboarding && !nativeEmbed;
    const mobileNavLayout = isMobileNavLayout();
    const nativeWebChrome = isNativeWebChromeHost() && !nativeEmbed;
 -  const mergedChatChrome = shouldMergeChatChrome({
-+  const mergedChatChrome = nativeEmbed && shouldMergeChatChrome({
++  const mergedChatChrome = !quietDesk && !commandDesk && shouldMergeChatChrome({
      mobileNavLayout,
      routeId: activeRoute,
      onboarding,
-@@ -146,9 +149,9 @@ export function readShellView(host: ShellViewHost) {
+@@ -146,9 +150,9 @@ export function readShellView(host: ShellViewHost) {
      !host.desktopNavigationExpanded &&
      !navDrawerOpen &&
      !settingsTakeover;
 -  const railAvailable = !nativeEmbed && !settingsTakeover && !onboarding;
-+  const railAvailable = !quietDesk && !nativeEmbed && !settingsTakeover && !onboarding;
++  const railAvailable = !quietDesk && !commandDesk && !nativeEmbed && !settingsTakeover && !onboarding;
    const railWidth = railAvailable ? NAVIGATION_RAIL_WIDTH : 0;
 -  const expandedNavWidth = navigationSnapshot.navWidth + railWidth;
-+  const expandedNavWidth = quietDesk ? 208 : navigationSnapshot.navWidth + railWidth;
++  const expandedNavWidth = quietDesk ? 208 : commandDesk ? 256 : navigationSnapshot.navWidth + railWidth;
    const navigationSurfaceHidden = navigationSurfaceIsHidden({
      onboarding,
      navCollapsed,
-@@ -195,6 +198,7 @@ export function readShellView(host: ShellViewHost) {
+@@ -195,6 +199,12 @@ export function readShellView(host: ShellViewHost) {
    // its scrolling and pins the composer dock to the bottom.
    const chatLikeRoute = sessionRoute || activeRoute === "new-session" || activeRoute === "systems";
    const sidebarProperties = {
-+    quietDesk,
++    deskMode: quietDesk ? "quiet" as const : commandDesk ? "command" as const : "openclaw" as const,
++    onChangeDeskMode: (mode: DeskMode) => {
++      const error = saveQuietDeskMode(context, mode);
++      if (!error) host.invalidate();
++      return error;
++    },
      basePath: context.basePath,
      activeRouteId: activeRoute,
      router: runtime.router,
-@@ -274,6 +278,8 @@ export function readShellView(host: ShellViewHost) {
+@@ -274,6 +284,9 @@ export function readShellView(host: ShellViewHost) {
      nativeDeviceSettings: context.nativeDeviceSettings,
    };
    return {
 +    quietDesk,
++    commandDesk,
 +    deskMode,
      nowMs: Date.now(),
      routeReady: host.routeState.routeId !== undefined || host.routeState.routeFailed,
      workspaceChromeVisible: host.workspaceChromeVisible,
 diff --git a/ui/src/app/app-shell-view.tsx b/ui/src/app/app-shell-view.tsx
-index ca041699..ebece7f3 100644
+index ca041699..47276061 100644
 --- a/ui/src/app/app-shell-view.tsx
 +++ b/ui/src/app/app-shell-view.tsx
 @@ -1,4 +1,6 @@
  import "../lib/toast-host.tsx";
-+import { DeskAppearance, DeskCompatibilityFailure, DeskModeSwitch, DeskStyles } from "../lazykins/quiet-desk.tsx";
++import { DeskCompatibilityFailure, DeskModeSwitch, DeskStyles } from "../lazykins/quiet-desk.tsx";
 +import { isQuietDeskCompatible, saveQuietDeskMode, type DeskMode } from "../lazykins/quiet-desk-preference.ts";
  import type { JSX as SolidJSX } from "@solidjs/web";
  import { createMemo, createSignal, lazy, onSettled, Show } from "solid-js";
  import { registerModalSurface } from "../components/overlay-registry.ts";
-@@ -97,6 +99,12 @@ export function ApplicationShell(props: {
+@@ -37,6 +39,10 @@ import { ShellLayoutProvider } from "./shell-layout-traits-solid.tsx";
+ 
+ export type { ShellViewHost } from "./app-shell-view-state.ts";
+ 
++const DeskAppearance = lazy(() => import("../lazykins/desk-appearance.tsx"), { export: "DeskAppearance" });
++const CommandDeckHeader = lazy(() => import("../lazykins/command-deck-layout.tsx"), { export: "CommandDeckHeader" });
++const CommandDeckQueue = lazy(() => import("../lazykins/command-deck-queue.tsx"), { export: "CommandDeckQueue" });
++
+ const NavigationSidebar = lazy(async () => {
+   await import("../components/app-sidebar.tsx");
+   // Keep the native host that callers assign before registration and move between layouts.
+@@ -97,6 +103,13 @@ export function ApplicationShell(props: {
      props.host.shellRevision();
      return readShellView(props.host);
    });
++  const [commandQueueOpen, setCommandQueueOpen] = createSignal<boolean | undefined>(undefined);
 +  const [deskError, setDeskError] = createSignal<string | null>(null);
 +  const changeDeskMode = (mode: DeskMode) => {
 +    const error = saveQuietDeskMode(view().context, mode);
@@ -78,17 +97,19 @@ index ca041699..ebece7f3 100644
    const sessionOwner = createMemo(() => view().context.sessions);
    const sessionRows = createMemo(() =>
      projectOwner(sessionOwner(), (sessions) => sessions.state.result?.sessions),
-@@ -145,6 +153,9 @@ export function ApplicationShell(props: {
+@@ -145,6 +158,11 @@ export function ApplicationShell(props: {
          class={[
            "shell",
            {
-+            "shell--lazykins-installed": !view().nativeEmbed && !view().onboarding,
++            "shell--lazykins-installed": view().quietDesk || view().commandDesk,
++            "shell--command-deck": view().commandDesk,
++            "shell--command-queue-open": view().commandDesk && commandQueueOpen() !== false,
 +            "shell--quiet-desk": view().quietDesk,
 +            "shell--quiet-desk-default": view().quietDesk && view().uiSettings.theme === "claw",
              "shell--navigation-rail": view().railAvailable,
              "shell--chat": view().chatLikeRoute,
              "shell--nav-collapsed": view().navCollapsed,
-@@ -161,6 +172,7 @@ export function ApplicationShell(props: {
+@@ -161,6 +179,7 @@ export function ApplicationShell(props: {
              "shell--nav-resizing": navResizing(),
            },
          ]}
@@ -96,15 +117,15 @@ index ca041699..ebece7f3 100644
          data-background-managed={
            !view().backgroundReady || view().uiSettings.background !== undefined ? "" : undefined
          }
-@@ -207,6 +219,7 @@ export function ApplicationShell(props: {
+@@ -207,6 +226,7 @@ export function ApplicationShell(props: {
                  />
                </Show>
              )}
-+            prop:appearanceAction={() => <DeskModeSwitch mode={view().deskMode} onChange={changeDeskMode} />}
++            prop:appearanceAction={() => <><Show when={view().commandDesk}><CommandDeckHeader sessionKey={(props.host.shellRevision(), props.host.activeSessionKey)} queueOpen={commandQueueOpen()} onQueueOpenChange={setCommandQueueOpen} /></Show><DeskModeSwitch mode={view().deskMode} onChange={changeDeskMode} /></>}
              prop:onOpenPalette={props.host.openPalette}
              prop:onToggleDrawer={props.host.toggleNavigationSurface}
            />
-@@ -397,6 +410,10 @@ export function ApplicationShell(props: {
+@@ -397,6 +417,10 @@ export function ApplicationShell(props: {
            <Show when={view().embedNavigation}>
              <LazySettingsSidebar host={props.host} sidebarProps={view().settingsSidebarProps} />
            </Show>
@@ -115,7 +136,15 @@ index ca041699..ebece7f3 100644
            <ShellLayoutProvider
              value={{
                get owner() {
-@@ -541,6 +558,9 @@ export function ApplicationShell(props: {
+@@ -420,6 +444,7 @@ export function ApplicationShell(props: {
+             />
+           </ShellLayoutProvider>
+         </main>
++        <Show when={view().commandDesk && !view().settingsTakeover}><CommandDeckQueue sessionKey={(props.host.shellRevision(), props.host.activeSessionKey)} open={commandQueueOpen()} onOpenChange={setCommandQueueOpen} /></Show>
+         <span class="sr-only" role="status" aria-live="polite" aria-atomic="true">
+           {connectionAnnouncement()}
+         </span>
+@@ -541,6 +566,9 @@ export function ApplicationShell(props: {
            return null;
          }}
        </Show>
@@ -125,7 +154,7 @@ index ca041699..ebece7f3 100644
        <Show when={view().routeReady} fallback={<ConnectingSplash />}>
          <PluginSurface
            surface="workspace"
-@@ -562,6 +582,8 @@ export function ApplicationShell(props: {
+@@ -562,6 +590,8 @@ export function ApplicationShell(props: {
            renderDefault={() => workspace}
          />
        </Show>
@@ -135,35 +164,43 @@ index ca041699..ebece7f3 100644
    );
  }
 diff --git a/ui/src/components/app-sidebar-base.ts b/ui/src/components/app-sidebar-base.ts
-index 857c0bd2..b96f4216 100644
+index 857c0bd2..9e1c84e7 100644
 --- a/ui/src/components/app-sidebar-base.ts
 +++ b/ui/src/components/app-sidebar-base.ts
-@@ -28,6 +28,7 @@ import { selectSidebarContext, type ContextualSidebar } from "./sidebar-context-
+@@ -1,3 +1,4 @@
++import type { DeskMode } from "../lazykins/quiet-desk-preference.ts";
+ import { createChangeListeners } from "../../../src/shared/listeners.js";
+ import { DEFAULT_SIDEBAR_ENTRIES, type NavigationRouteId } from "../app-navigation.ts";
+ import type { ApplicationRouter } from "../app-routes.ts";
+@@ -28,6 +29,8 @@ import { selectSidebarContext, type ContextualSidebar } from "./sidebar-context-
  import type { SidebarSnapshotModel } from "./sidebar-snapshot-model.ts";
  
  export type AppSidebarProps = {
-+  quietDesk: boolean;
++  deskMode: DeskMode;
++  onChangeDeskMode: ((mode: DeskMode) => string | null) | undefined;
    basePath: string;
    activeRouteId: NavigationRouteId | undefined;
    router: Pick<ApplicationRouter, "getState" | "subscribeSelector"> | undefined;
-@@ -70,6 +71,7 @@ export type AppSidebarProps = {
+@@ -70,6 +73,8 @@ export type AppSidebarProps = {
  };
  
  export const appSidebarProperties = {
-+  quietDesk: { default: false, attribute: false },
++  deskMode: { default: "openclaw", attribute: false },
++  onChangeDeskMode: { default: undefined, attribute: false },
    basePath: { default: "", attribute: false },
    activeRouteId: { default: undefined, attribute: false },
    router: { default: undefined, attribute: false },
-@@ -115,6 +117,7 @@ export const appSidebarProperties = {
+@@ -115,6 +120,8 @@ export const appSidebarProperties = {
  
  /** Synchronous sidebar state and native attachment; Solid owns its DOM. */
  export abstract class AppSidebarBase {
-+  declare quietDesk: AppSidebarProps["quietDesk"];
++  declare deskMode: AppSidebarProps["deskMode"];
++  declare onChangeDeskMode: AppSidebarProps["onChangeDeskMode"];
    declare basePath: AppSidebarProps["basePath"];
    declare activeRouteId: AppSidebarProps["activeRouteId"];
    declare router: AppSidebarProps["router"];
 diff --git a/ui/src/components/app-sidebar-owner.tsx b/ui/src/components/app-sidebar-owner.tsx
-index 3948fd7a..70e5b9f3 100644
+index 3948fd7a..509aa66a 100644
 --- a/ui/src/components/app-sidebar-owner.tsx
 +++ b/ui/src/components/app-sidebar-owner.tsx
 @@ -1,3 +1,4 @@
@@ -171,7 +208,16 @@ index 3948fd7a..70e5b9f3 100644
  import type { JSX } from "@solidjs/web";
  import { createMemo, lazy, onSettled, Show } from "solid-js";
  import type { SessionObserverDigest } from "../../../packages/gateway-protocol/src/schema/sessions.js";
-@@ -524,7 +525,6 @@ export class AppSidebarOwner extends AppSidebarSessionNavigationElement implemen
+@@ -56,6 +57,8 @@ import { Icon } from "./solid/icon.tsx";
+ import { PanelRefreshStatus } from "./solid/panel-refresh-status.tsx";
+ import { SidebarCommunityInvite } from "./solid/sidebar-community-invite.tsx";
+ 
++const CommandDeckSidebar = lazy(() => import("../lazykins/command-deck-sidebar.tsx"), { export: "CommandDeckSidebar" });
++
+ const SidebarAgentRoster = lazy(() => import("./sidebar-agent-roster.tsx"), {
+   export: "SidebarAgentRoster",
+ });
+@@ -524,7 +527,6 @@ export class AppSidebarOwner extends AppSidebarSessionNavigationElement implemen
          </SidebarViewBoundary>
        );
        const toolbar = renderSessionListToolbar(this);
@@ -179,7 +225,7 @@ index 3948fd7a..70e5b9f3 100644
        return (
          <aside
            class="sidebar sidebar--rail"
-@@ -617,13 +617,15 @@ export class AppSidebarOwner extends AppSidebarSessionNavigationElement implemen
+@@ -617,13 +619,15 @@ export class AppSidebarOwner extends AppSidebarSessionNavigationElement implemen
                />
              </Show>
            </div>
@@ -190,13 +236,31 @@ index 3948fd7a..70e5b9f3 100644
      return (
        <Show when={!snapshot.pending()}>
 -        <SidebarFrame />
-+        <Show when={this.quietDesk} fallback={<SidebarFrame />}>
++        <Show when={this.deskMode === "quiet"} fallback={<Show when={this.deskMode === "command"} fallback={<SidebarFrame />}><CommandDeckSidebar host={this} rows={() => { const rows = this.selectedAgentSessionRows(this.getSessionNavigationState()); const agent = this.selectedAgentIdForSessions(); const main = this.mainSessionRow(agent); const home = main ? this.projectHomeSession(main, agent) : null; return home && !rows.some(row => row.key === home.key) ? [home, ...rows] : rows; }} /></Show>}>
 +          <QuietDeskSidebar host={this} recent={() => this.selectedAgentSessionRows(this.getSessionNavigationState()).slice(0, 5)} />
 +        </Show>
 +        {this.sidebarMenus.render(this)}
        </Show>
      );
    }
+diff --git a/ui/src/components/app-sidebar-rail.tsx b/ui/src/components/app-sidebar-rail.tsx
+index c8494c37..5283813a 100644
+--- a/ui/src/components/app-sidebar-rail.tsx
++++ b/ui/src/components/app-sidebar-rail.tsx
+@@ -1,3 +1,4 @@
++import { DeskModeEntries } from "../lazykins/quiet-desk.tsx";
+ import type { JSX } from "@solidjs/web";
+ import { createMemo, For, Show, onSettled } from "solid-js";
+ import {
+@@ -183,7 +184,7 @@ export function renderSidebarRail(host: AppSidebarRenderHost): JSX.Element {
+       >
+         <For each={pins()}>{(key) => renderRailPin(host, parseSidebarEntry(key)!, zone)}</For>
+       </div>
+-      <div class="sidebar-rail__bottom">{renderAppSidebarFooterBar(host)}</div>
++      <div class="sidebar-rail__bottom"><DeskModeEntries mode={host.deskMode} compact onChange={host.onChangeDeskMode} />{renderAppSidebarFooterBar(host)}</div>
+     </nav>
+   );
+ }
 diff --git a/ui/src/components/app-topbar-solid.tsx b/ui/src/components/app-topbar-solid.tsx
 index 9e79bdb8..170a461a 100644
 --- a/ui/src/components/app-topbar-solid.tsx
