@@ -81,7 +81,10 @@ function CommandQueuePanel(props:Props) {
       <p class="command-deck-note">{new Text("Priority affects this queue only. Native chat owns Stop. Pause and resume are unavailable.")}</p>
     </Show>
   </>;}
-  return <Show when={!narrow()} fallback={<Show when={props.open === true}><ModalDialog label="Command Deck task queue" onOpenChange={open=>{if(!open)props.onOpenChange(false);}}><section class="command-deck-queue command-deck-queue--drawer"><Content/></section></ModalDialog></Show>}>
-    <Show when={props.open !== false}><aside class="command-deck-queue" aria-label="Command Deck task queue"><Content/></aside></Show>
-  </Show>;
+  // Retain the desktop projection while the responsive drawer is closed.
+  // Hiding this surface avoids disposing its owner subscriptions on resize.
+  return <>
+    <aside class="command-deck-queue" aria-label="Command Deck task queue" hidden={narrow() || props.open === false}><Content/></aside>
+    <Show when={narrow() && props.open === true}><ModalDialog label="Command Deck task queue" onOpenChange={open=>{if(!open)props.onOpenChange(false);}}><section class="command-deck-queue command-deck-queue--drawer"><Content/></section></ModalDialog></Show>
+  </>;
 }
