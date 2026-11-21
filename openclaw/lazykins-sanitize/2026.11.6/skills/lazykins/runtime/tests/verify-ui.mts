@@ -353,7 +353,7 @@ try {
       if(!metadata) return {agentId:query.agentId,workspace:`/synthetic/${query.agentId}`,file:{name:query.name,path:query.name,missing:true}};
       return {agentId:query.agentId,workspace:`/synthetic/${query.agentId}`,file:{name:query.name,path:query.name,missing:false,hash:metadata.bootstrapHashes[query.name],content:"Synthetic content; the mocked Gateway owns this hash fixture."}};
     },
-    "sessions.describe":async()=>({session:crewSessions.find(row=>row.key==="agent:helm:main"),nativeSubagents:{coverage:"live",children:[],truncated:false}}),
+    "sessions.describe":async(params:unknown)=>({session:[...crewSessions,child()].find(row=>row.key===(params as {key:string}).key),nativeSubagents:{coverage:"live",children:[],truncated:false}}),
 
   }});
   await crewPage.goto(`${base}chat`);
