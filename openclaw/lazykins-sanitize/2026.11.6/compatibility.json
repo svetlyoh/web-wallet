@@ -10,9 +10,9 @@
   "voiceMechanism": "agent-workspace-SOUL-marked-policy",
   "linuxDeploymentVerified": false,
   "ordinaryModelResponsesVerified": false,
-  "status": "Helm crew integration validation pending",
+  "status": "production build and browser fixtures passed",
   "futureUpdatePolicy": "Retain files; validate each tagged release before admitting it.",
-  "browserFixtureVerified": false,
+  "browserFixtureVerified": true,
   "packageRevision": "helm-r7",
   "requestedModes": [
     "openclaw",
