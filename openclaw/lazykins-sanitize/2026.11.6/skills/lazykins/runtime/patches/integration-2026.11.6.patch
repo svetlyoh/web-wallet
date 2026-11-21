@@ -347,3 +347,16 @@ index 8e0ecbba..6e2d147a 100644
        {props.voiceActive && props.onToggleVoice ? (
          <>
            <span class="chat-talk-control chat-talk-control--active" style={microphoneHoverStyle}>
+diff --git a/ui/vite.config.ts b/ui/vite.config.ts
+index 5859275d..b1446a4e 100644
+--- a/ui/vite.config.ts
++++ b/ui/vite.config.ts
+@@ -836,7 +836,7 @@ export default function controlUiViteConfig(
+       reportCompressedSize: false,
+       // Release packages omit maps; keep generating them without advertising dead URLs.
+       // Source builds retain automatic debugger discovery.
+-      sourcemap: buildInfo.release ? "hidden" : true,
++      sourcemap: "hidden", // Transfer archives omit review-only source maps.
+       modulePreload: {
+         // Every supported browser has native modulepreload (see docs/web/control-ui.md).
+         polyfill: false,
