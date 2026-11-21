@@ -32,7 +32,7 @@ export class CommandQueueOwner {
   private live = false;
   private reading: Promise<void>|null = null;
   private again = false;
-  private readonly changes = createChangeListeners();
+  private readonly changes = createChangeListeners({ snapshot: true });
   readonly subscribe = this.changes.subscribe;
   private readonly scope: string;
   constructor(readonly context: ApplicationContext) { this.scope=quietDeskStorageKey(context); }
