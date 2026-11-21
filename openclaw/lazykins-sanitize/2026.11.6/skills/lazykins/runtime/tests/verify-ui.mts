@@ -73,7 +73,7 @@ try {
   ]) {
     await page.getByRole("button",{name:button,exact:true}).click();
     await page.locator(selector).waitFor();
-    if(selector === ".shell--command-deck") await page.getByText("Priority queue unavailable.",{exact:false}).waitFor();
+    if(selector === ".shell--command-deck") await page.locator(".command-deck-queue:visible").getByText("Priority queue unavailable.",{exact:false}).waitFor();
     assert.equal(await composer.inputValue(),"Preserve this unsent draft.");
     assert(await composer.evaluate(e => (window as Window & {lazykinsComposer?:Element}).lazykinsComposer === e));
     assert.equal(await gateway.getSocketCount(),sockets);
@@ -264,7 +264,7 @@ try {
   const restrictedGateway=await installMockGateway(restrictedPage,{serverVersion:"2026.11.6",controlUiBuildSource:"configured",featureMethods:[...defaultControlUiFeatureMethods,...queueMethods],operatorScopes:["operator.read"]});
   await restrictedPage.goto(`${base}chat`);
   await restrictedPage.getByRole("button",{name:"Enter Command Deck",exact:true}).click();
-  await restrictedPage.getByText("Priority queue unavailable.",{exact:false}).waitFor();
+  await restrictedPage.locator(".command-deck-queue:visible").getByText("Priority queue unavailable.",{exact:false}).waitFor();
   assert.equal((await restrictedGateway.getRequests("commanddesk.tasks.list")).length,0);
   assert.equal((await restrictedGateway.getRequests("commanddesk.tasks.create")).length,0);
   await restricted.close();
