@@ -6,7 +6,7 @@ Copy the complete package to the Linux account that runs OpenClaw. Do not use su
 
 ```bash
 BUNDLE="$(mktemp -d "$HOME/LazyKins-Modes-r2.XXXXXX")"
-unzip LazyKins-Modes-2026.11.6-r6.zip -d "$BUNDLE"
+unzip LazyKins-CommandDeck-Helm-2026.11.6-r7.zip -d "$BUNDLE"
 cd "$BUNDLE"
 ```
 

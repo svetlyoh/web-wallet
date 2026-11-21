@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "openclawVersion": "2026.11.6",
+  "agents": [
+    {
+      "id": "helm",
+      "name": "Helm",
+      "role": "Coordinator",
+      "description": "Keeps your AI crew in sync.",
+      "version": "1.1.0",
+      "packageName": "command-deck-helm-template",
+      "avatarPath": "command-deck/crew/avatars/helm.png",
+      "templatePath": "command-deck/crew/templates/helm-1.1.0.tgz",
+      "sourceDirectory": "crew/sources/helm-template",
+      "bootstrapHashes": {
+        "AGENTS.md": "3383828aaec907fb549be9896de240bd4490af42b03b81319b3c6b12ed0b40da",
+        "IDENTITY.md": "a4dc417cd8c9644bedd3c65b4f5b2f1d3f2a9643ace8f239cc97f4a741dad1dc",
+        "SOUL.md": "3fae5654cdada7b324ba2f5547c59f50500a91b2ea46b68629a465cedbf81850",
+        "USER.md": "6fbe4fa58bdf5fe4d51217f4093f1641e3d75ba1d0c6adfce44fafe98c3a2fb8"
+      },
+      "avatarSha256": "d50d9b8249213ae0b13823fc0ac0e96def2d92c69f57e2773b425d159b019e1f"
+    },
+    {
+      "id": "jace",
+      "name": "Jace",
+      "role": "The Closer",
+      "description": "Moves the work forward, keeps it clean, and ships the result.",
+      "version": "1.0.0",
+      "packageName": "command-deck-jace-template",
+      "avatarPath": "command-deck/crew/avatars/jace.png",
+      "templatePath": "command-deck/crew/templates/jace-1.0.0.tgz",
+      "sourceDirectory": "crew/sources/jace-template",
+      "bootstrapHashes": {
+        "AGENTS.md": "d7ee765c3ee8bcc9ea23cfc48e6f78035c7799adec208e6e75f544c430056172",
+        "IDENTITY.md": "04d8547666e8177fad4a76db283411df297b5118f23ed65fb6693cffa4ae6c65",
+        "SOUL.md": "b6245a8bc200a67882012a72a4bdd0a48b72c999f74822197f00ccdde7f3674c",
+        "USER.md": "82ab86c58d16aee703c24dabe4b49bb43d6fcbcf3bf5c1218547fb373b8e8912"
+      },
+      "avatarSha256": "2adcb0d301efae1c32f0b535cff9211a640cdef1a14bd500152472e5813f70f8"
+    },
+    {
+      "id": "cruz",
+      "name": "Cruz",
+      "role": "The Scout",
+      "description": "Finds what matters, questions shaky assumptions, and connects the dots.",
+      "version": "1.0.0",
+      "packageName": "command-deck-cruz-template",
+      "avatarPath": "command-deck/crew/avatars/cruz.png",
+      "templatePath": "command-deck/crew/templates/cruz-1.0.0.tgz",
+      "sourceDirectory": "crew/sources/cruz-template",
+      "bootstrapHashes": {
+        "AGENTS.md": "c18410cc1e00c3b46955415f997b1700f5c9a85e8043ed0d107cdacc807b3b67",
+        "IDENTITY.md": "be6405ecc7fca9dae24847772acafe00b57a9b81e19b06e672a7192df4ad1d94",
+        "SOUL.md": "7b74c7db64f573445ebf7d63e010619417cc7885d695ef853b1ac63ecaeeefa0",
+        "USER.md": "16e4d2e305c1b4c9d887d90d551a19d5d598579c2ee2e06f1e93996f24bdf1ae"
+      },
+      "avatarSha256": "d4ee1f25af6e69c524c421aa0bac40726c992a2af26860e1bacce82f83958e0b"
+    }
+  ]
+}

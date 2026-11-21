@@ -77,9 +77,10 @@ def main():
         if hashlib.sha256((source / name).read_bytes().replace(b"\r\n", b"\n")).hexdigest() != expected:
             raise ValueError(f"Exact patch output differs: {name}")
     shutil.copytree(RUNTIME / "ui", source / "ui" / "src" / "lazykins")
+    run([sys.executable, str(RUNTIME / "scripts" / "build_crew.py"), "--source", str(source), "--public", str(source / "ui" / "public" / "command-deck" / "crew")], source)
     # Keep the upstream compiled-CSS ceilings intact. This independently bounded
     # optional appearance asset uses the existing public themes/fonts contract.
-    skin_css = {name: (RUNTIME / "ui" / (name + ".css")).read_bytes() for name in ("quiet-desk", "command-deck")}
+    skin_css = {name: (RUNTIME / "ui" / (name + ".css")).read_bytes() for name in ("quiet-desk", "command-deck", "command-crew")}
     skin_budgets = {name: {"rawBytes": len(data), "gzipBytes": len(gzip.compress(data, compresslevel=9, mtime=0))} for name, data in skin_css.items()}
     if any(size["rawBytes"] > 16 * 1024 or size["gzipBytes"] > 4 * 1024 for size in skin_budgets.values()):
         raise ValueError("One skin exceeds its independent 16 KiB raw / 4 KiB gzip CSS budget")
@@ -97,6 +98,8 @@ def main():
     shutil.copy2(font, source / "ui" / "public" / "fonts" / font_name)
     print(json.dumps({"overlayAssetBudget": overlay_budget}), flush=True)
     shutil.copy2(RUNTIME / "tests" / "verify-ui.mts", source / "ui" / "lazykins-verify.mts")
+    shutil.copy2(RUNTIME / "tests" / "verify-crew-owner.mts", source / "ui" / "lazykins-crew-owner-proof.mts")
+    run(["node", "--import", str(source / "scripts" / "tsx.mjs"), "lazykins-crew-owner-proof.mts", str(RUNTIME / "crew")], source / "ui")
     run([shutil.which("pnpm") or "pnpm", "ui:build"], source)
     run([shutil.which("pnpm") or "pnpm", "ui:check-performance"], source)
     proof = source / ".artifacts" / "lazykins-verification"
@@ -106,7 +109,7 @@ def main():
         raise ValueError("Expected one successful UI verification attempt")
     proof = successful[0].parent
     evidence = json.loads((proof / "results.json").read_text(encoding="utf-8"))
-    if evidence.get("passed") is not True or evidence.get("version") != VERSION or evidence.get("sha") != SHA or evidence.get("verifiedModes") != ["openclaw", "quiet", "command"] or evidence.get("packageRevision") != "modes-r6":
+    if evidence.get("passed") is not True or evidence.get("version") != VERSION or evidence.get("sha") != SHA or evidence.get("verifiedModes") != ["openclaw", "quiet", "command"] or evidence.get("packageRevision") != "helm-r7":
         raise ValueError("UI integration verification did not confirm the exact generation")
     final_proof = RUNTIME / "evidence" / "final"
     if final_proof.exists():
@@ -124,7 +127,7 @@ def main():
         shutil.copy2(RUNTIME / "assets" / "fonts" / "Inter-OFL.txt", notices / "Inter-OFL.txt")
         manifest = {"schemaVersion": 1, "version": VERSION, "sha": SHA,
                     "integration": "exact-pinned-Solid2-LazyKins-modes-overlay",
-                    "modes": ["openclaw", "quiet", "command"], "packageRevision": "modes-r6", "headerRevision": "r3",
+                    "modes": ["openclaw", "quiet", "command"], "packageRevision": "helm-r7", "headerRevision": "r3",
                     "testedVersions": [VERSION], "node": node,
                     "packageManager": package["packageManager"], "sourcemap": "generated upstream; omitted from payload",
                     "lockfileSha256": digest(source / "pnpm-lock.yaml"),

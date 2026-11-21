@@ -5,6 +5,7 @@ import { renderAppSidebarFooterBar } from "../components/app-sidebar-render.tsx"
 import type { SidebarRecentSession } from "../components/app-sidebar-session-types.ts";
 import { renderNewSessionLink as NewSessionLink } from "../components/solid/new-session-link.tsx";
 import { handleNavigationClick } from "../lib/navigation-click.ts";
+import { CommandDeckCrewRoster } from "./command-deck-crew-roster.tsx";
 import { DeskModeEntries } from "./quiet-desk.tsx";
 
 export function CommandDeckSidebar(props: { host: AppSidebarRenderHost; rows(): readonly SidebarRecentSession[] }) {
@@ -24,6 +25,7 @@ export function CommandDeckSidebar(props: { host: AppSidebarRenderHost; rows(): 
       <NewSessionLink basePath={props.host.basePath} agentId={props.host.selectedAgentIdForSessions()} class="command-deck-new" label="New conversation" showTooltip={false}
         disabledReason={(() => { const access = props.host.readNewSessionAccess(); return access.allowed ? undefined : access.reason; })()}
         onOpen={(agentId,target) => props.host.requestOpenNewSession(agentId,target)} />
+      <CommandDeckCrewRoster />
       <input type="search" aria-label="Search channels" placeholder="Find a conversation" value={search()} onInput={event => setSearch(event.currentTarget.value)} />
       <div class="command-deck-channel-list">
         <For each={rows()} keyed={row => row.key} fallback={<p>{new Text("No matching conversations.")}</p>}>{row =>

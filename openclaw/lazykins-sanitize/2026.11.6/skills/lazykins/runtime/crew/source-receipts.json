@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "originalBundles": [
+    {
+      "bundle": "CommandDeck-Helm-v1.1",
+      "suppliedFormat": "extracted directory; no original ZIP supplied",
+      "suppliedManifestSha256": "57aaeaf724a8fe4dd1dcc8f48446bf323ab701e2bb99b253509faede4c9fc6bb",
+      "verifiedManifestEntries": 16
+    },
+    {
+      "bundle": "CommandDeck-Helm-Crew-v1.0",
+      "suppliedFormat": "extracted directory; no original ZIP supplied",
+      "suppliedManifestSha256": "605ba7649120f28acb00cac4cd84d496a742d6d797d0ac94b80303a9b76bc7fa",
+      "verifiedManifestEntries": 26
+    }
+  ],
+  "compatibilityModifiedFiles": [
+    "sources/helm-template/CLAW.md",
+    "sources/jace-template/CLAW.md",
+    "sources/cruz-template/CLAW.md"
+  ],
+  "personalityAndArtworkModified": false
+}

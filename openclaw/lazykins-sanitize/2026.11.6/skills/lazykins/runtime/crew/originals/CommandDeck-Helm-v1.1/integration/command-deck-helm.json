@@ -1,0 +1,35 @@
+{
+  "$comment": "Command Deck-owned product contract, NOT OpenClaw native configuration.",
+  "schema": "command-deck.helm/1",
+  "defaultAgentId": "helm",
+  "templateSourceRelativePath": "../helm-template",
+  "display": {
+    "name": "Helm",
+    "role": "Coordinator",
+    "subtitle": "Keeps your AI crew in sync",
+    "pinned": true,
+    "defaultChat": true,
+    "avatarSourceRelativePath": "../helm-template/workspace/avatars/helm.png",
+    "accentHex": "#EF5362"
+  },
+  "channelBindings": [],
+  "notifications": {
+    "externalDeliveryEnabled": false,
+    "technicalLogInMainChat": false
+  },
+  "scheduledMonitoring": {
+    "enabled": false
+  },
+  "delegation": {
+    "mode": "prefer_when_allowed",
+    "requiresDiscoveredAllowedSpecialists": true,
+    "autoCreateSpecialists": false,
+    "approvalForExternalOrSensitiveActions": true
+  },
+  "safeSetup": {
+    "createOnlyIfMissing": true,
+    "preserveExistingMainAgent": true,
+    "doNotOverwriteUserOwnedHelm": true,
+    "requireTemplateReview": true
+  }
+}

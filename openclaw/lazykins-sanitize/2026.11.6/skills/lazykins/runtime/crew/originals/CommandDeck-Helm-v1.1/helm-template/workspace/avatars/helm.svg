@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="Helm agent navigation mark">
+<defs>
+  <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#232733"/><stop offset="1" stop-color="#101218"/></linearGradient>
+</defs>
+<rect width="512" height="512" rx="118" fill="url(#bg)"/>
+<circle cx="256" cy="256" r="166" fill="none" stroke="#56606E" stroke-opacity="0.48" stroke-width="11"/>
+<path d="M256 72 L277 117 L256 107 L235 117 Z" fill="#EF5362"/>
+<path d="M256 405 L270 432 L256 455 L242 432 Z" fill="#FFFFFF" opacity="0.75"/>
+<circle cx="256" cy="256" r="126" fill="#181C25" stroke="#DCE0E8" stroke-opacity="0.15" stroke-width="3"/>
+<path d="M185 185 L185 327 M327 185 L327 327 M185 256 L327 256" fill="none" stroke="#F7F9FC" stroke-width="33" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M313 122 L380 189" fill="none" stroke="#EF5362" stroke-width="21" stroke-linecap="round"/>
+<circle cx="256" cy="256" r="16" fill="#EF5362"/>
+</svg>

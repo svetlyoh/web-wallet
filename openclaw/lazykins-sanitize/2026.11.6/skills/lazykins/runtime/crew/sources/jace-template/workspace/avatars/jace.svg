@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+<title id="title">Jace Command Deck avatar</title>
+<defs><linearGradient id="bg" x1="0" y1="0" x2="0.8" y2="1"><stop stop-color="#10121b"/><stop offset="1" stop-color="#20243b"/></linearGradient></defs>
+<rect width="512" height="512" rx="116" fill="url(#bg)"/>
+<rect x="20" y="20" width="472" height="472" rx="108" fill="none" stroke="#F05C68" stroke-width="13"/>
+<path d="M70 435H442M90 435V352M142 435V313M194 435V368M246 435V299M298 435V358M350 435V311M402 435V366" fill="none" stroke="#FFAD76" stroke-width="6" opacity=".55"/>
+<circle cx="409" cy="92" r="19" fill="#F05C68"/>
+<text x="256" y="350" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" font-weight="900" font-size="295" stroke="#F05C68" stroke-width="2" fill="#f7f9ff">J</text>
+</svg>

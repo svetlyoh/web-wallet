@@ -62,7 +62,7 @@ index a9155b6d..49d0bfff 100644
      routeReady: host.routeState.routeId !== undefined || host.routeState.routeFailed,
      workspaceChromeVisible: host.workspaceChromeVisible,
 diff --git a/ui/src/app/app-shell-view.tsx b/ui/src/app/app-shell-view.tsx
-index ca041699..ac79dcec 100644
+index ca041699..afe3a90d 100644
 --- a/ui/src/app/app-shell-view.tsx
 +++ b/ui/src/app/app-shell-view.tsx
 @@ -1,4 +1,6 @@
@@ -72,19 +72,20 @@ index ca041699..ac79dcec 100644
  import type { JSX as SolidJSX } from "@solidjs/web";
  import { createMemo, createSignal, lazy, onSettled, Show } from "solid-js";
  import { registerModalSurface } from "../components/overlay-registry.ts";
-@@ -37,6 +39,11 @@ import { ShellLayoutProvider } from "./shell-layout-traits-solid.tsx";
+@@ -37,6 +39,12 @@ import { ShellLayoutProvider } from "./shell-layout-traits-solid.tsx";
  
  export type { ShellViewHost } from "./app-shell-view-state.ts";
  
 +const QuietDeskBackToChat = lazy(() => import("../lazykins/quiet-desk-back.tsx"), { export: "QuietDeskBackToChat" });
 +const DeskAppearance = lazy(() => import("../lazykins/desk-appearance.tsx"), { export: "DeskAppearance" });
++const CommandDeckSurface = lazy(() => import("../lazykins/command-deck-surface.tsx"), { export: "CommandDeckSurface" });
 +const CommandDeckHeader = lazy(() => import("../lazykins/command-deck-layout.tsx"), { export: "CommandDeckHeader" });
 +const CommandDeckQueue = lazy(() => import("../lazykins/command-deck-queue.tsx"), { export: "CommandDeckQueue" });
 +
  const NavigationSidebar = lazy(async () => {
    await import("../components/app-sidebar.tsx");
    // Keep the native host that callers assign before registration and move between layouts.
-@@ -97,6 +104,13 @@ export function ApplicationShell(props: {
+@@ -97,6 +105,13 @@ export function ApplicationShell(props: {
      props.host.shellRevision();
      return readShellView(props.host);
    });
@@ -98,7 +99,7 @@ index ca041699..ac79dcec 100644
    const sessionOwner = createMemo(() => view().context.sessions);
    const sessionRows = createMemo(() =>
      projectOwner(sessionOwner(), (sessions) => sessions.state.result?.sessions),
-@@ -145,6 +159,11 @@ export function ApplicationShell(props: {
+@@ -145,6 +160,11 @@ export function ApplicationShell(props: {
          class={[
            "shell",
            {
@@ -110,7 +111,7 @@ index ca041699..ac79dcec 100644
              "shell--navigation-rail": view().railAvailable,
              "shell--chat": view().chatLikeRoute,
              "shell--nav-collapsed": view().navCollapsed,
-@@ -161,6 +180,7 @@ export function ApplicationShell(props: {
+@@ -161,6 +181,7 @@ export function ApplicationShell(props: {
              "shell--nav-resizing": navResizing(),
            },
          ]}
@@ -118,7 +119,7 @@ index ca041699..ac79dcec 100644
          data-background-managed={
            !view().backgroundReady || view().uiSettings.background !== undefined ? "" : undefined
          }
-@@ -207,6 +227,7 @@ export function ApplicationShell(props: {
+@@ -207,6 +228,7 @@ export function ApplicationShell(props: {
                  />
                </Show>
              )}
@@ -126,10 +127,11 @@ index ca041699..ac79dcec 100644
              prop:onOpenPalette={props.host.openPalette}
              prop:onToggleDrawer={props.host.toggleNavigationSurface}
            />
-@@ -397,6 +418,11 @@ export function ApplicationShell(props: {
+@@ -397,6 +419,12 @@ export function ApplicationShell(props: {
            <Show when={view().embedNavigation}>
              <LazySettingsSidebar host={props.host} sidebarProps={view().settingsSidebarProps} />
            </Show>
++          <Show when={view().commandDesk && !view().settingsTakeover}><CommandDeckSurface sessionKey={(props.host.shellRevision(),props.host.activeSessionKey)} /></Show>
 +          <Show when={view().quietDesk && view().activeRoute === "sessions"}><QuietDeskBackToChat /></Show>
 +          <Show when={view().activeRoute === "appearance"}>
 +            <DeskAppearance mode={view().deskMode} error={deskError()} onChange={changeDeskMode} />
@@ -138,7 +140,7 @@ index ca041699..ac79dcec 100644
            <ShellLayoutProvider
              value={{
                get owner() {
-@@ -420,6 +446,7 @@ export function ApplicationShell(props: {
+@@ -420,6 +448,7 @@ export function ApplicationShell(props: {
              />
            </ShellLayoutProvider>
          </main>
@@ -146,7 +148,7 @@ index ca041699..ac79dcec 100644
          <span class="sr-only" role="status" aria-live="polite" aria-atomic="true">
            {connectionAnnouncement()}
          </span>
-@@ -541,6 +568,9 @@ export function ApplicationShell(props: {
+@@ -541,6 +570,9 @@ export function ApplicationShell(props: {
            return null;
          }}
        </Show>
@@ -156,7 +158,7 @@ index ca041699..ac79dcec 100644
        <Show when={view().routeReady} fallback={<ConnectingSplash />}>
          <PluginSurface
            surface="workspace"
-@@ -562,6 +592,8 @@ export function ApplicationShell(props: {
+@@ -562,6 +594,8 @@ export function ApplicationShell(props: {
            renderDefault={() => workspace}
          />
        </Show>
@@ -165,6 +167,66 @@ index ca041699..ac79dcec 100644
      </>
    );
  }
+diff --git a/ui/src/app/settings.ts b/ui/src/app/settings.ts
+index 2b09504f..0a895ea4 100644
+--- a/ui/src/app/settings.ts
++++ b/ui/src/app/settings.ts
+@@ -1,3 +1,4 @@
++import { deckAwareNavigation, persistDeskNavigation } from "../lazykins/desk-session-preferences.ts";
+ import { gatewayCredentialScope, gatewayOriginScope } from "@openclaw/gateway-client/browser";
+ import { safeParseJson } from "@openclaw/normalization-core";
+ import { normalizeAgentId } from "@openclaw/normalization-core/agent-id";
+@@ -253,22 +254,32 @@ function resolveScopedSessionSelection(
+   gatewayUrl: string,
+   parsed: PersistedUiSettings,
+   fallback: ScopedSessionSelection,
++  includeCommandDeck = true,
+ ): ScopedSessionSelection {
+   const scoped = parsed.sessionsByGateway?.[gatewayOriginScope(gatewayUrl)];
+   const scopedSessionKey = normalizeOptionalString(scoped?.sessionKey);
+   const scopedLastActiveSessionKey = normalizeOptionalString(scoped?.lastActiveSessionKey);
+   const scopedSelectedAgentId = normalizeOptionalString(scoped?.selectedAgentId);
+   if (scopedSessionKey && scopedLastActiveSessionKey) {
+-    return {
++    const ordinary = {
+       sessionKey: scopedSessionKey,
+       lastActiveSessionKey: scopedLastActiveSessionKey,
+       ...(scopedSelectedAgentId
+         ? { selectedAgentId: normalizeAgentId(scopedSelectedAgentId) }
+         : {}),
+     };
++    return includeCommandDeck ? deckAwareNavigation(gatewayUrl, resolveProfileAppearanceProfileId(gatewayUrl), ordinary) : ordinary;
+   }
+ 
+-  return fallback;
++  return includeCommandDeck ? deckAwareNavigation(gatewayUrl, resolveProfileAppearanceProfileId(gatewayUrl), fallback) : fallback;
++}
++
++export function loadOrdinaryGatewaySessionSelection(gatewayUrl: string): ScopedSessionSelection {
++  const fallback = { sessionKey: "main", lastActiveSessionKey: "main" };
++  try {
++    const source = readSettingsForGateway(getSafeLocalStorage(), gatewayUrl);
++    return source ? resolveScopedSessionSelection(gatewayUrl, source.parsed, fallback, false) : fallback;
++  } catch { return fallback; }
+ }
+ 
+ export function loadGatewaySessionSelection(gatewayUrl: string): ScopedSessionSelection {
+@@ -606,13 +617,13 @@ export function saveSettings(
+       ...Object.entries(existingSessionsByGateway).filter(([key]) => key !== scope),
+       [
+         scope,
+-        {
++        persistDeskNavigation(next.gatewayUrl, profileId, {
+           sessionKey: next.sessionKey,
+           lastActiveSessionKey: next.lastActiveSessionKey,
+           ...(normalizeOptionalString(next.selectedAgentId)
+             ? { selectedAgentId: normalizeAgentId(next.selectedAgentId) }
+             : {}),
+-        },
++        }, loadOrdinaryGatewaySessionSelection(next.gatewayUrl)),
+       ],
+     ].slice(-MAX_SCOPED_SESSION_ENTRIES),
+   );
 diff --git a/ui/src/components/app-sidebar-base.ts b/ui/src/components/app-sidebar-base.ts
 index 857c0bd2..9e1c84e7 100644
 --- a/ui/src/components/app-sidebar-base.ts

@@ -1,0 +1,10 @@
+{
+  "name": "command-deck-jace-template",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Jace general-purpose AI teammate for Command Deck, coordinated by Helm",
+  "openclaw": {
+    "template": "CLAW.md"
+  }
+}

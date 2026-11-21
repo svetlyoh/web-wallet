@@ -2,19 +2,19 @@
 
 Updated and verified November 20, 2026 against stable [OpenClaw 2026.11.6](https://github.com/openclaw/openclaw/releases/tag/v2026.11.6), source `06afb10d3272cc9deaf38ca6a3b7b839d5935638`. Newer beta releases are excluded.
 
-[Download Modes R6](https://github.com/svetlyoh/web-wallet/releases/tag/lazykins-modes-2026.11.6-r6). Use the combined `LazyKins-Modes-2026.11.6-r6.zip`; this source folder does not contain the generated UI payload.
+[Download Command Deck Helm R7](https://github.com/svetlyoh/web-wallet/releases/tag/lazykins-commanddeck-helm-2026.11.6-r7). Use the combined `LazyKins-CommandDeck-Helm-2026.11.6-r7.zip`; this source folder does not contain the generated UI payload.
 
 [Full installation and rollback guide](docs/OPERATOR-GUIDE.md) · [Verification](docs/VERIFICATION.md)
 
 ## Install on Linux
 
-Copy `LazyKins-Modes-2026.11.6-r6.zip` to Downloads. Run as the same Linux user that runs OpenClaw, without sudo. Requires Python 3.11+ and OpenClaw **2026.11.6**.
+Copy `LazyKins-CommandDeck-Helm-2026.11.6-r7.zip` to Downloads. Run as the same Linux user that runs OpenClaw, without sudo. Requires Python 3.11+ and OpenClaw **2026.11.6**.
 
 ```bash
 openclaw --version
 python3 --version
 BUNDLE="$(mktemp -d "$HOME/LazyKins-Modes-r2.XXXXXX")"
-unzip ~/Downloads/LazyKins-Modes-2026.11.6-r6.zip -d "$BUNDLE"
+unzip ~/Downloads/LazyKins-CommandDeck-Helm-2026.11.6-r7.zip -d "$BUNDLE"
 cd "$BUNDLE"
 sha256sum -c SHA256SUMS
 openclaw --profile default agents list --json
@@ -62,3 +62,7 @@ Current mode screenshots and browser receipts are inside the ready ZIP at `skill
 ## Layout icons and returning to chat
 
 Quiet Desk and Command Deck are direct lower-left buttons. Quiet Desk retains its moon icon; Command Deck uses an outlined command-prompt icon (>_). There is no Apps button above them. Selecting one changes the layout; it does not start a new session or alter Sanitize. On Quiet Desk Conversations, the visible Back to chat link returns through OpenClaw chat routing. It has a 44px touch target and does not rely on browser history.
+
+## Helm crew setup
+
+This R7 package includes the original Helm 1.1, Jace 1.0 and Cruz 1.0 resources plus version-adapted native Template projects. Start with [the crew setup and rollback guide](docs/COMMAND-DECK-HELM.md). The UI and agent setup are separate: this version requires separately reviewed host-side Template additions while the Gateway is stopped. No global main/default agent or channel binding is replaced. Live model voice and provider delegation remain unverified.

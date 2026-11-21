@@ -1,0 +1,57 @@
+{
+  "$comment": "Command Deck product UI contract only. Not OpenClaw native configuration.",
+  "schema": "command-deck.crew/1",
+  "coordinatorAgentId": "helm",
+  "defaultAgentInCommandDeck": "helm",
+  "preserveOpenClawDefault": true,
+  "rosterOrder": [
+    "helm",
+    "jace",
+    "cruz"
+  ],
+  "agents": [
+    {
+      "id": "jace",
+      "name": "Jace",
+      "role": "The Closer",
+      "description": "Moves the work forward, keeps it clean, and ships the result.",
+      "templateSourceRelativePath": "../jace-template",
+      "avatarSourceRelativePath": "../jace-template/workspace/avatars/jace.png",
+      "accentHex": "#F05C68",
+      "directChatAllowed": true,
+      "pinnedUnderCoordinator": true
+    },
+    {
+      "id": "cruz",
+      "name": "Cruz",
+      "role": "The Scout",
+      "description": "Finds what matters, questions shaky assumptions, and connects the dots.",
+      "templateSourceRelativePath": "../cruz-template",
+      "avatarSourceRelativePath": "../cruz-template/workspace/avatars/cruz.png",
+      "accentHex": "#32D9D0",
+      "directChatAllowed": true,
+      "pinnedUnderCoordinator": true
+    }
+  ],
+  "onboarding": {
+    "offerCreationIfMissing": true,
+    "requireOwnerReview": true,
+    "neverOverwriteExistingAgent": true,
+    "idempotent": true
+  },
+  "delegation": {
+    "coordinator": "helm",
+    "suggestedAuthorizedTargets": [
+      "jace",
+      "cruz"
+    ],
+    "grantOnlyAfterOwnerApproval": true,
+    "respectGatewayAllowlistAndToolPolicy": true,
+    "autoSpawnTasksOnInstall": false
+  },
+  "notifications": {
+    "externalChannelsEnabledByDefault": false,
+    "scheduledChecksEnabledByDefault": false
+  },
+  "statusSource": "actual_gateway_events_only"
+}

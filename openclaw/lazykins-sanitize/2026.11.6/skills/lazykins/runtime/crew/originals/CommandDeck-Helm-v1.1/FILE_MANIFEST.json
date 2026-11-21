@@ -1,0 +1,86 @@
+{
+  "bundle": "CommandDeck-Helm-v1.1",
+  "created": "2026-11-21",
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 3806,
+      "sha256": "ca3183971c6e4a3081b38bacaec443f7c5a8a604c9ffd5382bce826cad6942f7"
+    },
+    {
+      "path": "docs/PRODUCT_SPEC.md",
+      "bytes": 2012,
+      "sha256": "cdf68a276de7622c5deb16914d320137a1e405a1f535cb6377d292d83ef1ad2e"
+    },
+    {
+      "path": "docs/VERIFICATION_CHECKLIST.md",
+      "bytes": 1485,
+      "sha256": "973b2def130591a482c3117231641305a04cfb4f3da259fd043d00cc712654c8"
+    },
+    {
+      "path": "helm-template/CLAW.md",
+      "bytes": 3208,
+      "sha256": "90ef66e128046f81c7d3dc6f648a414d9ebe033396dba164d4860d43de7cd98e"
+    },
+    {
+      "path": "helm-template/package.json",
+      "bytes": 220,
+      "sha256": "7032637c0ec861502479a0805b62b6f602df820c7c9e1f58cedfbc4149c94d9d"
+    },
+    {
+      "path": "helm-template/workspace/AGENTS.md",
+      "bytes": 4426,
+      "sha256": "3383828aaec907fb549be9896de240bd4490af42b03b81319b3c6b12ed0b40da"
+    },
+    {
+      "path": "helm-template/workspace/IDENTITY.md",
+      "bytes": 524,
+      "sha256": "a4dc417cd8c9644bedd3c65b4f5b2f1d3f2a9643ace8f239cc97f4a741dad1dc"
+    },
+    {
+      "path": "helm-template/workspace/SOUL.md",
+      "bytes": 4016,
+      "sha256": "3fae5654cdada7b324ba2f5547c59f50500a91b2ea46b68629a465cedbf81850"
+    },
+    {
+      "path": "helm-template/workspace/USER.md",
+      "bytes": 531,
+      "sha256": "6fbe4fa58bdf5fe4d51217f4093f1641e3d75ba1d0c6adfce44fafe98c3a2fb8"
+    },
+    {
+      "path": "helm-template/workspace/avatars/helm.png",
+      "bytes": 43105,
+      "sha256": "d50d9b8249213ae0b13823fc0ac0e96def2d92c69f57e2773b425d159b019e1f"
+    },
+    {
+      "path": "helm-template/workspace/avatars/helm.svg",
+      "bytes": 1023,
+      "sha256": "cf9140a99f078bebdf33002a4c32ae3cce1237a9b705ff8973f52da8f3c56fcd"
+    },
+    {
+      "path": "helm-template/workspace/reference/COMMUNICATION.md",
+      "bytes": 1628,
+      "sha256": "5541e626cb7fc94a819c7812d979050f17a5013a8e9db559546ea0d02f16927d"
+    },
+    {
+      "path": "helm-template/workspace/reference/DELEGATION.md",
+      "bytes": 1534,
+      "sha256": "46489a80c61a8c6bcd9f19b8184354915fbe6e2eb5d0a6b6d9d6b353e37cccd8"
+    },
+    {
+      "path": "helm-template/workspace/reference/OPERATING_RHYTHM.md",
+      "bytes": 1214,
+      "sha256": "b3da13535dc3be0ab50b4f771478ecff53ea79cc05c730004ca298135a22a1ad"
+    },
+    {
+      "path": "integration/CODEX_HANDOFF.md",
+      "bytes": 4491,
+      "sha256": "1108a68c9e465e6d232a758a7c8e7e15b696a7dcb829e470352c7acc73734cf2"
+    },
+    {
+      "path": "integration/command-deck-helm.json",
+      "bytes": 1012,
+      "sha256": "0fa36a555ae89168e8015379cff63ac9908397fbbe3b98850b39fe67dee6ece3"
+    }
+  ]
+}

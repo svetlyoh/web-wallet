@@ -16,7 +16,7 @@ const server = http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url ?? "/", "http://localhost");
     let relative = decodeURIComponent(url.pathname).replace(/^\/+/, "");
-    for (const folder of ["assets/", "fonts/", "themes/"]) {
+    for (const folder of ["assets/", "fonts/", "themes/", "command-deck/"]) {
       const at = relative.indexOf(folder);
       if (at >= 0) { relative = relative.slice(at); break; }
     }
@@ -36,13 +36,13 @@ const browser = await chromium.launch();
 const observations: string[] = [];
 let activePage: Page | undefined;
 const watchdog = setTimeout(async () => {
-  console.error("Mode verification exceeded 150 seconds");
+  console.error("Mode and crew verification exceeded 210 seconds");
   if (activePage && !activePage.isClosed()) {
     await fs.writeFile(path.join(proof,"timeout.txt"),activePage.url()+"\n"+await activePage.locator("body").innerText({timeout:5000}).catch(String)).catch(()=>{});
     await activePage.screenshot({path:path.join(proof,"timeout.png"),timeout:5000}).catch(()=>{});
   }
   process.exit(1);
-},150_000);
+},210_000);
 try {
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, colorScheme: "light", serviceWorkers: "block" });
   const page = await context.newPage(); activePage = page;
@@ -71,6 +71,7 @@ try {
   await composer.fill("Preserve this unsent draft.");
   await composer.evaluate(e => { (window as Window & {lazykinsComposer?: Element}).lazykinsComposer = e; });
   const sockets = await gateway.getSocketCount();
+  let introSeen=false;
   for (const [button,selector] of [
     ["Enter Quiet Desk",".shell--quiet-desk"],
     ["Enter Command Deck",".shell--command-deck"],
@@ -82,6 +83,15 @@ try {
     await page.getByRole("button",{name:button,exact:true}).click();
     await page.locator(selector).waitFor();
     if(selector === ".shell--command-deck") await page.locator(".command-deck-queue:visible").getByText("Priority queue unavailable.",{exact:false}).waitFor();
+    if(selector === ".shell--command-deck" && !introSeen) {
+      await page.getByRole("heading",{name:"Meet Helm",exact:true}).waitFor();
+      await page.getByText("Not installed - proposed template",{exact:true}).first().waitFor();
+      await page.screenshot({path:path.join(proof,"command-deck-crew-proposed-1440.png"),animations:"disabled"});
+      for(const method of ["agents.create","templates.add.plan","templates.add.apply","config.patch"]) assert.equal((await gateway.getRequests(method)).length,0);
+      await page.getByRole("button",{name:"Not now",exact:true}).click();
+      await page.getByRole("heading",{name:"Meet Helm",exact:true}).waitFor({state:"hidden"});
+      introSeen=true;
+    }
     assert.equal(await composer.inputValue(),"Preserve this unsent draft.");
     assert(await composer.evaluate(e => (window as Window & {lazykinsComposer?:Element}).lazykinsComposer === e));
     assert.equal(await gateway.getSocketCount(),sockets);
@@ -323,6 +333,76 @@ try {
   assert.equal((await runningGateway.getRequests("chat.send")).length,0);
   await running.close();
   observations.push("The native abort action remains visible beside a sendable draft on desktop and mobile, aborting the selected run exactly once.");
+  const crewCatalog=JSON.parse(await fs.readFile(path.join(root,"command-deck/crew/catalog.json"),"utf8"));
+  const crewContext=await browser.newContext({viewport:{width:1440,height:900},serviceWorkers:"block"});
+  const crewPage=await crewContext.newPage();activePage=crewPage;crewPage.setDefaultTimeout(20_000);
+  const crewAgentRows=[{id:"main",name:"Main"},...crewCatalog.agents.map((entry:{id:string;name:string})=>({id:entry.id,name:entry.name,identity:{name:entry.name}})),{id:"other",name:"Other agent"}];
+  const crewSessions=crewAgentRows.map(agent=>({key:`agent:${agent.id}:main`,kind:"direct",label:agent.name,updatedAt:Date.now()}));
+  const childKey="agent:jace:subagent:crew-proof";
+  let childRunning=true;
+  const child=()=>({key:childKey,sessionId:"crew-proof-child",kind:"direct",label:"Inspect synthetic draft",spawnedBy:"agent:helm:main",updatedAt:Date.now(),status:childRunning ? "running" : "completed",hasActiveRun:childRunning,activeRunIds:childRunning ? ["crew-proof-run"] : []});
+  const crewGateway=await installMockGateway(crewPage,{
+    serverVersion:"2026.11.6",controlUiBuildSource:"configured",presenceUsers:[{self:true,id:"crew-profile",name:"Crew operator"}],
+    sessions:[...crewSessions,child()],
+    featureMethods:[...defaultControlUiFeatureMethods,"agents.files.get","sessions.describe"],
+    sessionTranscripts:Object.fromEntries(crewSessions.map(row=>[row.key,{messages:[{role:"assistant",content:[{type:"text",text:`Synthetic transcript for ${row.label}`}]}]}])),
+    methodResponses:{"agents.list":{agents:crewAgentRows,defaultId:"main",mainKey:"main",scope:"per-sender"}},
+  },{requestHandlers:{
+    "agents.files.get":async(params:unknown)=>{
+      const query=params as {agentId:string;name:string};
+      const metadata=crewCatalog.agents.find((entry:{id:string})=>entry.id===query.agentId);
+      if(!metadata) return {agentId:query.agentId,workspace:`/synthetic/${query.agentId}`,file:{name:query.name,path:query.name,missing:true}};
+      return {agentId:query.agentId,workspace:`/synthetic/${query.agentId}`,file:{name:query.name,path:query.name,missing:false,hash:metadata.bootstrapHashes[query.name],content:"Synthetic content; the mocked Gateway owns this hash fixture."}};
+    },
+    "sessions.describe":async()=>({session:crewSessions.find(row=>row.key==="agent:helm:main"),nativeSubagents:{coverage:"live",children:[],truncated:false}}),
+    "sessions.list":async(params:unknown)=>{
+      const query=params as {spawnedBy?:string;agentId?:string};
+      const rows=query.spawnedBy ? (query.spawnedBy==="agent:helm:main" ? [child()] : []) : [...crewSessions,child()].filter(row=>!query.agentId || row.key.startsWith(`agent:${query.agentId}:`));
+      return {ts:Date.now(),path:"",count:rows.length,sessions:rows};
+    },
+  }});
+  await crewPage.goto(`${base}chat`);
+  const crewComposer=crewPage.locator(".agent-chat__composer-combobox textarea");
+  await crewComposer.waitFor({state:"visible"});
+  await crewComposer.fill("Ordinary main draft remains private");
+  const ordinarySelection=()=>crewPage.evaluate(()=>Object.keys(localStorage).sort().flatMap(key=>{try {const value=JSON.parse(localStorage.getItem(key) || "null");return value?.sessionsByGateway ? [[key,value.sessionsByGateway]] : [];}catch{return [];}}));
+  const ordinaryBefore=await ordinarySelection();
+  await crewPage.getByRole("button",{name:"Enter Command Deck",exact:true}).click();
+  await crewPage.locator(".command-deck-contact").getByText("Helm",{exact:false}).waitFor();
+  await crewPage.getByRole("heading",{name:"Meet Helm",exact:true}).waitFor();
+  await crewPage.screenshot({path:path.join(proof,"command-deck-crew-installed-1440.png"),animations:"disabled"});
+  await crewPage.getByRole("button",{name:"Not now",exact:true}).click();
+  await crewPage.locator(".command-helm-delegation").waitFor();
+  await crewPage.locator(".command-helm-delegation summary").click();
+  await crewPage.locator(".command-helm-child").getByText("Jace",{exact:true}).waitFor();
+  assert((await crewGateway.getRequests("sessions.list",{spawnedBy:"agent:helm:main"})).some(request=>!(request.params as {agentId?:string}).agentId));
+  await crewPage.screenshot({path:path.join(proof,"command-deck-helm-delegation-running.png"),animations:"disabled"});
+  childRunning=false;
+  await crewGateway.emitGatewayEvent("sessions.changed",{sessionKey:childKey,patch:child()});
+  await crewPage.locator(".command-helm-child").getByText("completed",{exact:true}).waitFor();
+  await crewPage.locator(".command-crew-roster").getByRole("button",{name:"Chat with Jace",exact:true}).click();
+  await crewPage.locator(".command-deck-contact").getByText("Jace",{exact:false}).waitFor();
+  await crewComposer.fill("Synthetic direct message to Jace");
+  await crewPage.getByRole("button",{name:"Send message",exact:true}).click();
+  assert.equal(((await crewGateway.waitForRequest("chat.send")).params as {sessionKey:string}).sessionKey,"agent:jace:main");
+  await crewPage.locator(".command-crew-roster").getByRole("button",{name:"Chat with Cruz",exact:true}).click();
+  await crewPage.locator(".command-deck-contact").getByText("Cruz",{exact:false}).waitFor();
+  await crewComposer.fill("Synthetic direct message to Cruz");
+  await crewPage.getByRole("button",{name:"Send message",exact:true}).click();
+  const directSends=await crewGateway.getRequests("chat.send");
+  assert.deepEqual(directSends.map(request=>(request.params as {sessionKey:string}).sessionKey),["agent:jace:main","agent:cruz:main"]);
+  await crewPage.locator(".command-crew-roster").getByRole("button",{name:"Chat with Jace",exact:true}).click();
+  await crewPage.getByRole("button",{name:"Exit Command Deck",exact:true}).click();
+  await crewPage.locator(".shell:not(.shell--command-deck)").waitFor();
+  await crewComposer.waitFor({state:"visible"});
+  assert.equal(await crewComposer.inputValue(),"Ordinary main draft remains private");
+  assert.deepEqual(await ordinarySelection(),ordinaryBefore);
+  await crewPage.getByRole("button",{name:"Enter Command Deck",exact:true}).click();
+  await crewPage.locator(".command-deck-contact").getByText("Jace",{exact:false}).waitFor();
+  await crewPage.screenshot({path:path.join(proof,"command-deck-crew-jace-restored.png"),animations:"disabled"});
+  for(const method of ["agents.create","templates.add.plan","templates.add.apply","config.patch"]) assert.equal((await crewGateway.getRequests(method)).length,0);
+  await crewContext.close();
+  observations.push("Crew Gateway fixture: authored bootstrap hash admission, Helm-first actual Home navigation, Jace/Cruz direct chat.send session keys without Helm forwarding, original main draft and remembered selection restoration, Jace reentry, real child-session running-to-completed projection, and no automatic creation/config writes. Authored persona output and live provider delegation remain untested.");
   const mismatch = await browser.newContext({viewport:{width:1280,height:720},serviceWorkers:"block"});
   const mismatchPage = await mismatch.newPage(); activePage = mismatchPage;
   const mismatchGateway = await installMockGateway(mismatchPage,{serverVersion:"2026.11.10-beta.1",controlUiBuildSource:"configured",awaitInitialRoster:false});
@@ -349,7 +429,7 @@ try {
   await stylePage.locator(".agent-chat__composer-combobox textarea").waitFor({state:"visible"});
   await styleFailure.close();
   observations.push("A missing local appearance stylesheet blocks malformed work UI and exposes a visible Reload action and host rollback guidance.");
-  await fs.writeFile(path.join(proof,"results.json"),JSON.stringify({passed:true,verifiedModes:["openclaw","quiet","command"],packageRevision:"modes-r6",version:"2026.11.6",sha:"06afb10d3272cc9deaf38ca6a3b7b839d5935638",observations,limits:["Synthetic Gateway fixture, no real provider or Linux deployment exercised.","CSS zoom is not native browser zoom.","Workboard route is a native plugin destination; plugin execution and legacy streaming/gear integrations need host verification."]},null,2));
+  await fs.writeFile(path.join(proof,"results.json"),JSON.stringify({passed:true,verifiedModes:["openclaw","quiet","command"],packageRevision:"helm-r7",version:"2026.11.6",sha:"06afb10d3272cc9deaf38ca6a3b7b839d5935638",observations,limits:["Synthetic Gateway fixture, no real provider or Linux deployment exercised.","CSS zoom is not native browser zoom.","Workboard route is a native plugin destination; plugin execution and legacy streaming/gear integrations need host verification."]},null,2));
   console.log(JSON.stringify({passed:true,proof,observations}));
 } catch (error) {
   console.error("Mode verification failed:",error);

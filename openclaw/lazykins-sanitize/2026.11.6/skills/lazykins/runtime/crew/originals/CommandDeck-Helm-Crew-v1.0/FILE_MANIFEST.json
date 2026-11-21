@@ -1,0 +1,143 @@
+{
+  "bundle": "CommandDeck-Helm-Crew-v1.0",
+  "version": "1.0.0",
+  "agents": [
+    "jace",
+    "cruz"
+  ],
+  "containsNativeTemplateSources": true,
+  "verifiedAgainstLiveGateway": false,
+  "fileCountExcludingManifest": 26,
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 2534,
+      "sha256": "0f30df9e48c9c49f5e30d81b67256ddbb27c2bc1b00638b15247bbdcffc3eea8"
+    },
+    {
+      "path": "cruz-template/CLAW.md",
+      "bytes": 2040,
+      "sha256": "225356174d76544d4ca8c637c5a62101b5c8c773394c83056bec6830a9dd5a12"
+    },
+    {
+      "path": "cruz-template/package.json",
+      "bytes": 242,
+      "sha256": "9c1ab980cac9a736afdd9a589310d1db3f30f06bde8b71c595153986a4d9227e"
+    },
+    {
+      "path": "cruz-template/workspace/AGENTS.md",
+      "bytes": 3203,
+      "sha256": "c18410cc1e00c3b46955415f997b1700f5c9a85e8043ed0d107cdacc807b3b67"
+    },
+    {
+      "path": "cruz-template/workspace/IDENTITY.md",
+      "bytes": 832,
+      "sha256": "be6405ecc7fca9dae24847772acafe00b57a9b81e19b06e672a7192df4ad1d94"
+    },
+    {
+      "path": "cruz-template/workspace/SOUL.md",
+      "bytes": 2701,
+      "sha256": "7b74c7db64f573445ebf7d63e010619417cc7885d695ef853b1ac63ecaeeefa0"
+    },
+    {
+      "path": "cruz-template/workspace/USER.md",
+      "bytes": 310,
+      "sha256": "16e4d2e305c1b4c9d887d90d551a19d5d598579c2ee2e06f1e93996f24bdf1ae"
+    },
+    {
+      "path": "cruz-template/workspace/avatars/cruz.png",
+      "bytes": 19258,
+      "sha256": "d4ee1f25af6e69c524c421aa0bac40726c992a2af26860e1bacce82f83958e0b"
+    },
+    {
+      "path": "cruz-template/workspace/avatars/cruz.svg",
+      "bytes": 865,
+      "sha256": "9ca0e0cb5cb6be64c6d46cf6b2660a67f757b7917cdaa54aec0f601836d2af36"
+    },
+    {
+      "path": "cruz-template/workspace/reference/COLLABORATION.md",
+      "bytes": 1147,
+      "sha256": "4bcee1f06582833e42555f12bc67e4343c2679a59227f6ce99778be5726c4b14"
+    },
+    {
+      "path": "cruz-template/workspace/reference/COMMUNICATION.md",
+      "bytes": 868,
+      "sha256": "f1f775db845e071436c8af3d08c2c6923311dad0690f1a67b280eb1484f21c68"
+    },
+    {
+      "path": "cruz-template/workspace/reference/WORKFLOW.md",
+      "bytes": 923,
+      "sha256": "d7928bdbcc4ded1737c60790ad417efb6ea0f4ed54b794674aa66d80fed61b32"
+    },
+    {
+      "path": "docs/CODEX_CREW_INTEGRATION.md",
+      "bytes": 2700,
+      "sha256": "f4cab7edf766a0b51fca29bd532563dc3b245080c0b7793d48bc6d1627297f1a"
+    },
+    {
+      "path": "docs/INSTALL_AND_VERIFY.md",
+      "bytes": 3234,
+      "sha256": "8602ea85e6e2ddb76b2228a792cf43e940ad934b343a9a3772de6b3a1ff783b1"
+    },
+    {
+      "path": "integration/command-deck-crew.json",
+      "bytes": 1702,
+      "sha256": "205308111a8c5adc89385c03136ca95a840a4ba078e3858c8cc471e366202a24"
+    },
+    {
+      "path": "jace-template/CLAW.md",
+      "bytes": 2036,
+      "sha256": "01533b77ad5ccb7bae20e2c841f43aae861387a128fd8aa64b2e0d771cd83c3e"
+    },
+    {
+      "path": "jace-template/package.json",
+      "bytes": 242,
+      "sha256": "1d77f35048b7e68c475f33199ada10e0ac37cf8b5653ae050d03f9f1b1980e70"
+    },
+    {
+      "path": "jace-template/workspace/AGENTS.md",
+      "bytes": 3203,
+      "sha256": "d7ee765c3ee8bcc9ea23cfc48e6f78035c7799adec208e6e75f544c430056172"
+    },
+    {
+      "path": "jace-template/workspace/IDENTITY.md",
+      "bytes": 829,
+      "sha256": "04d8547666e8177fad4a76db283411df297b5118f23ed65fb6693cffa4ae6c65"
+    },
+    {
+      "path": "jace-template/workspace/SOUL.md",
+      "bytes": 2737,
+      "sha256": "b6245a8bc200a67882012a72a4bdd0a48b72c999f74822197f00ccdde7f3674c"
+    },
+    {
+      "path": "jace-template/workspace/USER.md",
+      "bytes": 310,
+      "sha256": "82ab86c58d16aee703c24dabe4b49bb43d6fcbcf3bf5c1218547fb373b8e8912"
+    },
+    {
+      "path": "jace-template/workspace/avatars/jace.png",
+      "bytes": 10076,
+      "sha256": "2adcb0d301efae1c32f0b535cff9211a640cdef1a14bd500152472e5813f70f8"
+    },
+    {
+      "path": "jace-template/workspace/avatars/jace.svg",
+      "bytes": 865,
+      "sha256": "e65403acb35867bf1563d5df00fea9cef4a9faf29ed7a7a8390ca5dc4de4c145"
+    },
+    {
+      "path": "jace-template/workspace/reference/COLLABORATION.md",
+      "bytes": 1147,
+      "sha256": "663003721901ef396d3721ac07742075d81f19e35af46fb8a319daeff6814024"
+    },
+    {
+      "path": "jace-template/workspace/reference/COMMUNICATION.md",
+      "bytes": 858,
+      "sha256": "d36a0abfcdfa0ae08e7df4dc5a8eee02a22a4f0183274f4806035a0cdf9f9f44"
+    },
+    {
+      "path": "jace-template/workspace/reference/WORKFLOW.md",
+      "bytes": 923,
+      "sha256": "d80426317a573a92a3476f2d8c8d19bc83ebc58313b421dca73dc51c3556b58e"
+    }
+  ]
+}

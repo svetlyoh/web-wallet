@@ -1,0 +1,10 @@
+{
+  "name": "command-deck-helm-template",
+  "version": "1.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Helm coordinator agent template for Command Deck",
+  "openclaw": {
+    "template": "CLAW.md"
+  }
+}

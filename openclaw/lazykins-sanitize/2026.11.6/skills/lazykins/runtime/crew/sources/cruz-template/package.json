@@ -1,0 +1,10 @@
+{
+  "name": "command-deck-cruz-template",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Cruz general-purpose AI teammate for Command Deck, coordinated by Helm",
+  "openclaw": {
+    "template": "CLAW.md"
+  }
+}

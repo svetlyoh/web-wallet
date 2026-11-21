@@ -10,14 +10,19 @@
   "voiceMechanism": "agent-workspace-SOUL-marked-policy",
   "linuxDeploymentVerified": false,
   "ordinaryModelResponsesVerified": false,
-  "status": "production build and browser fixtures passed",
+  "status": "Helm crew integration validation pending",
   "futureUpdatePolicy": "Retain files; validate each tagged release before admitting it.",
-  "browserFixtureVerified": true,
-  "packageRevision": "modes-r6",
+  "browserFixtureVerified": false,
+  "packageRevision": "helm-r7",
   "requestedModes": [
     "openclaw",
     "quiet",
     "command"
   ],
-  "headerRevision": "r3"
+  "headerRevision": "r3",
+  "crewVersions": {
+    "helm": "1.1.0",
+    "jace": "1.0.0",
+    "cruz": "1.0.0"
+  }
 }

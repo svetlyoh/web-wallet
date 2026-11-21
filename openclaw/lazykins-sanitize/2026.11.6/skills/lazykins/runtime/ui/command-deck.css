@@ -92,3 +92,25 @@
 }
 @media (prefers-reduced-motion: reduce) { .shell--command-deck *, .shell--command-deck *::before, .shell--command-deck *::after { animation: none !important; transition: none !important; } }
 @media (forced-colors: active) { .command-deck-rail button[aria-pressed="true"], .command-deck-channel.active { outline: 2px solid Highlight; } }
+
+.command-deck-crew-surface { flex: none; min-width: 0; padding: 8px 16px; border-bottom: 1px solid var(--border); }
+.command-deck-contact { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 12px; }
+.command-deck-contact > span { flex: 1; }
+.command-deck-contact button, .command-helm-delegation button { color: var(--text); background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 8px; padding: 6px 8px; }
+.command-crew-roster { display: grid; gap: 4px; max-height: 44vh; overflow: auto; }
+.command-crew-roster h2 { margin: 8px 0 4px; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.command-crew-agent, .command-crew-other, .command-crew-secondary { display: flex; gap: 8px; align-items: center; width: 100%; min-height: 40px; padding: 6px; text-align: start; border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--text); font-size: 12px; }
+.command-crew-agent.active, .command-crew-other.active { background: var(--bg-hover); border-color: var(--border); }
+.command-crew-agent img { border-radius: 8px; flex: none; object-fit: cover; }
+.command-crew-agent > span { display: grid; gap: 2px; min-width: 0; }
+.command-crew-agent small { font-size: 10px; }
+.command-crew-secondary { color: var(--muted); min-height: 32px; }
+.command-helm-delegation { margin-top: 8px; font-size: 12px; }
+.command-helm-delegation summary { min-height: 32px; padding: 6px 0; }
+.command-helm-delegation > :not(summary) { max-height: 180px; overflow: auto; }
+.command-helm-child { display: flex; gap: 8px; align-items: center; border-top: 1px solid var(--border); padding: 8px 0; }
+.command-helm-child > span { display: grid; gap: 3px; flex: 1; }
+.command-helm-child img { border-radius: 6px; }
+.command-helm-child small { color: var(--muted); }
+
+.command-deck-crew-surface .command-crew-setup { max-height: min(55dvh, 520px); overflow: auto; }
