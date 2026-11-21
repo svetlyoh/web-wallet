@@ -114,3 +114,30 @@
 .lazykins-mode-entries--compact button { width: 36px; font-size: 10px; }
 .lazykins-entry-error { font-size: 12px; color: var(--text); background: var(--card); }
 @media (pointer: coarse) { .lazykins-mode-entries button { min-height: 44px; } }
+
+/* Keep the navigation toggle in a dedicated trailing slot. The upstream
+   collapsed-sidebar shortcut strip occupies the leading edge of the header. */
+.shell--quiet-desk .topnav-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto 40px;
+  grid-template-areas: "identity actions menu";
+  gap: 8px;
+}
+.shell--quiet-desk .topnav-shell > openclaw-tooltip:first-child {
+  grid-area: menu;
+  display: inline-flex;
+  justify-self: end;
+  width: 40px;
+}
+.shell--quiet-desk .topnav-shell__content { grid-area: identity; min-width: 0; }
+.shell--quiet-desk .topnav-shell__actions { grid-area: actions; }
+.shell--quiet-desk .topbar .topbar-nav-toggle {
+  width: 40px;
+  min-width: 40px;
+  height: 40px;
+  margin: 0;
+  transform: none;
+}
+.shell--quiet-desk.shell--nav-collapsed:not(.shell--mobile-nav) .topnav-shell__content {
+  padding-inline-start: calc(var(--shell-controls-width, 140px) + 48px);
+}

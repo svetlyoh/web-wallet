@@ -40,7 +40,7 @@ def main():
     sums.write_text("".join(ctl.digest(path) + "  " + path.relative_to(BASE).as_posix() + "\n" for path in files), encoding="utf-8")
     files.append(sums)
     archives = []
-    paired = BASE.parent / "LazyKins-Modes-2026.11.6-r2.zip"
+    paired = BASE.parent / "LazyKins-Modes-2026.11.6-r3.zip"
     with zipfile.ZipFile(paired, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as archive:
         for path in files:
             archive.write(path, path.relative_to(BASE).as_posix())

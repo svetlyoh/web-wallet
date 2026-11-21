@@ -1,4 +1,4 @@
-# LazyKins and Sanitize — Linux operator guide
+# LazyKins and Sanitize â€” Linux operator guide
 
 This package contains exactly two OpenClaw skills: `lazykins` (displayed as LazyKins) and `sanitize`. It was built for **2026.11.6 only**. Nothing is installed or activated on a live Linux host by creating this Windows package.
 
@@ -6,7 +6,7 @@ Copy the complete package to the Linux account that runs OpenClaw. Do not use su
 
 ```bash
 BUNDLE="$(mktemp -d "$HOME/LazyKins-Modes-r2.XXXXXX")"
-unzip LazyKins-Modes-2026.11.6-r2.zip -d "$BUNDLE"
+unzip LazyKins-Modes-2026.11.6-r3.zip -d "$BUNDLE"
 cd "$BUNDLE"
 ```
 

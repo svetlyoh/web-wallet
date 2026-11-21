@@ -1,20 +1,20 @@
-# LazyKins and Sanitize — OpenClaw 2026.11.6
+# LazyKins and Sanitize â€” OpenClaw 2026.11.6
 
 Updated and verified November 20, 2026 against stable [OpenClaw 2026.11.6](https://github.com/openclaw/openclaw/releases/tag/v2026.11.6), source `06afb10d3272cc9deaf38ca6a3b7b839d5935638`. Newer beta releases are excluded.
 
-[Download Modes R2](https://github.com/svetlyoh/web-wallet/releases/tag/lazykins-modes-2026.11.6-r2). Use the combined `LazyKins-Modes-2026.11.6-r2.zip`; this source folder does not contain the generated UI payload.
+[Download Modes R3](https://github.com/svetlyoh/web-wallet/releases/tag/lazykins-modes-2026.11.6-r3). Use the combined `LazyKins-Modes-2026.11.6-r3.zip`; this source folder does not contain the generated UI payload.
 
-[Full installation and rollback guide](docs/OPERATOR-GUIDE.md) � [Verification](docs/VERIFICATION.md)
+[Full installation and rollback guide](docs/OPERATOR-GUIDE.md) · [Verification](docs/VERIFICATION.md)
 
 ## Install on Linux
 
-Copy `LazyKins-Modes-2026.11.6-r2.zip` to Downloads. Run as the same Linux user that runs OpenClaw, without sudo. Requires Python 3.11+ and OpenClaw **2026.11.6**.
+Copy `LazyKins-Modes-2026.11.6-r3.zip` to Downloads. Run as the same Linux user that runs OpenClaw, without sudo. Requires Python 3.11+ and OpenClaw **2026.11.6**.
 
 ```bash
 openclaw --version
 python3 --version
 BUNDLE="$(mktemp -d "$HOME/LazyKins-Modes-r2.XXXXXX")"
-unzip ~/Downloads/LazyKins-Modes-2026.11.6-r2.zip -d "$BUNDLE"
+unzip ~/Downloads/LazyKins-Modes-2026.11.6-r3.zip -d "$BUNDLE"
 cd "$BUNDLE"
 sha256sum -c SHA256SUMS
 openclaw --profile default agents list --json

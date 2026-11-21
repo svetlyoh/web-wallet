@@ -124,7 +124,7 @@ def main():
         shutil.copy2(RUNTIME / "assets" / "fonts" / "Inter-OFL.txt", notices / "Inter-OFL.txt")
         manifest = {"schemaVersion": 1, "version": VERSION, "sha": SHA,
                     "integration": "exact-pinned-Solid2-LazyKins-modes-overlay",
-                    "modes": ["openclaw", "quiet", "command"], "packageRevision": "modes-r2",
+                    "modes": ["openclaw", "quiet", "command"], "packageRevision": "modes-r2", "headerRevision": "r3",
                     "testedVersions": [VERSION], "node": node,
                     "packageManager": package["packageManager"], "sourcemap": "generated upstream; omitted from payload",
                     "lockfileSha256": digest(source / "pnpm-lock.yaml"),

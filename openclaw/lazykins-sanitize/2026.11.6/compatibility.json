@@ -10,7 +10,7 @@
   "voiceMechanism": "agent-workspace-SOUL-marked-policy",
   "linuxDeploymentVerified": false,
   "ordinaryModelResponsesVerified": false,
-  "status": "production build and browser fixtures passed",
+  "status": "R2 production baseline with R3 header CSS hotfix; focused layout fixture passed",
   "futureUpdatePolicy": "Retain files; validate each tagged release before admitting it.",
   "browserFixtureVerified": true,
   "packageRevision": "modes-r2",
@@ -18,5 +18,6 @@
     "openclaw",
     "quiet",
     "command"
-  ]
+  ],
+  "headerRevision": "r3"
 }

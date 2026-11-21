@@ -1,0 +1,27 @@
+{
+  "passed": true,
+  "scope": "Focused header CSS/DOM fixture using native production header CSS and updated Quiet Desk CSS, not a live Gateway or complete Solid application rerun.",
+  "widths": [
+    360,
+    390,
+    768,
+    1440
+  ],
+  "sidebarCycles": [
+    "expanded",
+    "collapsed",
+    "expanded",
+    "collapsed"
+  ],
+  "observedMenuX": {
+    "360": 310,
+    "390": 340,
+    "768": 710,
+    "1440": 1382
+  },
+  "menuWidth": 40,
+  "minimumGapToActions": 8,
+  "menuPositionStable": true,
+  "noControlOverlap": true,
+  "quietDeskCssSha256": "8c9f015798902fc9d93894768dc47cfec60444cd08b8d217a9d228cd85010485"
+}
