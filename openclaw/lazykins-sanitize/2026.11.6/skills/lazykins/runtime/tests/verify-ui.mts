@@ -92,6 +92,7 @@ try {
   await page.getByRole("button",{name:"Enter Quiet Desk",exact:true}).click();
   await page.locator(".shell--quiet-desk .lazykins-sidebar").waitFor();
   await page.getByText("Your workspace is ready.",{exact:false}).waitFor();
+  await page.waitForFunction(() => Math.round(document.querySelector(".shell-nav")!.getBoundingClientRect().width) === 208);
   assert.equal(Math.round(await page.locator(".shell-nav").evaluate(e => e.getBoundingClientRect().width)),208);
   assert.equal(await page.getByRole("button",{name:"Exit Quiet Desk",exact:true}).textContent(),"Exit Quiet Desk");
   assert.equal(await page.locator(".lazykins-sidebar .lazykins-note").textContent(),"Tasks: Workboard when enabled. Files: this agent's workspace.");
