@@ -6,13 +6,17 @@
   "admittedVersions": [
     "2026.11.6"
   ],
-  "integration": "exact-pinned-Solid2-Quiet-Desk-layout-overlay",
+  "integration": "exact-pinned-Solid2-LazyKins-modes-overlay",
   "voiceMechanism": "agent-workspace-SOUL-marked-policy",
   "linuxDeploymentVerified": false,
   "ordinaryModelResponsesVerified": false,
-  "status": "combined modes R2 validation pending",
+  "status": "production build and browser fixtures passed",
   "futureUpdatePolicy": "Retain files; validate each tagged release before admitting it.",
-  "browserFixtureVerified": false,
+  "browserFixtureVerified": true,
   "packageRevision": "modes-r2",
-  "requestedModes": ["openclaw", "quiet", "command"]
+  "requestedModes": [
+    "openclaw",
+    "quiet",
+    "command"
+  ]
 }

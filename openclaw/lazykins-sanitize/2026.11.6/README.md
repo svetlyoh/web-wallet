@@ -2,20 +2,20 @@
 
 Updated and verified November 20, 2026 against stable [OpenClaw 2026.11.6](https://github.com/openclaw/openclaw/releases/tag/v2026.11.6), source `06afb10d3272cc9deaf38ca6a3b7b839d5935638`. Newer beta releases are excluded.
 
-[Download the verified installers](https://github.com/svetlyoh/web-wallet/actions/runs/44797380473/artifacts/14658464600) (GitHub sign-in required). Unpack that artifact to get the combined ZIP, separate LazyKins/Sanitize ZIPs and `archives.sha256`. Use the combined ZIP for installation; this source folder does not contain the generated UI payload.
+[Download Modes R2](https://github.com/svetlyoh/web-wallet/releases/tag/lazykins-modes-2026.11.6-r2). Use the combined `LazyKins-Modes-2026.11.6-r2.zip`; this source folder does not contain the generated UI payload.
 
-[Successful Linux build and browser checks](https://github.com/svetlyoh/web-wallet/actions/runs/44797380473) · [Full installation and rollback guide](docs/OPERATOR-GUIDE.md) · [Verification](docs/VERIFICATION.md)
+[Full installation and rollback guide](docs/OPERATOR-GUIDE.md) � [Verification](docs/VERIFICATION.md)
 
 ## Install on Linux
 
-Copy `LazyKins-Sanitize-2026.11.6.zip` to Downloads. Run as the same Linux user that runs OpenClaw, without sudo. Requires Python 3.11+ and OpenClaw **2026.11.6**.
+Copy `LazyKins-Modes-2026.11.6-r2.zip` to Downloads. Run as the same Linux user that runs OpenClaw, without sudo. Requires Python 3.11+ and OpenClaw **2026.11.6**.
 
 ```bash
 openclaw --version
 python3 --version
-mkdir -p ~/Documents/LazyKins-Sanitize
-unzip ~/Downloads/LazyKins-Sanitize-2026.11.6.zip -d ~/Documents/LazyKins-Sanitize
-cd ~/Documents/LazyKins-Sanitize
+BUNDLE="$(mktemp -d "$HOME/LazyKins-Modes-r2.XXXXXX")"
+unzip ~/Downloads/LazyKins-Modes-2026.11.6-r2.zip -d "$BUNDLE"
+cd "$BUNDLE"
 sha256sum -c SHA256SUMS
 openclaw --profile default agents list --json
 ```
@@ -41,24 +41,20 @@ python3 "$SAN" --profile "$OC_PROFILE" --state-dir "$OC_STATE_DIR" --agent "$OC_
 
 Follow the reported Gateway restart requirement through your existing service manager, then reload the browser. Custom config paths and recovery cases are covered in the full guide.
 
-## Switch skins without uninstalling
+## Switch modes without uninstalling
 
-Click **OpenClaw view** or **Quiet Desk view** in the header, or choose the interface in **Appearance**. The choice persists for this browser/profile and carries over the older preference key. Switching preserves the current draft and connection. OpenClaw view retains a small selector header so you can switch back. No skill is uninstalled.
+Use **Enter Quiet Desk** or **Enter Command Deck** at the lower left. Each mode has a top-right **Exit** button returning to OpenClaw. Appearance also offers all three choices. The browser/profile preference is retained, including the older Quiet Desk key. Mode changes preserve the draft and connection.
+
+Command Deck's optional priority queue backend is separate and is not included in this ready-built ZIP. Without a configured compatible backend and administrator authority, the panel reports unavailable and offers native Activity. Layout switching does not enable any backend.
 
 Sanitize is independent: the skin switch never changes agent voice. Use `sanitizectl.py ... off` to remove its owned SOUL policy, or `complexity simple|balanced|detailed` to change detail. This affects the selected agent's other channels too.
 
 ## Scope and verification
 
-The old Lit UI was ported to the new Solid architecture; its binary is not reused. Linux CI passed all 40 controller tests, exact source/patch checks, production build, strict native performance checks and browser fixtures. Separate appearance assets are bounded (10,311 bytes CSS, 2,548 bytes gzip, one 352,240-byte local font). Checksums of all downloaded archives and 5,367 UI files were verified locally.
+The old Lit UI was ported to Solid; its binary is not reused. The generated ZIP includes the exact-source production build receipt and browser evidence for native OpenClaw, Quiet Desk and Command Deck. Native bundle budgets remain enforced. Local theme CSS and fonts use separate explicit limits.
 
 This is not a live deployment receipt or proof of ordinary model style compliance. Check actual pairing, agent responses, service restart, native zoom and your plugins on the Linux host. Legacy Streaming Mode/Gear Engine integrations need their own latest-version verification. Installed skills and voice state live outside the engine package; future releases require explicit revalidation.
 
-## Preview
+## Screenshots
 
-Quiet Desk:
-
-![Quiet Desk](docs/evidence/quiet-desk-light-1440.png)
-
-Native OpenClaw view with retained selector:
-
-![OpenClaw view](docs/evidence/openclaw-view-1440.png)
+Current mode screenshots and browser receipts are inside the ready ZIP at `skills/lazykins/runtime/evidence/final/`.

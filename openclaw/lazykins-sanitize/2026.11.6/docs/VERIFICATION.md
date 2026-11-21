@@ -8,9 +8,15 @@ Sanitize retains the v1 policy/state format and ownership, admits only the two i
 
 The UI changed from Lit to Solid. Reusing the earlier binary or merely changing its version field is not a valid upgrade. A new exact-source overlay and production build are required. Production build, strict native performance checks and browser verification passed in [Linux run 44797380473](https://github.com/svetlyoh/web-wallet/actions/runs/44797380473). All 40 controller tests passed on Linux. Helper tests alone were not used as proof of the browser port.
 
-The skin selector must remain visible in both Quiet Desk and OpenClaw view, also available in Appearance, preserve the current draft and mounted transport, and persist for the authenticated browser/profile. Switching skins does not uninstall either skill or alter Sanitize policy.
+Modes R2 uses lower-left entry buttons in OpenClaw and both custom modes, with a top-right Exit button in each custom mode. Appearance also offers all three choices. These controls must preserve the current draft and mounted transport, and persist for the authenticated browser/profile. Switching skins does not uninstall either skill or alter Sanitize policy.
 
 
 ## Verified package
 
-Archive hashes and all 5,367 UI file hashes verified after download. Actual screenshots/results are included in the prebuilt ZIP under skills/lazykins/runtime/evidence/final. No connected production Linux host or ordinary model session was tested. Public skin CSS/font assets have separate enforced limits; native compiled-bundle limits are unchanged and enforced. Existing skin preference keys are retained across the upgrade. OpenClaw view retains the selector header intentionally.
+Archive hashes and all 5,367 UI file hashes verified after download. Actual screenshots/results are included in the prebuilt ZIP under skills/lazykins/runtime/evidence/final. No connected production Linux host or ordinary model session was tested. Public skin CSS/font assets have separate enforced limits; native compiled-bundle limits are unchanged and enforced. Existing skin preference keys are retained across the upgrade. OpenClaw view retains the mode entry controls; mode switching does not uninstall a skill.
+
+## Modes R2 scope
+
+R2 adds Command Deck and lower-left entry/top-right exit controls. The priority-queue client is capability-gated; its optional backend is separate and is not bundled in the ready ZIP. Synthetic queue responses validate client behavior only, not durable backend execution. R1 receipts above apply to R1; the R2 results and screenshots are under `skills/lazykins/runtime/evidence/final/` in the generated ZIP.
+
+Modes R2 passed Linux run [44845880038](https://github.com/svetlyoh/web-wallet/actions/runs/44845880038): 40 controller checks, production build, strict native performance budgets and actual production-bundle browser fixtures. All three modes, draft/DOM/connection retention, two split drafts, responsive widths 1280 through 360, native drawer behavior, independent Stop and refusal of unmatched versions are covered. Queue client receipts use synthetic admin responses; the optional backend remains outside the ready ZIP.

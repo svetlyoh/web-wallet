@@ -5,9 +5,9 @@ This package contains exactly two OpenClaw skills: `lazykins` (displayed as Lazy
 Copy the complete package to the Linux account that runs OpenClaw. Do not use sudo. If transferring the paired ZIP:
 
 ```bash
-mkdir -p "$HOME/Documents/LazyKins-Sanitize"
-unzip LazyKins-Sanitize-2026.11.6.zip -d "$HOME/Documents/LazyKins-Sanitize"
-cd "$HOME/Documents/LazyKins-Sanitize"
+BUNDLE="$(mktemp -d "$HOME/LazyKins-Modes-r2.XXXXXX")"
+unzip LazyKins-Modes-2026.11.6-r2.zip -d "$BUNDLE"
+cd "$BUNDLE"
 ```
 
 Python 3.11 or newer and the installed `openclaw` executable are needed. Check `python3 --version` first. The ready-built UI requires no Node/pnpm toolchain on the Linux host. Check transfer checksums before running the package:
@@ -75,7 +75,9 @@ python3 "$LK_CTL" on --profile "$OC_PROFILE" --state-dir "$OC_STATE_DIR"
 
 The UI build is staged and checksum-verified outside the npm/system package, under `STATE_DIR/lazykins/builds/`. `on` changes only the owned custom UI root field through native schema-validated config commands. This serving change is Gateway-wide. Follow the reported restart requirement through your existing service manager; no automatic restart is performed. Reload the browser and verify the served build, pairing, chat streaming, Stop, approvals and routes.
 
-Use the visible **Quiet Desk / OpenClaw view** switch to turn the skin on or off instantly. The same selector is available in Appearance. Both skills stay installed; changing skin does not change Sanitize. The choice is saved for this browser and authenticated profile, and switching preserves the current conversation and draft. Host-level `off` below is for full custom-root rollback, not normal skin switching. Existing widgets and third-party UI customizations need verification against the new Solid release before claiming compatibility.
+Use the lower-left **Enter Quiet Desk** and **Enter Command Deck** buttons. Each mode has a top-right **Exit Quiet Desk** or **Exit Command Deck** button returning to OpenClaw. The same selector is available in Appearance. Both skills stay installed; changing skin does not change Sanitize. The choice is saved for this browser and authenticated profile, and switching preserves the current conversation and draft. Host-level `off` below is for full custom-root rollback, not normal skin switching. Existing widgets and third-party UI customizations need verification against the new Solid release before claiming compatibility.
+
+Command Deck includes its sidebar, split controls and responsive queue panel. Its priority queue requires a separately configured compatible backend and administrator authority; the optional backend is not included in this ready-built ZIP. Without it, the panel reports unavailable and links to native Activity. Switching modes never installs or enables a backend.
 
 Files refers to the selected agent's real workspace files. Tasks uses OpenClaw's actual tasks route. These destinations retain upstream capability and permission checks. Sanitize setup is explained in Settings; there is no toggle that pretends to change agent policy without a backend.
 
@@ -97,7 +99,7 @@ Inspect the selected harness and bootstrap budgets before activation. Ordinary d
 
 ## Disable and rollback
 
-Browser-only layout change: click **OpenClaw view**. Host-level UI rollback:
+Browser-only layout change: click the top-right **Exit** button. Host-level UI rollback:
 
 ```bash
 python3 "$LK_CTL" off --profile "$OC_PROFILE" --state-dir "$OC_STATE_DIR"

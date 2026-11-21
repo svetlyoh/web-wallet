@@ -15,7 +15,7 @@ ctl = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(ctl)
 
 def selected_files():
-    selected = [BASE / name for name in ("install-both.py", "build-transfer.py", "compatibility.json")]
+    selected = [BASE / name for name in ("README.md", "install-both.py", "build-transfer.py", "compatibility.json")]
     for root in (BASE / "skills", BASE / "docs"):
         for path in sorted(root.rglob("*")):
             if path.is_symlink():
@@ -29,7 +29,7 @@ def selected_files():
 def main():
     manifest = ctl.Controller(SimpleNamespace(state_dir=BASE), BASE / "skills/lazykins/runtime/payload").verified_payload()
     proof = json.loads((BASE / "skills/lazykins/runtime/evidence/final/results.json").read_text(encoding="utf-8"))
-    if proof.get("passed") is not True or proof.get("version") != ctl.VERSION or proof.get("sha") != ctl.SHA:
+    if proof.get("passed") is not True or proof.get("version") != ctl.VERSION or proof.get("sha") != ctl.SHA or proof.get("verifiedModes") != ["openclaw", "quiet", "command"] or proof.get("packageRevision") != "modes-r2":
         raise RuntimeError("Production browser verification for this exact source is required before packaging")
     compatibility = json.loads((BASE / "compatibility.json").read_text(encoding="utf-8"))
     compatibility.update(status="production build and browser fixtures passed", browserFixtureVerified=True,
