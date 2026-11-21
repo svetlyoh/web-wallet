@@ -1,3 +1,4 @@
+import { readDeckNavigation } from "./command-deck-navigation-storage.ts";
 import { readDeckChoice, readDeckDefault, rememberDeckChoice, writeDeckDefault } from "./command-deck-preferences.ts";
 import type { ApplicationContext } from "../app/context.ts";
 import { selectApplicationSession } from "../app/agent-selection.ts";
@@ -7,7 +8,7 @@ import { createChangeListeners } from "../../../src/shared/listeners.js";
 import { sessionNavigationTarget } from "../lib/sessions/route-navigation.ts";
 import { parseAgentSessionKey, resolveUiConversationIdentity } from "../lib/sessions/session-key.ts";
 import { getCommandCrewOwner, COMMAND_CREW_IDS } from "./command-crew-owner.ts";
-import { consumeDeckEntry, initialDeskPath, initialDeskAgentOverride, readDeckNavigation, type DeskNavigation } from "./desk-session-preferences.ts";
+import { consumeDeckEntry, initialDeskPath, initialDeskAgentOverride,  type DeskNavigation } from "./desk-session-preferences.ts";
 import { quietDeskStorageKey, readQuietDeskMode } from "./quiet-desk-preference.ts";
 
 export class CommandDeckNavigation {
