@@ -5,7 +5,7 @@ import http from "node:http";
 import { chromium, type Page } from "playwright";
 import { createControlUiE2eArtifactDir } from "./src/test-helpers/control-ui-e2e-artifacts.ts";
 import { defaultControlUiFeatureMethods } from "./src/test-helpers/control-ui-e2e-defaults.ts";
-import { installMockGateway } from "./src/test-helpers/control-ui-e2e.ts";
+import { installMockGateway, waitForControlUiRoute } from "./src/test-helpers/control-ui-e2e.ts";
 
 // This executable lives in the isolated upstream ui/ directory during tests.
 // It drives the real production bundle with upstream's deterministic Gateway.
@@ -35,6 +35,7 @@ const base = `http://127.0.0.1:${address.port}/`;
 const browser = await chromium.launch();
 const observations: string[] = [];
 let activePage: Page | undefined;
+const crewErrors:string[]=[];
 const watchdog = setTimeout(async () => {
   console.error("Mode and crew verification exceeded 210 seconds");
   if (activePage && !activePage.isClosed()) {
@@ -335,6 +336,7 @@ try {
   const crewCatalog=JSON.parse(await fs.readFile(path.join(root,"command-deck/crew/catalog.json"),"utf8"));
   const crewContext=await browser.newContext({viewport:{width:1440,height:900},serviceWorkers:"block"});
   const crewPage=await crewContext.newPage();activePage=crewPage;crewPage.setDefaultTimeout(20_000);
+  crewPage.on("pageerror",error=>crewErrors.push(String(error)));
   const crewAgentRows=[{id:"main",name:"Main"},...crewCatalog.agents.map((entry:{id:string;name:string})=>({id:entry.id,name:entry.name,identity:{name:entry.name}})),{id:"other",name:"Other agent"}];
   const crewSessions=crewAgentRows.map(agent=>({key:`agent:${agent.id}:main`,kind:"direct",label:agent.name,updatedAt:Date.now()}));
   const childKey="agent:jace:subagent:crew-proof";
@@ -379,6 +381,7 @@ try {
   await crewPage.locator(".command-crew-roster").getByRole("button",{name:"Chat with Jace",exact:true}).click();
   await crewPage.locator(".command-deck-contact").getByText("Jace",{exact:false}).waitFor();
   console.log("Crew Jace navigation",crewPage.url(),JSON.stringify(await crewGateway.getRequests("chat.startup")));
+  await waitForControlUiRoute(crewPage,{pathname:"/chat/jace",routeId:"chat"});
   await crewComposerFor("jace").fill("Synthetic direct message to Jace");
   await crewPage.getByRole("button",{name:"Send message",exact:true}).click();
   assert.equal(((await crewGateway.waitForRequest("chat.send")).params as {sessionKey:string}).sessionKey,"agent:jace:main");
@@ -438,6 +441,7 @@ try {
   console.error("Mode verification failed:",error);
   if(activePage && !activePage.isClosed()) {
     await activePage.screenshot({path:path.join(proof,"failure.png"),timeout:5000}).catch(()=>{});
+    await fs.writeFile(path.join(proof,"route-diagnostics.json"),JSON.stringify({errors:crewErrors,...await activePage.evaluate(()=>({snapshot:window.openclawControlUi?.snapshot(),requests:window.openclawControlUiE2eGateway?.findRequests().filter(request=>["chat.history","chat.startup","sessions.describe","sessions.resolve","sessions.dispatch"].includes(request.method))}))},null,2));
     await fs.writeFile(path.join(proof,"failure.txt"),String(error)+"\nURL: "+activePage.url()+"\n"+JSON.stringify(await activePage.locator("textarea").evaluateAll(elements=>elements.map(element=>({visible:element.getBoundingClientRect().height>0,description:element.getAttribute("aria-describedby")}))))+"\n"+await activePage.locator("body").innerText({timeout:5000}).catch(String));
   }
   throw error;
