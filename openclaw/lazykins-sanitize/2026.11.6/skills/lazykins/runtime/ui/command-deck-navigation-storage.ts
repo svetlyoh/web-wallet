@@ -1,5 +1,5 @@
 import { getSafeLocalStorage } from "../local-storage.ts";
-import { registerDeskNavigationAdapter } from "./desk-navigation-adapter.ts";
+import { deskNavigation } from "./desk-navigation-adapter.ts";
 import { deskPreferenceKey, readDeskMode, type DeskNavigation } from "./desk-session-preferences.ts";
 const navigation = new Map<string, DeskNavigation>();
 export function readDeckNavigation(gatewayUrl: string, profileId: string | null | undefined): DeskNavigation | null {
@@ -22,4 +22,4 @@ export function persistDeskNavigation(gatewayUrl: string, profileId: string | nu
   return ordinary;
 }
 
-registerDeskNavigationAdapter(persistDeskNavigation);
+deskNavigation.write=persistDeskNavigation;

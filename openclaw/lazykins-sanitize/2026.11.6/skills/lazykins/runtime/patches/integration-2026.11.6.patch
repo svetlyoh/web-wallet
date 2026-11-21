@@ -168,11 +168,11 @@ index ca041699..0f89e75d 100644
    );
  }
 diff --git a/ui/src/app/settings.ts b/ui/src/app/settings.ts
-index 2b09504f..e5542fdb 100644
+index 2b09504f..61665615 100644
 --- a/ui/src/app/settings.ts
 +++ b/ui/src/app/settings.ts
 @@ -1,3 +1,4 @@
-+import { persistDeskNavigation } from "../lazykins/desk-navigation-adapter.ts";
++import { deskNavigation } from "../lazykins/desk-navigation-adapter.ts";
  import { gatewayCredentialScope, gatewayOriginScope } from "@openclaw/gateway-client/browser";
  import { safeParseJson } from "@openclaw/normalization-core";
  import { normalizeAgentId } from "@openclaw/normalization-core/agent-id";
@@ -181,7 +181,7 @@ index 2b09504f..e5542fdb 100644
        [
          scope,
 -        {
-+        persistDeskNavigation(scope, profileId, {
++        deskNavigation.write(scope, profileId, {
            sessionKey: next.sessionKey,
            lastActiveSessionKey: next.lastActiveSessionKey,
            ...(normalizeOptionalString(next.selectedAgentId)
