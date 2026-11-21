@@ -357,7 +357,8 @@ try {
 
   }});
   await crewPage.goto(`${base}chat`);
-  const crewComposer=crewPage.locator(".agent-chat__composer-combobox textarea");
+  const crewComposerFor=(id:string)=>crewPage.locator(`.agent-chat__composer-combobox textarea[aria-describedby*="agent%3A${id}%3Amain"]:visible`);
+  const crewComposer=crewComposerFor("main");
   await crewComposer.waitFor({state:"visible"});
   await crewComposer.fill("Ordinary main draft remains private");
   const ordinarySelection=()=>crewPage.evaluate(()=>Object.keys(localStorage).sort().flatMap(key=>{try {const value=JSON.parse(localStorage.getItem(key) || "null");return value?.sessionsByGateway ? [[key,value.sessionsByGateway]] : [];}catch{return [];}}));
@@ -378,12 +379,12 @@ try {
   await crewPage.locator(".command-helm-child").getByText("completed",{exact:true}).waitFor();
   await crewPage.locator(".command-crew-roster").getByRole("button",{name:"Chat with Jace",exact:true}).click();
   await crewPage.locator(".command-deck-contact").getByText("Jace",{exact:false}).waitFor();
-  await crewComposer.fill("Synthetic direct message to Jace");
+  await crewComposerFor("jace").fill("Synthetic direct message to Jace");
   await crewPage.getByRole("button",{name:"Send message",exact:true}).click();
   assert.equal(((await crewGateway.waitForRequest("chat.send")).params as {sessionKey:string}).sessionKey,"agent:jace:main");
   await crewPage.locator(".command-crew-roster").getByRole("button",{name:"Chat with Cruz",exact:true}).click();
   await crewPage.locator(".command-deck-contact").getByText("Cruz",{exact:false}).waitFor();
-  await crewComposer.fill("Synthetic direct message to Cruz");
+  await crewComposerFor("cruz").fill("Synthetic direct message to Cruz");
   await crewPage.getByRole("button",{name:"Send message",exact:true}).click();
   await crewGateway.waitForRequest("chat.send",{match:{sessionKey:"agent:cruz:main"}});
   const directSends=await crewGateway.getRequests("chat.send");
