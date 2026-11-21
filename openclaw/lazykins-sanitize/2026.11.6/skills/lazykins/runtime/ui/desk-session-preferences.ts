@@ -1,3 +1,4 @@
+import { registerDeskNavigationAdapter } from "./desk-navigation-adapter.ts";
 import { gatewayOriginScope } from "@openclaw/gateway-client/browser";
 import { getSafeLocalStorage } from "../local-storage.ts";
 
@@ -52,3 +53,5 @@ export function persistDeskNavigation(gatewayUrl: string, profileId: string | nu
   try { getSafeLocalStorage()?.setItem(key, JSON.stringify(next)); } catch { /* Preserve the ordinary tuple even on quota failure. */ }
   return ordinary;
 }
+
+registerDeskNavigationAdapter(deckAwareNavigation,persistDeskNavigation);

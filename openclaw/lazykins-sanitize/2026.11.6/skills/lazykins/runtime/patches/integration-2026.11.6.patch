@@ -168,11 +168,11 @@ index ca041699..afe3a90d 100644
    );
  }
 diff --git a/ui/src/app/settings.ts b/ui/src/app/settings.ts
-index 2b09504f..0a895ea4 100644
+index 2b09504f..2689b79c 100644
 --- a/ui/src/app/settings.ts
 +++ b/ui/src/app/settings.ts
 @@ -1,3 +1,4 @@
-+import { deckAwareNavigation, persistDeskNavigation } from "../lazykins/desk-session-preferences.ts";
++import { deckAwareNavigation, persistDeskNavigation } from "../lazykins/desk-navigation-adapter.ts";
  import { gatewayCredentialScope, gatewayOriginScope } from "@openclaw/gateway-client/browser";
  import { safeParseJson } from "@openclaw/normalization-core";
  import { normalizeAgentId } from "@openclaw/normalization-core/agent-id";
