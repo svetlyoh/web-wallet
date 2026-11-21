@@ -6,7 +6,7 @@ Copy the complete package to the Linux account that runs OpenClaw. Do not use su
 
 ```bash
 BUNDLE="$(mktemp -d "$HOME/LazyKins-Modes-r2.XXXXXX")"
-unzip LazyKins-Modes-2026.11.6-r3.zip -d "$BUNDLE"
+unzip LazyKins-Modes-2026.11.6-r4.zip -d "$BUNDLE"
 cd "$BUNDLE"
 ```
 
@@ -129,3 +129,7 @@ python3 "$LK_CTL" check-update --profile "$OC_PROFILE" --state-dir "$OC_STATE_DI
 A mismatch returns exit 2 and an actionable next step. Before upgrading, disable the custom root. Skills, SOUL policy and product state live outside the package and remain installed after an engine update; this persistence does not promise protocol or harness compatibility. If the host auto-updates while LazyKins is enabled, its connected-version gate pauses work controls on a mismatch. Shell rollback remains available even if UI startup fails. No periodic polling, automatic engine update or remote repair download is installed.
 
 For each future version, build from its exact tagged source, review the narrow integration patch, run regression and visual checks, record provenance, and only then admit the new version. Follow `skills/lazykins/references/compatibility.md` and the shipped runtime build instructions. Keep the previous generation and a verified stock UI available. Sanitize must separately revalidate the matching harness before adding a new allowed baseline.
+
+## Apps and returning to chat
+
+The lower-left Apps button expands or collapses the Quiet Desk and Command Deck entries, each with a native OpenClaw icon. Selecting one changes the layout; it does not start a new session or alter Sanitize. On Quiet Desk Conversations, the visible Back to chat link returns through OpenClaw chat routing. It has a 44px touch target and does not rely on browser history.

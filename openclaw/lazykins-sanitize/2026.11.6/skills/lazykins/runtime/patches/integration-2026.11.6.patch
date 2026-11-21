@@ -62,7 +62,7 @@ index a9155b6d..49d0bfff 100644
      routeReady: host.routeState.routeId !== undefined || host.routeState.routeFailed,
      workspaceChromeVisible: host.workspaceChromeVisible,
 diff --git a/ui/src/app/app-shell-view.tsx b/ui/src/app/app-shell-view.tsx
-index ca041699..47276061 100644
+index ca041699..ac79dcec 100644
 --- a/ui/src/app/app-shell-view.tsx
 +++ b/ui/src/app/app-shell-view.tsx
 @@ -1,4 +1,6 @@
@@ -72,10 +72,11 @@ index ca041699..47276061 100644
  import type { JSX as SolidJSX } from "@solidjs/web";
  import { createMemo, createSignal, lazy, onSettled, Show } from "solid-js";
  import { registerModalSurface } from "../components/overlay-registry.ts";
-@@ -37,6 +39,10 @@ import { ShellLayoutProvider } from "./shell-layout-traits-solid.tsx";
+@@ -37,6 +39,11 @@ import { ShellLayoutProvider } from "./shell-layout-traits-solid.tsx";
  
  export type { ShellViewHost } from "./app-shell-view-state.ts";
  
++const QuietDeskBackToChat = lazy(() => import("../lazykins/quiet-desk-back.tsx"), { export: "QuietDeskBackToChat" });
 +const DeskAppearance = lazy(() => import("../lazykins/desk-appearance.tsx"), { export: "DeskAppearance" });
 +const CommandDeckHeader = lazy(() => import("../lazykins/command-deck-layout.tsx"), { export: "CommandDeckHeader" });
 +const CommandDeckQueue = lazy(() => import("../lazykins/command-deck-queue.tsx"), { export: "CommandDeckQueue" });
@@ -83,7 +84,7 @@ index ca041699..47276061 100644
  const NavigationSidebar = lazy(async () => {
    await import("../components/app-sidebar.tsx");
    // Keep the native host that callers assign before registration and move between layouts.
-@@ -97,6 +103,13 @@ export function ApplicationShell(props: {
+@@ -97,6 +104,13 @@ export function ApplicationShell(props: {
      props.host.shellRevision();
      return readShellView(props.host);
    });
@@ -97,7 +98,7 @@ index ca041699..47276061 100644
    const sessionOwner = createMemo(() => view().context.sessions);
    const sessionRows = createMemo(() =>
      projectOwner(sessionOwner(), (sessions) => sessions.state.result?.sessions),
-@@ -145,6 +158,11 @@ export function ApplicationShell(props: {
+@@ -145,6 +159,11 @@ export function ApplicationShell(props: {
          class={[
            "shell",
            {
@@ -109,7 +110,7 @@ index ca041699..47276061 100644
              "shell--navigation-rail": view().railAvailable,
              "shell--chat": view().chatLikeRoute,
              "shell--nav-collapsed": view().navCollapsed,
-@@ -161,6 +179,7 @@ export function ApplicationShell(props: {
+@@ -161,6 +180,7 @@ export function ApplicationShell(props: {
              "shell--nav-resizing": navResizing(),
            },
          ]}
@@ -117,7 +118,7 @@ index ca041699..47276061 100644
          data-background-managed={
            !view().backgroundReady || view().uiSettings.background !== undefined ? "" : undefined
          }
-@@ -207,6 +226,7 @@ export function ApplicationShell(props: {
+@@ -207,6 +227,7 @@ export function ApplicationShell(props: {
                  />
                </Show>
              )}
@@ -125,10 +126,11 @@ index ca041699..47276061 100644
              prop:onOpenPalette={props.host.openPalette}
              prop:onToggleDrawer={props.host.toggleNavigationSurface}
            />
-@@ -397,6 +417,10 @@ export function ApplicationShell(props: {
+@@ -397,6 +418,11 @@ export function ApplicationShell(props: {
            <Show when={view().embedNavigation}>
              <LazySettingsSidebar host={props.host} sidebarProps={view().settingsSidebarProps} />
            </Show>
++          <Show when={view().quietDesk && view().activeRoute === "sessions"}><QuietDeskBackToChat /></Show>
 +          <Show when={view().activeRoute === "appearance"}>
 +            <DeskAppearance mode={view().deskMode} error={deskError()} onChange={changeDeskMode} />
 +          </Show>
@@ -136,7 +138,7 @@ index ca041699..47276061 100644
            <ShellLayoutProvider
              value={{
                get owner() {
-@@ -420,6 +444,7 @@ export function ApplicationShell(props: {
+@@ -420,6 +446,7 @@ export function ApplicationShell(props: {
              />
            </ShellLayoutProvider>
          </main>
@@ -144,7 +146,7 @@ index ca041699..47276061 100644
          <span class="sr-only" role="status" aria-live="polite" aria-atomic="true">
            {connectionAnnouncement()}
          </span>
-@@ -541,6 +566,9 @@ export function ApplicationShell(props: {
+@@ -541,6 +568,9 @@ export function ApplicationShell(props: {
            return null;
          }}
        </Show>
@@ -154,7 +156,7 @@ index ca041699..47276061 100644
        <Show when={view().routeReady} fallback={<ConnectingSplash />}>
          <PluginSurface
            surface="workspace"
-@@ -562,6 +590,8 @@ export function ApplicationShell(props: {
+@@ -562,6 +592,8 @@ export function ApplicationShell(props: {
            renderDefault={() => workspace}
          />
        </Show>

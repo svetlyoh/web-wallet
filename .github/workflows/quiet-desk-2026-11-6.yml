@@ -42,9 +42,9 @@ jobs:
           if-no-files-found: ignore
       - uses: actions/upload-artifact@v4
         with:
-          name: LazyKins-Modes-2026.11.6-r2
+          name: LazyKins-Modes-2026.11.6-r4
           path: |
-            openclaw/lazykins-sanitize/LazyKins-Modes-2026.11.6-r2.zip
+            openclaw/lazykins-sanitize/LazyKins-Modes-2026.11.6-r4.zip
             openclaw/lazykins-sanitize/LazyKins-2026.11.6.zip
             openclaw/lazykins-sanitize/Sanitize-2026.11.6.zip
             openclaw/lazykins-sanitize/archives.sha256

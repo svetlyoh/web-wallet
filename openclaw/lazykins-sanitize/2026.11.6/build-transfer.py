@@ -29,7 +29,7 @@ def selected_files():
 def main():
     manifest = ctl.Controller(SimpleNamespace(state_dir=BASE), BASE / "skills/lazykins/runtime/payload").verified_payload()
     proof = json.loads((BASE / "skills/lazykins/runtime/evidence/final/results.json").read_text(encoding="utf-8"))
-    if proof.get("passed") is not True or proof.get("version") != ctl.VERSION or proof.get("sha") != ctl.SHA or proof.get("verifiedModes") != ["openclaw", "quiet", "command"] or proof.get("packageRevision") != "modes-r2":
+    if proof.get("passed") is not True or proof.get("version") != ctl.VERSION or proof.get("sha") != ctl.SHA or proof.get("verifiedModes") != ["openclaw", "quiet", "command"] or proof.get("packageRevision") != "modes-r4":
         raise RuntimeError("Production browser verification for this exact source is required before packaging")
     compatibility = json.loads((BASE / "compatibility.json").read_text(encoding="utf-8"))
     compatibility.update(status="production build and browser fixtures passed", browserFixtureVerified=True,
@@ -40,7 +40,7 @@ def main():
     sums.write_text("".join(ctl.digest(path) + "  " + path.relative_to(BASE).as_posix() + "\n" for path in files), encoding="utf-8")
     files.append(sums)
     archives = []
-    paired = BASE.parent / "LazyKins-Modes-2026.11.6-r3.zip"
+    paired = BASE.parent / "LazyKins-Modes-2026.11.6-r4.zip"
     with zipfile.ZipFile(paired, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as archive:
         for path in files:
             archive.write(path, path.relative_to(BASE).as_posix())

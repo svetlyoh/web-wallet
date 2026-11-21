@@ -59,6 +59,15 @@ try {
   await composer.waitFor({state:"visible"});
   await page.locator(".shell:not(.shell--quiet-desk):not(.shell--command-deck)").waitFor();
   await page.getByRole("button",{name:"Enter Quiet Desk",exact:true}).waitFor();
+  const apps = page.getByRole("button",{name:"Apps",exact:true});
+  await apps.waitFor();
+  assert.equal(await apps.getAttribute("aria-expanded"),"true");
+  assert.equal(await page.getByRole("button",{name:"Enter Quiet Desk",exact:true}).locator("svg").count(),1);
+  assert.equal(await page.getByRole("button",{name:"Enter Command Deck",exact:true}).locator("svg").count(),1);
+  await apps.click();
+  await page.getByRole("button",{name:"Enter Quiet Desk",exact:true}).waitFor({state:"hidden"});
+  await apps.click();
+  await page.getByRole("button",{name:"Enter Quiet Desk",exact:true}).waitFor({state:"visible"});
   await page.screenshot({path:path.join(proof,"openclaw-fresh-1440.png"),animations:"disabled"});
   await composer.fill("Preserve this unsent draft.");
   await composer.evaluate(e => { (window as Window & {lazykinsComposer?: Element}).lazykinsComposer = e; });
@@ -159,6 +168,26 @@ try {
   const files = await gateway.waitForRequest("agents.files.list");
   assert.equal((files.params as {agentId:string}).agentId,"main");
   observations.push("Files delegates to the real selected-agent file owner and agents.files.list.");
+  await page.setViewportSize({width:1440,height:900});
+  await page.goto(`${base}chat`);
+  await page.getByRole("link",{name:"Conversations",exact:true}).click();
+  const back = page.getByRole("link",{name:"Back to chat",exact:true});
+  await back.waitFor({state:"visible"});
+  assert((await back.boundingBox())!.height >= 44);
+  await page.screenshot({path:path.join(proof,"quiet-desk-conversations-back-desktop.png"),animations:"disabled"});
+  await back.click();
+  await composer.waitFor({state:"visible"});
+  for(const width of [390,360]) {
+    await page.setViewportSize({width,height:844});
+    await page.goto(`${base}sessions`);
+    await back.waitFor({state:"visible"});
+    assert((await back.boundingBox())!.height >= 44);
+    assert(await page.evaluate(()=>document.documentElement.scrollWidth <= innerWidth+1));
+    await page.screenshot({path:path.join(proof,`quiet-desk-conversations-back-${width}.png`),animations:"disabled"});
+    await back.click();
+    await composer.waitFor({state:"visible"});
+  }
+  observations.push("Apps disclosure has native-style icons for both modes and remains operable. Conversations exposes a 44px Back to chat link on desktop and 390/360px phones, using native chat routing without browser history.");
   assert.deepEqual(errors,[]);
   await context.close();
   const command = await browser.newContext({viewport:{width:1440,height:900},serviceWorkers:"block"});
@@ -320,7 +349,7 @@ try {
   await stylePage.locator(".agent-chat__composer-combobox textarea").waitFor({state:"visible"});
   await styleFailure.close();
   observations.push("A missing local appearance stylesheet blocks malformed work UI and exposes a visible Reload action and host rollback guidance.");
-  await fs.writeFile(path.join(proof,"results.json"),JSON.stringify({passed:true,verifiedModes:["openclaw","quiet","command"],packageRevision:"modes-r2",version:"2026.11.6",sha:"06afb10d3272cc9deaf38ca6a3b7b839d5935638",observations,limits:["Synthetic Gateway fixture, no real provider or Linux deployment exercised.","CSS zoom is not native browser zoom.","Workboard route is a native plugin destination; plugin execution and legacy streaming/gear integrations need host verification."]},null,2));
+  await fs.writeFile(path.join(proof,"results.json"),JSON.stringify({passed:true,verifiedModes:["openclaw","quiet","command"],packageRevision:"modes-r4",version:"2026.11.6",sha:"06afb10d3272cc9deaf38ca6a3b7b839d5935638",observations,limits:["Synthetic Gateway fixture, no real provider or Linux deployment exercised.","CSS zoom is not native browser zoom.","Workboard route is a native plugin destination; plugin execution and legacy streaming/gear integrations need host verification."]},null,2));
   console.log(JSON.stringify({passed:true,proof,observations}));
 } catch (error) {
   console.error("Mode verification failed:",error);
