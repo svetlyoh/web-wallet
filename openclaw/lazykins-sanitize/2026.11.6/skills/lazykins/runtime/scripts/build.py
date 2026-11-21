@@ -101,9 +101,9 @@ def main():
     shutil.copy2(RUNTIME / "tests" / "verify-crew-owner.mts", source / "ui" / "lazykins-crew-owner-proof.mts")
     run(["node", "--import", str(source / "scripts" / "tsx.mjs"), "lazykins-crew-owner-proof.mts", str(RUNTIME / "crew")], source / "ui")
     run([shutil.which("pnpm") or "pnpm", "ui:build"], source)
-    run([shutil.which("pnpm") or "pnpm", "ui:check-performance"], source)
     proof = source / ".artifacts" / "lazykins-verification"
     run(["node", "--import", str(source / "scripts" / "tsx.mjs"), "lazykins-verify.mts", str(proof)], source / "ui")
+    run([shutil.which("pnpm") or "pnpm", "ui:check-performance"], source)
     successful = list(proof.glob("*/results.json"))
     if len(successful) != 1:
         raise ValueError("Expected one successful UI verification attempt")

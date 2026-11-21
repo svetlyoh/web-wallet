@@ -168,7 +168,7 @@ index ca041699..afe3a90d 100644
    );
  }
 diff --git a/ui/src/app/settings.ts b/ui/src/app/settings.ts
-index 2b09504f..97ef5dae 100644
+index 2b09504f..22060513 100644
 --- a/ui/src/app/settings.ts
 +++ b/ui/src/app/settings.ts
 @@ -1,3 +1,4 @@
@@ -181,17 +181,26 @@ index 2b09504f..97ef5dae 100644
        [
          scope,
 -        {
-+        persistDeskNavigation(next.gatewayUrl, profileId, {
++        persistDeskNavigation(scope, profileId, {
            sessionKey: next.sessionKey,
            lastActiveSessionKey: next.lastActiveSessionKey,
            ...(normalizeOptionalString(next.selectedAgentId)
              ? { selectedAgentId: normalizeAgentId(next.selectedAgentId) }
              : {}),
 -        },
-+        }, loadGatewaySessionSelection(next.gatewayUrl)),
++        }, existingSessionsByGateway[scope] ?? { sessionKey: "main", lastActiveSessionKey: "main" }),
        ],
      ].slice(-MAX_SCOPED_SESSION_ENTRIES),
    );
+@@ -715,7 +716,7 @@ export function saveSettings(
+       settingsFallback.pendingNavigation = null;
+     }
+   } catch {
+-    // best-effort — quota exceeded or security restrictions should not
++    // best-effort â€” quota exceeded or security restrictions should not
+     // prevent in-memory settings and visual updates from being applied;
+     // settingsFallback keeps this tab consistent until storage recovers
+   }
 diff --git a/ui/src/components/app-sidebar-base.ts b/ui/src/components/app-sidebar-base.ts
 index 857c0bd2..9e1c84e7 100644
 --- a/ui/src/components/app-sidebar-base.ts
