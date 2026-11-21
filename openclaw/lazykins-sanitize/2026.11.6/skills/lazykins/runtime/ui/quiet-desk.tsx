@@ -17,7 +17,7 @@ export function DeskModeEntries(props: { mode: DeskMode; compact?: boolean; onCh
     <Show when={props.mode !== "quiet"}><button type="button" aria-label="Enter Quiet Desk" title="Enter Quiet Desk" disabled={!props.onChange}
       onClick={() => setError(props.onChange?.("quiet") ?? null)}><Icon name="moon" /><Show when={!props.compact}><span>{new Text("Quiet Desk")}</span></Show></button></Show>
     <Show when={props.mode !== "command"}><button type="button" aria-label="Enter Command Deck" title="Enter Command Deck" disabled={!props.onChange}
-      onClick={() => setError(props.onChange?.("command") ?? null)}><Icon name="layoutDashboard" /><Show when={!props.compact}><span>{new Text("Command Deck")}</span></Show></button></Show>
+      onClick={() => setError(props.onChange?.("command") ?? null)}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" data-lazykins-icon="command-prompt"><rect x="3" y="4" width="18" height="16" rx="2" /><path d="m7 9 3 3-3 3M13 15h4" /></svg><Show when={!props.compact}><span>{new Text("Command Deck")}</span></Show></button></Show>
     <Show when={error()}><p class="lazykins-entry-error" role="alert">{error()}</p></Show>
   </div>;
 }

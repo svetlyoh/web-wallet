@@ -106,7 +106,7 @@ def main():
         raise ValueError("Expected one successful UI verification attempt")
     proof = successful[0].parent
     evidence = json.loads((proof / "results.json").read_text(encoding="utf-8"))
-    if evidence.get("passed") is not True or evidence.get("version") != VERSION or evidence.get("sha") != SHA or evidence.get("verifiedModes") != ["openclaw", "quiet", "command"] or evidence.get("packageRevision") != "modes-r5":
+    if evidence.get("passed") is not True or evidence.get("version") != VERSION or evidence.get("sha") != SHA or evidence.get("verifiedModes") != ["openclaw", "quiet", "command"] or evidence.get("packageRevision") != "modes-r6":
         raise ValueError("UI integration verification did not confirm the exact generation")
     final_proof = RUNTIME / "evidence" / "final"
     if final_proof.exists():
@@ -124,7 +124,7 @@ def main():
         shutil.copy2(RUNTIME / "assets" / "fonts" / "Inter-OFL.txt", notices / "Inter-OFL.txt")
         manifest = {"schemaVersion": 1, "version": VERSION, "sha": SHA,
                     "integration": "exact-pinned-Solid2-LazyKins-modes-overlay",
-                    "modes": ["openclaw", "quiet", "command"], "packageRevision": "modes-r5", "headerRevision": "r3",
+                    "modes": ["openclaw", "quiet", "command"], "packageRevision": "modes-r6", "headerRevision": "r3",
                     "testedVersions": [VERSION], "node": node,
                     "packageManager": package["packageManager"], "sourcemap": "generated upstream; omitted from payload",
                     "lockfileSha256": digest(source / "pnpm-lock.yaml"),

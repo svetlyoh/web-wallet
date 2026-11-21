@@ -10,10 +10,10 @@
   "voiceMechanism": "agent-workspace-SOUL-marked-policy",
   "linuxDeploymentVerified": false,
   "ordinaryModelResponsesVerified": false,
-  "status": "production build and browser fixtures passed",
+  "status": "Command prompt icon validation pending",
   "futureUpdatePolicy": "Retain files; validate each tagged release before admitting it.",
-  "browserFixtureVerified": true,
-  "packageRevision": "modes-r5",
+  "browserFixtureVerified": false,
+  "packageRevision": "modes-r6",
   "requestedModes": [
     "openclaw",
     "quiet",

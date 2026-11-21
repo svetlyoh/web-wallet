@@ -64,6 +64,8 @@ try {
   const commandIcon=page.getByRole("button",{name:"Enter Command Deck",exact:true}).locator("svg");
   assert.equal(await quietIcon.count(),1);
   assert.equal(await commandIcon.count(),1);
+  assert.equal(await commandIcon.getAttribute("data-lazykins-icon"),"command-prompt");
+  assert.equal(await commandIcon.locator("path").getAttribute("d"),"m7 9 3 3-3 3M13 15h4");
   assert.notEqual(await quietIcon.innerHTML(),await commandIcon.innerHTML());
   await page.screenshot({path:path.join(proof,"openclaw-fresh-1440.png"),animations:"disabled"});
   await composer.fill("Preserve this unsent draft.");
@@ -184,7 +186,7 @@ try {
     await back.click();
     await composer.waitFor({state:"visible"});
   }
-  observations.push("Quiet Desk and Command Deck have distinct native-style icons with no Apps button above them. Conversations exposes a 44px Back to chat link on desktop and 390/360px phones, using native chat routing without browser history.");
+  observations.push("Quiet Desk and Command Deck have distinct icons (moon and command prompt) with no Apps button above them. Conversations exposes a 44px Back to chat link on desktop and 390/360px phones, using native chat routing without browser history.");
   assert.deepEqual(errors,[]);
   await context.close();
   const command = await browser.newContext({viewport:{width:1440,height:900},serviceWorkers:"block"});
@@ -346,7 +348,7 @@ try {
   await stylePage.locator(".agent-chat__composer-combobox textarea").waitFor({state:"visible"});
   await styleFailure.close();
   observations.push("A missing local appearance stylesheet blocks malformed work UI and exposes a visible Reload action and host rollback guidance.");
-  await fs.writeFile(path.join(proof,"results.json"),JSON.stringify({passed:true,verifiedModes:["openclaw","quiet","command"],packageRevision:"modes-r5",version:"2026.11.6",sha:"06afb10d3272cc9deaf38ca6a3b7b839d5935638",observations,limits:["Synthetic Gateway fixture, no real provider or Linux deployment exercised.","CSS zoom is not native browser zoom.","Workboard route is a native plugin destination; plugin execution and legacy streaming/gear integrations need host verification."]},null,2));
+  await fs.writeFile(path.join(proof,"results.json"),JSON.stringify({passed:true,verifiedModes:["openclaw","quiet","command"],packageRevision:"modes-r6",version:"2026.11.6",sha:"06afb10d3272cc9deaf38ca6a3b7b839d5935638",observations,limits:["Synthetic Gateway fixture, no real provider or Linux deployment exercised.","CSS zoom is not native browser zoom.","Workboard route is a native plugin destination; plugin execution and legacy streaming/gear integrations need host verification."]},null,2));
   console.log(JSON.stringify({passed:true,proof,observations}));
 } catch (error) {
   console.error("Mode verification failed:",error);
