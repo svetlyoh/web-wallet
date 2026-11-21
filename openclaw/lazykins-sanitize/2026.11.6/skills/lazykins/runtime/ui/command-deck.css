@@ -97,12 +97,13 @@
 .command-deck-contact { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 12px; }
 .command-deck-contact > span { flex: 1; }
 .command-deck-contact button, .command-helm-delegation button { color: var(--text); background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 8px; padding: 6px 8px; }
-.command-crew-roster { display: grid; gap: 4px; max-height: 44vh; overflow: auto; }
+.command-crew-roster { display: grid; grid-auto-rows: max-content; align-content: start; gap: 4px; max-height: 44vh; overflow: auto; }
 .command-crew-roster h2 { margin: 8px 0 4px; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
 .command-crew-agent, .command-crew-other, .command-crew-secondary { display: flex; gap: 8px; align-items: center; width: 100%; min-height: 40px; padding: 6px; text-align: start; border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--text); font-size: 12px; }
+.command-crew-roster .command-crew-agent { height: auto; min-height: 60px; }
 .command-crew-agent.active, .command-crew-other.active { background: var(--bg-hover); border-color: var(--border); }
 .command-crew-agent img { border-radius: 8px; flex: none; object-fit: cover; }
-.command-crew-agent > span { display: grid; gap: 2px; min-width: 0; }
+.command-crew-agent > span { display: grid; gap: 2px; min-width: 0; line-height: 1.25; }
 .command-crew-agent small { font-size: 10px; }
 .command-crew-secondary { color: var(--muted); min-height: 32px; }
 .command-helm-delegation { margin-top: 8px; font-size: 12px; }

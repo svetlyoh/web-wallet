@@ -367,6 +367,8 @@ try {
   await crewPage.getByRole("button",{name:"Enter Command Deck",exact:true}).click();
   await crewPage.locator(".command-deck-contact").getByText("Helm",{exact:false}).waitFor();
   await crewPage.getByRole("heading",{name:"Meet Helm",exact:true}).waitFor();
+  const crewBounds=await crewPage.locator(".command-crew-agent").evaluateAll(elements=>elements.map(element=>({top:element.getBoundingClientRect().top,bottom:element.getBoundingClientRect().bottom,height:element.getBoundingClientRect().height})));
+  assert(crewBounds.every((row,index)=>row.height>=60 && (!index || row.top>=crewBounds[index-1].bottom)));
   await crewPage.screenshot({path:path.join(proof,"command-deck-crew-installed-1440.png"),animations:"disabled"});
   await crewPage.getByRole("button",{name:"Not now",exact:true}).click();
   await crewPage.locator(".command-helm-delegation").waitFor();
