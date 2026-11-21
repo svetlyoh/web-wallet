@@ -52,6 +52,7 @@ try {
   const gateway = await installMockGateway(page, {
     serverVersion: "2026.11.6", controlUiBuildSource: "configured",
     presenceUsers: [{self:true,id:"profile-a",name:"Alex"}],
+    featureMethods:[...defaultControlUiFeatureMethods,"agents.list","agents.files.get"],
     historyMessages: [{role:"assistant",content:[{type:"text",text:"Your workspace is ready. A [source](https://example.com) and selectable code.\n\n```json\n{\"saved\":true}\n```"}],timestamp:Date.now()}],
   });
   await page.goto(`${base}chat`);
@@ -344,7 +345,7 @@ try {
   const crewGateway=await installMockGateway(crewPage,{
     serverVersion:"2026.11.6",controlUiBuildSource:"configured",presenceUsers:[{self:true,id:"crew-profile",name:"Crew operator"}],
     sessions:[...crewSessions,child()],
-    featureMethods:[...defaultControlUiFeatureMethods,"agents.files.get","sessions.describe"],
+    featureMethods:[...defaultControlUiFeatureMethods,"agents.list","agents.files.get","sessions.describe"],
     sessionTranscripts:Object.fromEntries(crewSessions.map(row=>[row.key,{messages:[{role:"assistant",content:[{type:"text",text:`Synthetic transcript for ${row.label}`}]}]}])),
     methodResponses:{"agents.list":{agents:crewAgentRows,defaultId:"main",mainKey:"main",scope:"per-sender"}},
   },{requestHandlers:{
