@@ -168,50 +168,30 @@ index ca041699..afe3a90d 100644
    );
  }
 diff --git a/ui/src/app/settings.ts b/ui/src/app/settings.ts
-index 2b09504f..2689b79c 100644
+index 2b09504f..f481720b 100644
 --- a/ui/src/app/settings.ts
 +++ b/ui/src/app/settings.ts
 @@ -1,3 +1,4 @@
-+import { deckAwareNavigation, persistDeskNavigation } from "../lazykins/desk-navigation-adapter.ts";
++import { persistDeskNavigation } from "../lazykins/desk-navigation-adapter.ts";
  import { gatewayCredentialScope, gatewayOriginScope } from "@openclaw/gateway-client/browser";
  import { safeParseJson } from "@openclaw/normalization-core";
  import { normalizeAgentId } from "@openclaw/normalization-core/agent-id";
-@@ -253,22 +254,32 @@ function resolveScopedSessionSelection(
-   gatewayUrl: string,
-   parsed: PersistedUiSettings,
-   fallback: ScopedSessionSelection,
-+  includeCommandDeck = true,
- ): ScopedSessionSelection {
-   const scoped = parsed.sessionsByGateway?.[gatewayOriginScope(gatewayUrl)];
-   const scopedSessionKey = normalizeOptionalString(scoped?.sessionKey);
-   const scopedLastActiveSessionKey = normalizeOptionalString(scoped?.lastActiveSessionKey);
-   const scopedSelectedAgentId = normalizeOptionalString(scoped?.selectedAgentId);
-   if (scopedSessionKey && scopedLastActiveSessionKey) {
--    return {
-+    const ordinary = {
-       sessionKey: scopedSessionKey,
-       lastActiveSessionKey: scopedLastActiveSessionKey,
-       ...(scopedSelectedAgentId
-         ? { selectedAgentId: normalizeAgentId(scopedSelectedAgentId) }
-         : {}),
-     };
-+    return includeCommandDeck ? deckAwareNavigation(gatewayUrl, resolveProfileAppearanceProfileId(gatewayUrl), ordinary) : ordinary;
-   }
+@@ -271,6 +272,14 @@ function resolveScopedSessionSelection(
+   return fallback;
+ }
  
--  return fallback;
-+  return includeCommandDeck ? deckAwareNavigation(gatewayUrl, resolveProfileAppearanceProfileId(gatewayUrl), fallback) : fallback;
-+}
-+
 +export function loadOrdinaryGatewaySessionSelection(gatewayUrl: string): ScopedSessionSelection {
 +  const fallback = { sessionKey: "main", lastActiveSessionKey: "main" };
 +  try {
 +    const source = readSettingsForGateway(getSafeLocalStorage(), gatewayUrl);
-+    return source ? resolveScopedSessionSelection(gatewayUrl, source.parsed, fallback, false) : fallback;
++    return source ? resolveScopedSessionSelection(gatewayUrl, source.parsed, fallback) : fallback;
 +  } catch { return fallback; }
- }
- 
++}
++
  export function loadGatewaySessionSelection(gatewayUrl: string): ScopedSessionSelection {
-@@ -606,13 +617,13 @@ export function saveSettings(
+   const fallback = { sessionKey: "main", lastActiveSessionKey: "main" };
+   try {
+@@ -606,13 +615,13 @@ export function saveSettings(
        ...Object.entries(existingSessionsByGateway).filter(([key]) => key !== scope),
        [
          scope,

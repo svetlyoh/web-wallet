@@ -54,4 +54,4 @@ export function persistDeskNavigation(gatewayUrl: string, profileId: string | nu
   return ordinary;
 }
 
-registerDeskNavigationAdapter(deckAwareNavigation,persistDeskNavigation);
+registerDeskNavigationAdapter(persistDeskNavigation);

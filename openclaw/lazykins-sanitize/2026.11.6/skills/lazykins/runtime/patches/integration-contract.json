@@ -14,7 +14,7 @@
   "patchedFiles": {
     "ui/src/app/app-shell-view-state.ts": "b3a1c1cfa740401d4aeab2991b91fe91afa3292606416912d309a875b766b02c",
     "ui/src/app/app-shell-view.tsx": "23dee37445b927ec6e969f39827a5a5f126bcbf1da27fd14e460d5dfd0ae4b10",
-    "ui/src/app/settings.ts": "96699da90a438f7eda96609e5f6ca8329241e515b48c6b01d0c2cc5d3624e514",
+    "ui/src/app/settings.ts": "c0c6baf4be5e794fb1c7e30303067758aa08082555bfafccc4be1eef40aae652",
     "ui/src/components/app-sidebar-base.ts": "64668321e6899388bddd73e269a92fb7b5cadb36b1f40d1f7bb18d94c3044e3d",
     "ui/src/components/app-sidebar-owner.tsx": "2c1b62bb997a1f8d79cc8c623859b524952a44c30172baa0d94c04b794b7845a",
     "ui/src/components/app-sidebar-rail.tsx": "ff53a6cee88b4c6586f14db1bf01170b68c60f99f4a16f55e831e27cb0e82021",
