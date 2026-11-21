@@ -6,7 +6,7 @@ Copy the complete package to the Linux account that runs OpenClaw. Do not use su
 
 ```bash
 BUNDLE="$(mktemp -d "$HOME/LazyKins-Modes-r2.XXXXXX")"
-unzip LazyKins-Modes-2026.11.6-r4.zip -d "$BUNDLE"
+unzip LazyKins-Modes-2026.11.6-r5.zip -d "$BUNDLE"
 cd "$BUNDLE"
 ```
 
@@ -130,6 +130,6 @@ A mismatch returns exit 2 and an actionable next step. Before upgrading, disable
 
 For each future version, build from its exact tagged source, review the narrow integration patch, run regression and visual checks, record provenance, and only then admit the new version. Follow `skills/lazykins/references/compatibility.md` and the shipped runtime build instructions. Keep the previous generation and a verified stock UI available. Sanitize must separately revalidate the matching harness before adding a new allowed baseline.
 
-## Apps and returning to chat
+## Layout icons and returning to chat
 
-The lower-left Apps button expands or collapses the Quiet Desk and Command Deck entries, each with a native OpenClaw icon. Selecting one changes the layout; it does not start a new session or alter Sanitize. On Quiet Desk Conversations, the visible Back to chat link returns through OpenClaw chat routing. It has a 44px touch target and does not rely on browser history.
+Quiet Desk and Command Deck are direct lower-left buttons. Quiet Desk retains its moon icon; Command Deck uses the native dashboard/panel icon. There is no Apps button above them. Selecting one changes the layout; it does not start a new session or alter Sanitize. On Quiet Desk Conversations, the visible Back to chat link returns through OpenClaw chat routing. It has a 44px touch target and does not rely on browser history.

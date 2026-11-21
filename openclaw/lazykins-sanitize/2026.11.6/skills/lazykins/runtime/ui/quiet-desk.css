@@ -143,12 +143,9 @@
 }
 
 /* Native icons and generous hit areas keep app navigation usable on touch. */
-.lazykins-apps-list { display: grid; gap: 8px; }
 .lazykins-mode-entries button { display: flex; align-items: center; gap: 8px; text-align: start; min-height: 44px; }
 .lazykins-mode-entries button svg { width: 18px; height: 18px; flex: none; }
-.lazykins-mode-entries .lazykins-apps-toggle { font-weight: 600; background: transparent; }
-.lazykins-mode-entries--compact .lazykins-apps-toggle { flex-direction: column; gap: 2px; font-size: 10px; padding-inline: 0; }
-.lazykins-mode-entries--compact .lazykins-apps-list button { justify-content: center; padding-inline: 0; }
+.lazykins-mode-entries--compact button { justify-content: center; padding-inline: 0; }
 .shell--quiet-desk .lazykins-back-bar { flex: none; padding: 0 0 12px; }
 .shell--quiet-desk .lazykins-back-to-chat { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 10px 14px; color: var(--text); text-decoration: none; white-space: nowrap; }
 .shell--quiet-desk .lazykins-back-to-chat svg { width: 18px; height: 18px; }

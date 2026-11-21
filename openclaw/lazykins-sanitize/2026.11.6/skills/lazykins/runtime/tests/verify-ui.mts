@@ -59,15 +59,12 @@ try {
   await composer.waitFor({state:"visible"});
   await page.locator(".shell:not(.shell--quiet-desk):not(.shell--command-deck)").waitFor();
   await page.getByRole("button",{name:"Enter Quiet Desk",exact:true}).waitFor();
-  const apps = page.getByRole("button",{name:"Apps",exact:true});
-  await apps.waitFor();
-  assert.equal(await apps.getAttribute("aria-expanded"),"true");
-  assert.equal(await page.getByRole("button",{name:"Enter Quiet Desk",exact:true}).locator("svg").count(),1);
-  assert.equal(await page.getByRole("button",{name:"Enter Command Deck",exact:true}).locator("svg").count(),1);
-  await apps.click();
-  await page.getByRole("button",{name:"Enter Quiet Desk",exact:true}).waitFor({state:"hidden"});
-  await apps.click();
-  await page.getByRole("button",{name:"Enter Quiet Desk",exact:true}).waitFor({state:"visible"});
+  assert.equal(await page.getByRole("button",{name:"Apps",exact:true}).count(),0);
+  const quietIcon=page.getByRole("button",{name:"Enter Quiet Desk",exact:true}).locator("svg");
+  const commandIcon=page.getByRole("button",{name:"Enter Command Deck",exact:true}).locator("svg");
+  assert.equal(await quietIcon.count(),1);
+  assert.equal(await commandIcon.count(),1);
+  assert.notEqual(await quietIcon.innerHTML(),await commandIcon.innerHTML());
   await page.screenshot({path:path.join(proof,"openclaw-fresh-1440.png"),animations:"disabled"});
   await composer.fill("Preserve this unsent draft.");
   await composer.evaluate(e => { (window as Window & {lazykinsComposer?: Element}).lazykinsComposer = e; });
@@ -187,7 +184,7 @@ try {
     await back.click();
     await composer.waitFor({state:"visible"});
   }
-  observations.push("Apps disclosure has native-style icons for both modes and remains operable. Conversations exposes a 44px Back to chat link on desktop and 390/360px phones, using native chat routing without browser history.");
+  observations.push("Quiet Desk and Command Deck have distinct native-style icons with no Apps button above them. Conversations exposes a 44px Back to chat link on desktop and 390/360px phones, using native chat routing without browser history.");
   assert.deepEqual(errors,[]);
   await context.close();
   const command = await browser.newContext({viewport:{width:1440,height:900},serviceWorkers:"block"});
@@ -349,7 +346,7 @@ try {
   await stylePage.locator(".agent-chat__composer-combobox textarea").waitFor({state:"visible"});
   await styleFailure.close();
   observations.push("A missing local appearance stylesheet blocks malformed work UI and exposes a visible Reload action and host rollback guidance.");
-  await fs.writeFile(path.join(proof,"results.json"),JSON.stringify({passed:true,verifiedModes:["openclaw","quiet","command"],packageRevision:"modes-r4",version:"2026.11.6",sha:"06afb10d3272cc9deaf38ca6a3b7b839d5935638",observations,limits:["Synthetic Gateway fixture, no real provider or Linux deployment exercised.","CSS zoom is not native browser zoom.","Workboard route is a native plugin destination; plugin execution and legacy streaming/gear integrations need host verification."]},null,2));
+  await fs.writeFile(path.join(proof,"results.json"),JSON.stringify({passed:true,verifiedModes:["openclaw","quiet","command"],packageRevision:"modes-r5",version:"2026.11.6",sha:"06afb10d3272cc9deaf38ca6a3b7b839d5935638",observations,limits:["Synthetic Gateway fixture, no real provider or Linux deployment exercised.","CSS zoom is not native browser zoom.","Workboard route is a native plugin destination; plugin execution and legacy streaming/gear integrations need host verification."]},null,2));
   console.log(JSON.stringify({passed:true,proof,observations}));
 } catch (error) {
   console.error("Mode verification failed:",error);

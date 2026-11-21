@@ -13,15 +13,11 @@ export function DeskModeSwitch(props: { mode: DeskMode; onChange(mode: DeskMode)
 }
 export function DeskModeEntries(props: { mode: DeskMode; compact?: boolean; onChange?: (mode: DeskMode) => string | null }) {
   const [error, setError] = createSignal<string | null>(null);
-  const [open, setOpen] = createSignal(true);
   return <div class={["lazykins-mode-entries", {"lazykins-mode-entries--compact": props.compact}]}>
-    <button type="button" class="lazykins-apps-toggle" aria-label="Apps" aria-expanded={open() ? "true" : "false"} title="Apps" onClick={() => setOpen(value => !value)}><Icon name="layoutGrid" /><span>{new Text("Apps")}</span></button>
-    <Show when={open()}><div class="lazykins-apps-list">
     <Show when={props.mode !== "quiet"}><button type="button" aria-label="Enter Quiet Desk" title="Enter Quiet Desk" disabled={!props.onChange}
       onClick={() => setError(props.onChange?.("quiet") ?? null)}><Icon name="moon" /><Show when={!props.compact}><span>{new Text("Quiet Desk")}</span></Show></button></Show>
     <Show when={props.mode !== "command"}><button type="button" aria-label="Enter Command Deck" title="Enter Command Deck" disabled={!props.onChange}
-      onClick={() => setError(props.onChange?.("command") ?? null)}><Icon name="layoutGrid" /><Show when={!props.compact}><span>{new Text("Command Deck")}</span></Show></button></Show>
-    </div></Show>
+      onClick={() => setError(props.onChange?.("command") ?? null)}><Icon name="layoutDashboard" /><Show when={!props.compact}><span>{new Text("Command Deck")}</span></Show></button></Show>
     <Show when={error()}><p class="lazykins-entry-error" role="alert">{error()}</p></Show>
   </div>;
 }

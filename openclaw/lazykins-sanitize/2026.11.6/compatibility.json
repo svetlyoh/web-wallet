@@ -10,10 +10,10 @@
   "voiceMechanism": "agent-workspace-SOUL-marked-policy",
   "linuxDeploymentVerified": false,
   "ordinaryModelResponsesVerified": false,
-  "status": "production build and browser fixtures passed",
+  "status": "Direct layout icons validation pending",
   "futureUpdatePolicy": "Retain files; validate each tagged release before admitting it.",
-  "browserFixtureVerified": true,
-  "packageRevision": "modes-r4",
+  "browserFixtureVerified": false,
+  "packageRevision": "modes-r5",
   "requestedModes": [
     "openclaw",
     "quiet",
