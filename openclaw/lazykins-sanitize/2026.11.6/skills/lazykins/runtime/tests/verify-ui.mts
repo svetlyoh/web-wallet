@@ -250,7 +250,9 @@ try {
     await commandPage.screenshot({path:path.join(proof,`command-deck-${width}.png`),animations:"disabled"});
   }
   await commandPage.setViewportSize({width:390,height:844});
+  console.log("Open mobile queue");
   await commandPage.getByRole("button",{name:"Task queue",exact:true}).click();
+  console.log("Clicked mobile queue");
   await commandPage.getByRole("dialog",{name:"Command Deck task queue",exact:true}).waitFor({state:"visible"});
   await commandPage.screenshot({path:path.join(proof,"command-deck-mobile-queue.png"),animations:"disabled"});
   await commandPage.getByRole("button",{name:"Close task queue",exact:true}).click();
@@ -320,9 +322,10 @@ try {
   await fs.writeFile(path.join(proof,"results.json"),JSON.stringify({passed:true,verifiedModes:["openclaw","quiet","command"],packageRevision:"modes-r2",version:"2026.11.6",sha:"06afb10d3272cc9deaf38ca6a3b7b839d5935638",observations,limits:["Synthetic Gateway fixture, no real provider or Linux deployment exercised.","CSS zoom is not native browser zoom.","Workboard route is a native plugin destination; plugin execution and legacy streaming/gear integrations need host verification."]},null,2));
   console.log(JSON.stringify({passed:true,proof,observations}));
 } catch (error) {
+  console.error("Mode verification failed:",error);
   if(activePage && !activePage.isClosed()) {
-    await activePage.screenshot({path:path.join(proof,"failure.png")});
-    await fs.writeFile(path.join(proof,"failure.txt"),String(error)+"\n"+await activePage.locator("body").innerText());
+    await activePage.screenshot({path:path.join(proof,"failure.png"),timeout:5000}).catch(()=>{});
+    await fs.writeFile(path.join(proof,"failure.txt"),String(error)+"\n"+await activePage.locator("body").innerText({timeout:5000}).catch(String));
   }
   throw error;
 } finally {
