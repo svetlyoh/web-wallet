@@ -38,7 +38,7 @@ let activePage: Page | undefined;
 const watchdog = setTimeout(async () => {
   console.error("Mode verification exceeded 150 seconds");
   if (activePage && !activePage.isClosed()) {
-    await fs.writeFile(path.join(proof,"timeout.txt"),activePage.url()+"\n"+await activePage.locator("body").innerText({timeout:5000})).catch(()=>{});
+    await fs.writeFile(path.join(proof,"timeout.txt"),activePage.url()+"\n"+await activePage.locator("body").innerText({timeout:5000}).catch(String)).catch(()=>{});
     await activePage.screenshot({path:path.join(proof,"timeout.png"),timeout:5000}).catch(()=>{});
   }
   process.exit(1);
@@ -229,6 +229,7 @@ try {
   await commandPage.evaluate(()=>{(window as Window & {modePanes?:Element[]}).modePanes=[...document.querySelectorAll(".agent-chat__composer-combobox textarea")];});
   await commandPage.screenshot({path:path.join(proof,"command-deck-split-1440.png"),animations:"disabled"});
   for(const button of ["Exit Command Deck","Enter Quiet Desk","Exit Quiet Desk","Enter Command Deck"]){
+    console.log("Split mode transition:",button);
     await commandPage.getByRole("button",{name:button,exact:true}).click();
     await panes.nth(1).waitFor({state:"visible"});
     assert.deepEqual(await panes.evaluateAll(elements=>elements.map(e=>(e as HTMLTextAreaElement).value)),["Independent left draft","Independent right draft"]);

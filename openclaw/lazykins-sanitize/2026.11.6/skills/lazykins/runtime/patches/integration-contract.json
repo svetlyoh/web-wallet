@@ -11,7 +11,7 @@
     "ui/src/pages/chat/components/chat-composer-controls.tsx": "b6423a1182d68e5580adb99b065a6deaab5c347c00cafabbc7bcddf6cc76d9e1"
   },
   "patchedFiles": {
-    "ui/src/app/app-shell-view-state.ts": "2542d8dc048ef4450f15bb31aed8938d9ec7aa5c3e9f96c5a93df286322c54bc",
+    "ui/src/app/app-shell-view-state.ts": "b3a1c1cfa740401d4aeab2991b91fe91afa3292606416912d309a875b766b02c",
     "ui/src/app/app-shell-view.tsx": "3b9ce8af9641a248a8e34d4f085ab5f162ccfe0109d1b1ac2d8dcf77ac947f35",
     "ui/src/components/app-sidebar-base.ts": "64668321e6899388bddd73e269a92fb7b5cadb36b1f40d1f7bb18d94c3044e3d",
     "ui/src/components/app-sidebar-owner.tsx": "2c1b62bb997a1f8d79cc8c623859b524952a44c30172baa0d94c04b794b7845a",

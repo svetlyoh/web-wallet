@@ -1,5 +1,5 @@
 diff --git a/ui/src/app/app-shell-view-state.ts b/ui/src/app/app-shell-view-state.ts
-index a9155b6d..ab7ae376 100644
+index a9155b6d..49d0bfff 100644
 --- a/ui/src/app/app-shell-view-state.ts
 +++ b/ui/src/app/app-shell-view-state.ts
 @@ -1,3 +1,4 @@
@@ -22,7 +22,7 @@ index a9155b6d..ab7ae376 100644
    const mobileNavLayout = isMobileNavLayout();
    const nativeWebChrome = isNativeWebChromeHost() && !nativeEmbed;
 -  const mergedChatChrome = shouldMergeChatChrome({
-+  const mergedChatChrome = !quietDesk && !commandDesk && shouldMergeChatChrome({
++  const mergedChatChrome = nativeEmbed && shouldMergeChatChrome({
      mobileNavLayout,
      routeId: activeRoute,
      onboarding,
