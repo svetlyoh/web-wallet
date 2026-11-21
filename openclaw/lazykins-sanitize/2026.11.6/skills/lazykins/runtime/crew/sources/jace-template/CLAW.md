@@ -22,9 +22,6 @@
       },
       "SOUL.md": {
         "source": "workspace/SOUL.md"
-      },
-      "USER.md": {
-        "source": "workspace/USER.md"
       }
     },
     "files": [
@@ -47,6 +44,10 @@
       {
         "source": "workspace/reference/WORKFLOW.md",
         "path": "reference/WORKFLOW.md"
+      },
+      {
+        "source": "workspace/USER.md",
+        "path": "USER.md"
       }
     ]
   },

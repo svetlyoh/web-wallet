@@ -30,7 +30,7 @@ for (const agent of catalog.agents) {
   receipts.push({id:agent.id,packageName:agent.packageName,version:agent.version,agentId:manifest.agent.id,
     validated:true,originalValidationDiagnostics:authored.diagnostics.map((d:{code:string})=>d.code),nativeApi:"validateTemplateProject/buildTemplateProject",templateSha256:digest(bytes),
     nativeIntegrity:result.integrity,excludedPaths:validated.excludedPaths,
-    preservedWorkspaceFiles:Object.keys(agent.bootstrapHashes).length+manifest.workspace.files.length});
+    preservedWorkspaceFiles:Object.keys(manifest.workspace.bootstrapFiles).length+manifest.workspace.files.length});
 }
 await fs.writeFile(path.join(output,"catalog.json"),JSON.stringify(catalog,null,2)+"\n");
 await fs.copyFile(path.join(crew,"COMPATIBILITY.md"),path.join(output,"INSTALL-AND-COMPATIBILITY.md"));

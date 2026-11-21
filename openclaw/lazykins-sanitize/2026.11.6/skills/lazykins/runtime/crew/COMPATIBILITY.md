@@ -24,3 +24,5 @@ openclaw --profile default templates add ./crew/sources/helm-template --agent-id
 ```
 
 Repeat separately for `jace` and `cruz` if desired, substituting the respective source folder and ID. The native Add command retains its own review/consent. It may refuse existing IDs or choose an unused ID: re-query the roster and verify the actual returned ID, never repeat Add blindly. This distribution does not grant delegation, change main/default agents, add channels/models/plugins/jobs or overwrite any existing agent. Restart the original service after approved additions. Existing name conflicts or modified authored files need owner review, not automatic repair. Removing or disabling Command Deck never deletes crew workspaces or history.
+
+Native validation also rejects USER.md in the bootstrapFiles map. The compatibility CLAW moves its unchanged source into workspace.files with destination USER.md, the native-supported form. The USER.md bytes are not changed.
