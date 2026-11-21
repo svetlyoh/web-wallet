@@ -14,7 +14,7 @@ export function CommandDeckQueue(props:Props) {
   const gateway=projectOwner(context.gateway,owner=>owner.snapshot);
   const scope=()=>{gateway.read();return quietDeskStorageKey(context);};
   // A changed authenticated profile retires its forms and pending read owner.
-  return <Show when={scope()} keyed>{()=> <CommandQueuePanel {...props}/>}</Show>;
+  return <Show when={scope()} keyed>{()=> <CommandQueuePanel sessionKey={props.sessionKey} open={props.open} onOpenChange={props.onOpenChange}/>}</Show>;
 }
 function CommandQueuePanel(props:Props) {
   const context=useApplication();

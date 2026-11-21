@@ -231,7 +231,9 @@ try {
   for(const button of ["Exit Command Deck","Enter Quiet Desk","Exit Quiet Desk","Enter Command Deck"]){
     console.log("Split mode transition:",button);
     await commandPage.getByRole("button",{name:button,exact:true}).click();
+    console.log("Clicked transition:",button);
     await panes.nth(1).waitFor({state:"visible"});
+    console.log("Panes visible:",button);
     assert.deepEqual(await panes.evaluateAll(elements=>elements.map(e=>(e as HTMLTextAreaElement).value)),["Independent left draft","Independent right draft"]);
     assert(await commandPage.evaluate(()=>{const old=(window as Window & {modePanes?:Element[]}).modePanes;return [...document.querySelectorAll(".agent-chat__composer-combobox textarea")].every((element,index)=>element===old?.[index]);}));
   }
@@ -240,7 +242,9 @@ try {
   assert.equal((await commandGateway.getRequests("chat.send")).length,0);
   observations.push("Explicit Split reuses two native chat panes. Their DOM nodes and independent drafts survive all three modes without new sessions, sends, or sockets.");
   for(const width of [1280,1024,768,390,360]){
+    console.log("Resize Command Deck:",width);
     await commandPage.setViewportSize({width,height:width<560?844:768});
+    console.log("Resized Command Deck:",width);
     assert(await commandPage.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
     assert(await commandPage.getByRole("button",{name:"Exit Command Deck",exact:true}).isVisible());
     await commandPage.screenshot({path:path.join(proof,`command-deck-${width}.png`),animations:"disabled"});
