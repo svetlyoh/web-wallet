@@ -5,8 +5,7 @@ export type DeskMode = "quiet" | "openclaw" | "command";
 export type DeskNavigation = { sessionKey: string; lastActiveSessionKey: string; selectedAgentId?: string };
 const modes = new Map<string, DeskMode>();
 const entered = new Set<string>();
-export const initialDeskPath = typeof window === "undefined" ? "/" : window.location.pathname;
-export const initialDeskAgentOverride = typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("commandAgent");
+export const initialDeskLocation = globalThis.location && {pathname:location.pathname,search:location.search};
 export function consumeDeckEntry(gatewayUrl: string, profileId: string | null | undefined): boolean {
   const key=deskPreferenceKey(gatewayUrl,profileId); const value=entered.has(key); entered.delete(key); return value;
 }

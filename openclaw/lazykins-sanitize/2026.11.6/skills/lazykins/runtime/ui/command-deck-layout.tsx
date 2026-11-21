@@ -27,3 +27,5 @@ export function CommandDeckHeader(props: { sessionKey: string; queueOpen: boolea
     <span role="status" class="sr-only">{error()}</span>
   </div>;
 }
+
+export { CommandDeckSurface } from "./command-deck-surface.tsx";

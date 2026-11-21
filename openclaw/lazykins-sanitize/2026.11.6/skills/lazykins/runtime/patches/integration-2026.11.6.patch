@@ -62,7 +62,7 @@ index a9155b6d..49d0bfff 100644
      routeReady: host.routeState.routeId !== undefined || host.routeState.routeFailed,
      workspaceChromeVisible: host.workspaceChromeVisible,
 diff --git a/ui/src/app/app-shell-view.tsx b/ui/src/app/app-shell-view.tsx
-index ca041699..afe3a90d 100644
+index ca041699..0f89e75d 100644
 --- a/ui/src/app/app-shell-view.tsx
 +++ b/ui/src/app/app-shell-view.tsx
 @@ -1,4 +1,6 @@
@@ -78,7 +78,7 @@ index ca041699..afe3a90d 100644
  
 +const QuietDeskBackToChat = lazy(() => import("../lazykins/quiet-desk-back.tsx"), { export: "QuietDeskBackToChat" });
 +const DeskAppearance = lazy(() => import("../lazykins/desk-appearance.tsx"), { export: "DeskAppearance" });
-+const CommandDeckSurface = lazy(() => import("../lazykins/command-deck-surface.tsx"), { export: "CommandDeckSurface" });
++const CommandDeckSurface = lazy(() => import("../lazykins/command-deck-layout.tsx"), { export: "CommandDeckSurface" });
 +const CommandDeckHeader = lazy(() => import("../lazykins/command-deck-layout.tsx"), { export: "CommandDeckHeader" });
 +const CommandDeckQueue = lazy(() => import("../lazykins/command-deck-queue.tsx"), { export: "CommandDeckQueue" });
 +
@@ -168,7 +168,7 @@ index ca041699..afe3a90d 100644
    );
  }
 diff --git a/ui/src/app/settings.ts b/ui/src/app/settings.ts
-index 2b09504f..22060513 100644
+index 2b09504f..e5542fdb 100644
 --- a/ui/src/app/settings.ts
 +++ b/ui/src/app/settings.ts
 @@ -1,3 +1,4 @@
@@ -188,7 +188,7 @@ index 2b09504f..22060513 100644
              ? { selectedAgentId: normalizeAgentId(next.selectedAgentId) }
              : {}),
 -        },
-+        }, existingSessionsByGateway[scope] ?? { sessionKey: "main", lastActiveSessionKey: "main" }),
++        }, existingSessionsByGateway[scope]),
        ],
      ].slice(-MAX_SCOPED_SESSION_ENTRIES),
    );

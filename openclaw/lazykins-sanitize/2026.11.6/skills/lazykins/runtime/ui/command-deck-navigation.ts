@@ -8,7 +8,7 @@ import { createChangeListeners } from "../../../src/shared/listeners.js";
 import { sessionNavigationTarget } from "../lib/sessions/route-navigation.ts";
 import { parseAgentSessionKey, resolveUiConversationIdentity } from "../lib/sessions/session-key.ts";
 import { getCommandCrewOwner, COMMAND_CREW_IDS } from "./command-crew-owner.ts";
-import { consumeDeckEntry, initialDeskPath, initialDeskAgentOverride,  type DeskNavigation } from "./desk-session-preferences.ts";
+import { consumeDeckEntry, initialDeskLocation,  type DeskNavigation } from "./desk-session-preferences.ts";
 import { quietDeskStorageKey, readQuietDeskMode } from "./quiet-desk-preference.ts";
 
 export class CommandDeckNavigation {
@@ -37,8 +37,8 @@ export class CommandDeckNavigation {
     this.state.defaultAgentId=readDeckDefault(url,profile);
     this.resume=readDeckNavigation(url,profile);
     const freshEntry=consumeDeckEntry(url,profile);
-    const explicit=freshEntry ? null : sessionRefFromPath(initialDeskPath,this.context.basePath);
-    const queryOverride=freshEntry ? null : initialDeskAgentOverride;
+    const explicit=freshEntry ? null : sessionRefFromPath(initialDeskLocation?.pathname || "/",this.context.basePath);
+    const queryOverride=freshEntry ? null : new URLSearchParams(initialDeskLocation?.search).get("commandAgent");
     const choice=readDeckChoice(url,profile);
     const ordinaryAgent=this.ordinary.selectedAgentId || parseAgentSessionKey(this.ordinary.sessionKey)?.agentId || this.context.gateway.snapshot.assistantAgentId;
     // An old ordinary chat URL on first upgrade is not a Command Deck choice.
