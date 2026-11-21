@@ -1,0 +1,94 @@
+/* Command Deck is a browser-local dark palette. Native appearance selection
+   and all Gateway execution policies remain with their existing owners. */
+@font-face { font-family: "Command Space"; src: url("../fonts/space-grotesk-latin.woff2") format("woff2"); font-style: normal; font-weight: 300 700; font-display: swap; }
+@font-face { font-family: "Command Mono"; src: url("../fonts/jetbrains-mono-latin.woff2") format("woff2"); font-style: normal; font-weight: 400 700; font-display: swap; }
+.shell--command-deck {
+  --bg: #20222D; --bg-content: #20222D; --bg-elevated: #292C3A; --card: #292C3A; --card-foreground: #F2F3F8; --panel: #292C3A; --popover: #292C3A; --popover-foreground: #F2F3F8;
+  --text: #F2F3F8; --text-strong: #F2F3F8; --chat-text: #F2F3F8; --muted: #B7BDD1; --muted-foreground: #B7BDD1; --control-secondary-text: #B7BDD1; --text-tertiary: #B7BDD1;
+  --bg-muted: #191B24; --bg-hover: #292C3A; --border: #3C4054; --border-strong: #B7BDD1;
+  --accent: #6043CE; --accent-hover: #7457E8; --primary: #6043CE; --primary-foreground: #FFFFFF; --accent-foreground: #FFFFFF; --accent-subtle: #36304D; --accent-glow: transparent;
+  --link: #75E0B5; --link-hover: #F2F3F8; --ring: #F0BE62; --focus-ring: 0 0 0 2px #20222D, 0 0 0 3px #F0BE62;
+  --chat-composer-surface: #292C3A; --chat-user-surface: #292C3A;
+  --font-body: "Inter", system-ui, sans-serif; --font-chat: var(--font-body); --font-display: "Command Space", system-ui, sans-serif; --font-mono: "Command Mono", monospace;
+  --shell-nav-expanded-width: 256px; --shell-topbar-height: 48px; --chat-thread-max-width: 960px; --app-background-image: none;
+  color-scheme: dark; background: var(--bg); color: var(--text); font-family: var(--font-body);
+}
+.shell--command-deck:not(.shell--mobile-nav):not(.shell--settings) { grid-template-columns: 256px minmax(0,1fr) 0; grid-template-areas: "nav topbar topbar" "nav notice queue" "nav content queue"; }
+.shell--command-deck.shell--command-queue-open:not(.shell--mobile-nav):not(.shell--settings) { grid-template-columns: 256px minmax(0,1fr) 280px; }
+.shell--command-deck.shell--nav-collapsed:not(.shell--mobile-nav):not(.shell--settings) { grid-template-columns: 0 minmax(0,1fr) 0; }
+.shell--command-deck.shell--nav-collapsed.shell--command-queue-open:not(.shell--mobile-nav):not(.shell--settings) { grid-template-columns: 0 minmax(0,1fr) 280px; }
+.shell--command-deck .topbar, .shell--command-deck .topnav-shell { height: 48px; }
+.shell--command-deck .topbar { display: block; background: #111218; border-bottom: 1px solid var(--border); }
+.shell--command-deck .topbar .topbar-nav-toggle { display: inline-flex; }
+.shell--command-deck .sidebar-resizer { display: none; }
+.shell--command-deck .header-new-session { display: none; }
+.shell--command-deck .content { padding: 0; min-width: 0; background: var(--bg); }
+.shell--command-deck .chat { --chat-thread-max-width: 960px; }
+.shell--command-deck .chat-text, .shell--command-deck .agent-chat__composer-combobox textarea { font-size: calc(15px * var(--control-ui-text-scale, 1)); line-height: 1.5; }
+.shell--command-deck .chat-text { --chat-text-link: var(--link); --chat-text-link-hover: var(--link-hover); }
+.shell--command-deck .chat-group.user .chat-bubble { background: #292C3A; border-color: var(--border); }
+.shell--command-deck .agent-chat__input { background: #292C3A; border-radius: 12px; box-shadow: none; }
+.shell--command-deck .chat-text pre { background: #191B24; color: #F2F3F8; }
+.shell--command-deck .lazykins-independent-stop { display: inline-flex; }
+.command-deck-header-actions { display: flex; align-items: center; gap: 8px; }
+.shell--command-deck .command-deck-navigation { display: grid; grid-template-columns: 56px 200px; height: 100%; min-height: 0; padding: 0; overflow: hidden; color: var(--text); background: #191B24; }
+.command-deck-rail { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 16px 8px; background: #111218; border-right: 1px solid var(--border); }
+.command-deck-rail strong { font: 600 13px var(--font-display); color: var(--muted); }
+.command-deck-rail button { width: 40px; height: 40px; border: 1px solid var(--border); border-radius: 12px; background: #292C3A; color: var(--text); font: 20px var(--font-display); }
+.command-deck-rail button[aria-pressed="true"] { background: var(--accent); border-color: #B7BDD1; }
+.command-deck-channels { display: flex; flex-direction: column; gap: 12px; min-height: 0; min-width: 0; padding: 16px 8px 8px; }
+.command-deck-channels header { display: grid; gap: 4px; }
+.command-deck-channels header strong { font: 600 20px var(--font-display); }
+.command-deck-channels small { color: var(--muted); font-size: 11px; line-height: 1.5; }
+.command-deck-channels input { width: 100%; min-width: 0; padding: 8px; border: 1px solid var(--border); border-radius: 8px; color: var(--text); background: #111218; font-size: 13px; }
+.command-deck-new { display: flex; gap: 8px; align-items: center; min-height: 40px; padding: 8px; border-radius: 8px; background: var(--accent); color: #FFFFFF; font-size: 13px; }
+.command-deck-new svg { width: 16px; height: 16px; }
+.command-deck-new::after { content: "New conversation"; }
+.command-deck-channel-list { flex: 1; min-height: 0; overflow: auto; }
+.command-deck-channel { display: flex; align-items: start; gap: 8px; min-height: 48px; padding: 8px; margin-bottom: 4px; border-radius: 8px; color: var(--text); font-size: 13px; }
+.command-deck-channel.active { background: #292C3A; box-shadow: inset 2px 0 var(--link); }
+.command-deck-channel > span:last-child { display: grid; min-width: 0; gap: 4px; }
+.command-deck-channel strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+.command-deck-channel-symbol { color: var(--muted); font: 18px var(--font-display); }
+.command-deck-channels footer { display: grid; gap: 8px; margin-top: auto; border-top: 1px solid var(--border); padding-top: 8px; }
+.command-deck-channels footer > a { color: var(--muted); font-size: 12px; min-height: 32px; display: flex; align-items: center; }
+.command-deck-channels .sidebar-footer-bar { width: 100%; }
+.command-deck-queue { grid-area: queue; min-width: 0; overflow: auto; padding: 16px 12px; background: #191B24; color: #F2F3F8; border-left: 1px solid #3C4054; font: 12px/1.5 "Inter", system-ui, sans-serif; color-scheme: dark; }
+.command-deck-queue header { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 12px; }
+.command-deck-queue h2 { margin: 0; font: 600 17px "Command Space", system-ui, sans-serif; }
+.command-deck-queue button, .command-deck-queue select { min-height: 32px; padding: 6px 8px; border: 1px solid #3C4054; border-radius: 8px; color: #F2F3F8; background: #292C3A; font: inherit; }
+.command-deck-queue button:disabled { opacity: .55; }
+.command-deck-note, .command-deck-queue small { color: #B7BDD1; font-size: 11px; }
+.command-deck-error { color: #FF929E; overflow-wrap: anywhere; }
+.command-deck-queue label { display: grid; gap: 4px; margin: 8px 0; color: #B7BDD1; font-size: 11px; }
+.command-deck-queue input, .command-deck-queue textarea { width: 100%; min-width: 0; padding: 8px; border: 1px solid #3C4054; border-radius: 8px; background: #111218; color: #F2F3F8; font: inherit; font-size: 14px; }
+.command-deck-field-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.command-deck-create { margin: 12px 0; padding-block: 12px; border-block: 1px solid #3C4054; }
+.command-deck-create summary { cursor: default; font-weight: 500; }
+.command-deck-schedule-preview { color: #F0BE62; font: 11px/1.6 "Command Mono", monospace; overflow-wrap: anywhere; }
+.command-deck-queue .command-deck-primary { background: #6043CE; color: #FFFFFF; width: 100%; }
+.command-deck-task { border: 1px solid #3C4054; border-radius: 10px; padding: 12px; margin: 12px 0; background: #292C3A; }
+.command-deck-task > div:first-child { display: flex; justify-content: space-between; gap: 8px; }
+.command-deck-task strong { overflow-wrap: anywhere; font-weight: 500; }
+.command-deck-task > p { font: 11px "Command Mono", monospace; }
+.command-deck-task[data-status="running"] > p, .command-deck-task[data-status="completed"] > p { color: #75E0B5; }
+.command-deck-task[data-status="scheduled"] > p, .command-deck-task[data-status="blocked"] > p { color: #F0BE62; }
+.command-deck-task[data-status="failed"] > p { color: #FF929E; }
+.command-deck-task-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; }
+.command-deck-queue .command-deck-source { padding-inline: 0; border: 0; background: transparent; color: #B7BDD1; font-size: 11px; }
+.command-deck-queue--drawer { width: min(360px,90vw); max-height: 85dvh; border-radius: 12px; }
+.shell--command-deck :is(button,a,input,textarea,select,summary):focus-visible, .command-deck-queue :focus-visible { outline: 2px solid #F0BE62; outline-offset: 2px; }
+@media (max-width: 1320px) {
+  .shell--command-deck.shell--command-queue-open:not(.shell--mobile-nav):not(.shell--settings) { grid-template-columns: 256px minmax(0,1fr) 0; }
+  .shell--command-deck.shell--nav-collapsed.shell--command-queue-open:not(.shell--mobile-nav):not(.shell--settings) { grid-template-columns: 0 minmax(0,1fr) 0; }
+}
+@media (max-width: 1099px) { .command-deck-split { display: none; } }
+@media (max-width: 560px) {
+  .shell--command-deck .agent-chat__composer-combobox textarea { font-size: 16px; }
+  .shell--command-deck .shell-nav { width: min(90vw,280px); }
+  .command-deck-rail button, .command-deck-channels footer > a, .command-deck-queue button, .command-deck-queue select { min-height: 44px; }
+  .command-deck-queue input, .command-deck-queue textarea { font-size: 16px; }
+  .command-deck-header-actions { gap: 4px; }
+}
+@media (prefers-reduced-motion: reduce) { .shell--command-deck *, .shell--command-deck *::before, .shell--command-deck *::after { animation: none !important; transition: none !important; } }
+@media (forced-colors: active) { .command-deck-rail button[aria-pressed="true"], .command-deck-channel.active { outline: 2px solid Highlight; } }

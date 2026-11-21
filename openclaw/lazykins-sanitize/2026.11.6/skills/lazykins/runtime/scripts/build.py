@@ -79,12 +79,16 @@ def main():
     shutil.copytree(RUNTIME / "ui", source / "ui" / "src" / "lazykins")
     # Keep the upstream compiled-CSS ceilings intact. This independently bounded
     # optional appearance asset uses the existing public themes/fonts contract.
-    css = (RUNTIME / "ui" / "quiet-desk.css").read_bytes()
+    skin_css = {name: (RUNTIME / "ui" / (name + ".css")).read_bytes() for name in ("quiet-desk", "command-deck")}
+    skin_budgets = {name: {"rawBytes": len(data), "gzipBytes": len(gzip.compress(data, compresslevel=9, mtime=0))} for name, data in skin_css.items()}
+    if any(size["rawBytes"] > 16 * 1024 or size["gzipBytes"] > 4 * 1024 for size in skin_budgets.values()):
+        raise ValueError("One skin exceeds its independent 16 KiB raw / 4 KiB gzip CSS budget")
+    css = b"\n".join(skin_css.values())
     font = RUNTIME / "assets" / "fonts" / "InterVariable.woff2"
     font_name = "lazykins-inter-" + digest(font)[:12] + ".woff2"
     overlay_budget = {"cssRawBytes": len(css), "cssGzipBytes": len(gzip.compress(css, compresslevel=9, mtime=0)),
-                      "fontBytes": font.stat().st_size, "stylesheetRequests": 1,
-                      "limits": {"cssRawBytes": 16 * 1024, "cssGzipBytes": 4 * 1024, "fontBytes": 400 * 1024, "stylesheetRequests": 1}}
+                      "fontBytes": font.stat().st_size, "stylesheetRequests": 1, "skins": skin_budgets,
+                      "limits": {"cssRawBytes": 32 * 1024, "cssGzipBytes": 8 * 1024, "fontBytes": 400 * 1024, "stylesheetRequests": 1}}
     if any(overlay_budget[key] > limit for key, limit in overlay_budget["limits"].items()):
         raise ValueError("Quiet Desk public appearance asset exceeds its explicit size budget")
     if ("../fonts/" + font_name).encode() not in css:
@@ -102,7 +106,7 @@ def main():
         raise ValueError("Expected one successful UI verification attempt")
     proof = successful[0].parent
     evidence = json.loads((proof / "results.json").read_text(encoding="utf-8"))
-    if evidence.get("passed") is not True or evidence.get("version") != VERSION or evidence.get("sha") != SHA:
+    if evidence.get("passed") is not True or evidence.get("version") != VERSION or evidence.get("sha") != SHA or evidence.get("verifiedModes") != ["openclaw", "quiet", "command"] or evidence.get("packageRevision") != "modes-r2":
         raise ValueError("UI integration verification did not confirm the exact generation")
     final_proof = RUNTIME / "evidence" / "final"
     if final_proof.exists():
@@ -119,7 +123,8 @@ def main():
         shutil.copy2(source / "THIRD_PARTY_NOTICES.md", notices / "OpenClaw-THIRD-PARTY.md")
         shutil.copy2(RUNTIME / "assets" / "fonts" / "Inter-OFL.txt", notices / "Inter-OFL.txt")
         manifest = {"schemaVersion": 1, "version": VERSION, "sha": SHA,
-                    "integration": "exact-pinned-Solid2-Quiet-Desk-layout-overlay",
+                    "integration": "exact-pinned-Solid2-LazyKins-modes-overlay",
+                    "modes": ["openclaw", "quiet", "command"], "packageRevision": "modes-r2",
                     "testedVersions": [VERSION], "node": node,
                     "packageManager": package["packageManager"], "sourcemap": "generated upstream; omitted from payload",
                     "lockfileSha256": digest(source / "pnpm-lock.yaml"),

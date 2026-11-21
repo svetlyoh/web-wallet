@@ -4,6 +4,7 @@ import path from "node:path";
 import http from "node:http";
 import { chromium, type Page } from "playwright";
 import { createControlUiE2eArtifactDir } from "./src/test-helpers/control-ui-e2e-artifacts.ts";
+import { defaultControlUiFeatureMethods } from "./src/test-helpers/control-ui-e2e-defaults.ts";
 import { installMockGateway } from "./src/test-helpers/control-ui-e2e.ts";
 
 // This executable lives in the isolated upstream ui/ directory during tests.
@@ -46,40 +47,53 @@ try {
     historyMessages: [{role:"assistant",content:[{type:"text",text:"Your workspace is ready. A [source](https://example.com) and selectable code.\n\n```json\n{\"saved\":true}\n```"}],timestamp:Date.now()}],
   });
   await page.goto(`${base}chat`);
-  await page.locator(".shell--quiet-desk .lazykins-sidebar").waitFor();
   const composer = page.locator(".agent-chat__composer-combobox textarea");
   await composer.waitFor({state:"visible"});
-  await page.getByText("Your workspace is ready.",{exact:false}).waitFor();
-  assert.equal(Math.round(await page.locator(".shell-nav").evaluate(e => e.getBoundingClientRect().width)),208);
-  assert.equal(await page.getByRole("button",{name:"OpenClaw view",exact:true}).textContent(),"OpenClaw view");
-  assert.equal(await page.locator(".lazykins-sidebar .lazykins-note").textContent(),"Tasks: Workboard when enabled. Files: this agent's workspace.");
-  assert.equal(await page.locator(".chat-text a").first().evaluate(e => getComputedStyle(e).color),"rgb(36, 69, 50)");
-  await page.screenshot({path:path.join(proof,"quiet-desk-light-1440.png"),animations:"disabled"});
+  await page.locator(".shell:not(.shell--quiet-desk):not(.shell--command-deck)").waitFor();
+  await page.getByRole("button",{name:"Enter Quiet Desk",exact:true}).waitFor();
+  await page.screenshot({path:path.join(proof,"openclaw-fresh-1440.png"),animations:"disabled"});
   await composer.fill("Preserve this unsent draft.");
   await composer.evaluate(e => { (window as Window & {lazykinsComposer?: Element}).lazykinsComposer = e; });
   const sockets = await gateway.getSocketCount();
-  await page.getByRole("button",{name:"OpenClaw view",exact:true}).click();
-  await page.locator(".shell:not(.shell--quiet-desk)").waitFor();
-  assert.equal(await composer.inputValue(),"Preserve this unsent draft.");
-  assert(await composer.evaluate(e => (window as Window & {lazykinsComposer?:Element}).lazykinsComposer === e));
-  assert.equal(await gateway.getSocketCount(),sockets);
-  await page.screenshot({path:path.join(proof,"openclaw-view-1440.png"),animations:"disabled"});
-  assert(await page.evaluate(() => Object.keys(localStorage).some(k => k.startsWith("lazykins.quiet-desk.v1:") && k.endsWith(":profile-a") && localStorage.getItem(k) === "openclaw")));
+  for (const [button,selector] of [
+    ["Enter Quiet Desk",".shell--quiet-desk"],
+    ["Enter Command Deck",".shell--command-deck"],
+    ["Exit Command Deck",".shell:not(.shell--quiet-desk):not(.shell--command-deck)"],
+    ["Enter Command Deck",".shell--command-deck"],
+    ["Enter Quiet Desk",".shell--quiet-desk"],
+    ["Exit Quiet Desk",".shell:not(.shell--quiet-desk):not(.shell--command-deck)"],
+  ]) {
+    await page.getByRole("button",{name:button,exact:true}).click();
+    await page.locator(selector).waitFor();
+    if(selector === ".shell--command-deck") await page.getByText("Priority queue unavailable.",{exact:false}).waitFor();
+    assert.equal(await composer.inputValue(),"Preserve this unsent draft.");
+    assert(await composer.evaluate(e => (window as Window & {lazykinsComposer?:Element}).lazykinsComposer === e));
+    assert.equal(await gateway.getSocketCount(),sockets);
+    for(const method of ["chat.send","sessions.create","commanddesk.tasks.create","commanddesk.voice.control"]) assert.equal((await gateway.getRequests(method)).length,0,method);
+  }
+  assert.equal((await gateway.getRequests("commanddesk.tasks.list")).length,0);
+  observations.push("Fresh profiles start in native OpenClaw. All three modes switch through lower-left entries and top-right exits without replacing the composer, losing its draft, creating sessions, sending, changing sanitize, or opening another socket.");
+  await page.getByRole("button",{name:"Enter Quiet Desk",exact:true}).click();
+  await page.locator(".shell--quiet-desk .lazykins-sidebar").waitFor();
+  await page.getByText("Your workspace is ready.",{exact:false}).waitFor();
+  assert.equal(Math.round(await page.locator(".shell-nav").evaluate(e => e.getBoundingClientRect().width)),208);
+  assert.equal(await page.getByRole("button",{name:"Exit Quiet Desk",exact:true}).textContent(),"Exit Quiet Desk");
+  assert.equal(await page.locator(".lazykins-sidebar .lazykins-note").textContent(),"Tasks: Workboard when enabled. Files: this agent's workspace.");
+  assert.equal(await page.locator(".chat-text a").first().evaluate(e => getComputedStyle(e).color),"rgb(36, 69, 50)");
+  await page.screenshot({path:path.join(proof,"quiet-desk-light-1440.png"),animations:"disabled"});
+  assert(await page.evaluate(() => Object.keys(localStorage).some(k => k.startsWith("lazykins.quiet-desk.v1:") && k.endsWith(":profile-a") && localStorage.getItem(k) === "quiet")));
   const otherPage = await context.newPage();
   await installMockGateway(otherPage,{serverVersion:"2026.11.6",controlUiBuildSource:"configured",presenceUsers:[{self:true,id:"profile-b",name:"Blair"}]});
   await otherPage.goto(`${base}chat`);
-  await otherPage.locator(".shell--quiet-desk .lazykins-sidebar").waitFor();
+  await otherPage.locator(".shell:not(.shell--quiet-desk):not(.shell--command-deck)").waitFor();
+  await otherPage.getByRole("button",{name:"Enter Command Deck",exact:true}).waitFor();
   await otherPage.close();
-  await page.getByRole("button",{name:"Quiet Desk view",exact:true}).click();
-  await page.locator(".shell--quiet-desk").waitFor();
-  assert.equal(await composer.inputValue(),"Preserve this unsent draft.");
-  assert.equal(await gateway.getSocketCount(),sockets);
-  await page.getByRole("button",{name:"OpenClaw view",exact:true}).click();
+  await page.getByRole("button",{name:"Exit Quiet Desk",exact:true}).click();
   await page.reload();
-  await page.locator(".shell:not(.shell--quiet-desk)").waitFor();
-  await page.getByRole("button",{name:"Quiet Desk view",exact:true}).click();
+  await page.locator(".shell:not(.shell--quiet-desk):not(.shell--command-deck)").waitFor();
+  await page.getByRole("button",{name:"Enter Quiet Desk",exact:true}).click();
   await page.locator(".shell--quiet-desk").waitFor();
-  observations.push("Topbar switches both directions preserve the mounted composer, unsent draft, and socket count; refresh preserves the saved view. A second authenticated profile keeps its independent default.");
+  observations.push("The shared v1 profile preference persists across refresh and isolates another authenticated profile; pre-existing quiet/openclaw values retain their meaning.");
   await composer.fill("Check the draft.");
   await page.getByRole("button",{name:"Send message",exact:true}).click();
   const sent = await gateway.waitForRequest("chat.send");
@@ -93,7 +107,7 @@ try {
     await page.setViewportSize({width,height:width < 560 ? 844 : 768});
     assert(await composer.isVisible());
     assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth+1));
-    assert(await page.getByRole("button",{name:"OpenClaw view",exact:true}).isVisible());
+    assert(await page.getByRole("button",{name:"Exit Quiet Desk",exact:true}).isVisible());
     await page.screenshot({path:path.join(proof,`quiet-desk-light-${width}.png`),animations:"disabled"});
   }
   await page.setViewportSize({width:390,height:844});
@@ -139,6 +153,106 @@ try {
   observations.push("Files delegates to the real selected-agent file owner and agents.files.list.");
   assert.deepEqual(errors,[]);
   await context.close();
+  const command = await browser.newContext({viewport:{width:1440,height:900},serviceWorkers:"block"});
+  const commandPage = await command.newPage(); activePage=commandPage;
+  const queueMethods=["list","create","priority","cancel","retry"].map(name=>`commanddesk.tasks.${name}`);
+  const taskCaps={priority:true,cancel:true,retry:false,pause:false,resume:false};
+  let taskA={id:"job-a",title:"Inspect draft",sessionKey:"agent:main:main",message:"Inspect the synthetic draft",priority:2,version:1,status:"queued",createdAtMs:Date.now(),updatedAtMs:Date.now(),scheduleAtMs:null,timezone:"UTC",capabilities:taskCaps};
+  const queueResult=(revision:number,tasks:unknown[])=>({schemaVersion:1,revision,tasks,capabilities:{concurrency:1,scope:"Command Deck-owned jobs",priority:true,pause:false,stopRunning:false,schedulerEnabled:true}});
+  const commandGateway=await installMockGateway(commandPage,{
+    serverVersion:"2026.11.6",controlUiBuildSource:"configured",
+    featureMethods:[...defaultControlUiFeatureMethods,...queueMethods],
+    sessions:[{key:"agent:main:main",label:"Main",kind:"direct",updatedAt:Date.now()},{key:"agent:main:other",label:"Research",kind:"direct",updatedAt:Date.now()-1000}],
+    historyMessages:[{role:"assistant",content:[{type:"text",text:"Command Deck synthetic workspace."}]}],
+    methodResponses:{"commanddesk.tasks.list":queueResult(1,[taskA]),"commanddesk.tasks.priority":taskA},
+  });
+  await commandPage.goto(`${base}chat`);
+  await commandPage.getByRole("button",{name:"Enter Command Deck",exact:true}).waitFor();
+  assert.equal((await commandGateway.getRequests("commanddesk.tasks.list")).length,0);
+  const commandSockets=await commandGateway.getSocketCount();
+  await commandPage.getByRole("button",{name:"Enter Command Deck",exact:true}).click();
+  await commandPage.locator(".shell--command-deck").waitFor();
+  await commandGateway.waitForRequest("commanddesk.tasks.list");
+  await commandPage.locator(".command-deck-task").getByText("Inspect draft",{exact:true}).waitFor();
+  assert.equal(Math.round(await commandPage.locator(".shell-nav").evaluate(e=>e.getBoundingClientRect().width)),256);
+  assert.equal(Math.round(await commandPage.locator(".command-deck-rail").evaluate(e=>e.getBoundingClientRect().width)),56);
+  assert.equal(Math.round(await commandPage.locator(".command-deck-queue").evaluate(e=>e.getBoundingClientRect().width)),280);
+  assert.equal((await commandGateway.getRequests("chat.send")).length,0);
+  assert.equal((await commandGateway.getRequests("sessions.create")).length,0);
+  assert.equal((await commandGateway.getRequests("commanddesk.tasks.create")).length,0);
+  await commandPage.screenshot({path:path.join(proof,"command-deck-1440.png"),animations:"disabled"});
+  taskA={...taskA,priority:1,version:2};
+  await commandGateway.setMethodResponse("commanddesk.tasks.list",queueResult(2,[taskA]));
+  await commandGateway.setMethodResponse("commanddesk.tasks.priority",taskA);
+  await commandPage.getByRole("combobox",{name:"Priority for Inspect draft",exact:true}).selectOption("1");
+  const reprioritized=await commandGateway.waitForRequest("commanddesk.tasks.priority");
+  assert.deepEqual(reprioritized.params,{id:"job-a",expectedVersion:1,priority:1});
+  await commandPage.getByText("Queue or schedule work",{exact:true}).click();
+  await commandPage.getByRole("textbox",{name:"Task title",exact:true}).fill("Scheduled preview");
+  await commandPage.getByRole("textbox",{name:"Task instruction",exact:true}).fill("Prepare a synthetic local preview.");
+  await commandPage.getByRole("combobox",{name:"Schedule preset",exact:true}).selectOption("custom");
+  await commandPage.getByRole("textbox",{name:"Schedule timezone",exact:true}).fill("UTC");
+  await commandPage.getByLabel("Custom schedule time",{exact:true}).fill("2030-06-01T09:00");
+  assert((await commandPage.locator(".command-deck-schedule-preview").textContent())?.includes("2030"));
+  const taskB={...taskA,id:"job-b",title:"Scheduled preview",priority:2,version:1,status:"scheduled",scheduleAtMs:Date.parse("2030-06-01T09:00:00Z")};
+  await commandGateway.setMethodResponse("commanddesk.tasks.create",taskB);
+  await commandGateway.setMethodResponse("commanddesk.tasks.list",queueResult(3,[taskA,taskB]));
+  await commandPage.getByRole("button",{name:"Queue at displayed time",exact:true}).dblclick();
+  const created=await commandGateway.waitForRequest("commanddesk.tasks.create");
+  const createdParams=created.params as {sessionKey:string;scheduleAtMs:number;timezone:string;idempotencyKey:string};
+  assert.equal(createdParams.sessionKey,"agent:main:main");
+  assert.equal(createdParams.scheduleAtMs,Date.parse("2030-06-01T09:00:00Z"));
+  assert.equal(createdParams.timezone,"UTC");
+  assert.match(createdParams.idempotencyKey,/^[0-9a-f-]{36}$/);
+  await commandPage.locator(".command-deck-task").getByText("Scheduled preview",{exact:true}).waitFor();
+  assert.equal((await commandGateway.getRequests("commanddesk.tasks.create")).length,1);
+  const canceled={...taskB,status:"canceled",version:2,capabilities:{...taskCaps,priority:false,cancel:false,retry:true}};
+  await commandGateway.setMethodResponse("commanddesk.tasks.cancel",canceled);
+  await commandGateway.setMethodResponse("commanddesk.tasks.list",queueResult(4,[taskA,canceled]));
+  await commandPage.getByRole("button",{name:"Cancel Scheduled preview",exact:true}).click();
+  assert.deepEqual((await commandGateway.waitForRequest("commanddesk.tasks.cancel")).params,{id:"job-b",expectedVersion:1});
+  await commandPage.getByText("CANCELED",{exact:true}).waitFor();
+  observations.push("Advertised admin queue methods render a real snapshot, change priority with CAS, schedule the displayed UTC time once despite a double-click, and cancel the exact pending job. Browser fixtures do not execute a model; separate native backend proof owns durable Cron behavior.");
+  await commandPage.getByRole("button",{name:"Split with another conversation",exact:true}).click();
+  const panes=commandPage.locator(".agent-chat__composer-combobox textarea");
+  await commandPage.waitForFunction(()=>document.querySelectorAll(".agent-chat__composer-combobox textarea").length===2);
+  await panes.nth(0).fill("Independent left draft");
+  await panes.nth(1).fill("Independent right draft");
+  await commandPage.evaluate(()=>{(window as Window & {modePanes?:Element[]}).modePanes=[...document.querySelectorAll(".agent-chat__composer-combobox textarea")];});
+  await commandPage.screenshot({path:path.join(proof,"command-deck-split-1440.png"),animations:"disabled"});
+  for(const button of ["Exit Command Deck","Enter Quiet Desk","Exit Quiet Desk","Enter Command Deck"]){
+    await commandPage.getByRole("button",{name:button,exact:true}).click();
+    await panes.nth(1).waitFor({state:"visible"});
+    assert.deepEqual(await panes.evaluateAll(elements=>elements.map(e=>(e as HTMLTextAreaElement).value)),["Independent left draft","Independent right draft"]);
+    assert(await commandPage.evaluate(()=>{const old=(window as Window & {modePanes?:Element[]}).modePanes;return [...document.querySelectorAll(".agent-chat__composer-combobox textarea")].every((element,index)=>element===old?.[index]);}));
+  }
+  assert.equal(await commandGateway.getSocketCount(),commandSockets);
+  assert.equal((await commandGateway.getRequests("sessions.create")).length,0);
+  assert.equal((await commandGateway.getRequests("chat.send")).length,0);
+  observations.push("Explicit Split reuses two native chat panes. Their DOM nodes and independent drafts survive all three modes without new sessions, sends, or sockets.");
+  for(const width of [1280,1024,768,390,360]){
+    await commandPage.setViewportSize({width,height:width<560?844:768});
+    assert(await commandPage.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+    assert(await commandPage.getByRole("button",{name:"Exit Command Deck",exact:true}).isVisible());
+    await commandPage.screenshot({path:path.join(proof,`command-deck-${width}.png`),animations:"disabled"});
+  }
+  await commandPage.setViewportSize({width:390,height:844});
+  await commandPage.getByRole("button",{name:"Task queue",exact:true}).click();
+  await commandPage.getByRole("dialog",{name:"Command Deck task queue",exact:true}).waitFor({state:"visible"});
+  await commandPage.screenshot({path:path.join(proof,"command-deck-mobile-queue.png"),animations:"disabled"});
+  await commandPage.getByRole("button",{name:"Close task queue",exact:true}).click();
+  await commandPage.getByRole("dialog",{name:"Command Deck task queue",exact:true}).waitFor({state:"hidden"});
+  await command.close();
+  const restricted=await browser.newContext({viewport:{width:1440,height:900},serviceWorkers:"block"});
+  const restrictedPage=await restricted.newPage();activePage=restrictedPage;
+  const restrictedGateway=await installMockGateway(restrictedPage,{serverVersion:"2026.11.6",controlUiBuildSource:"configured",featureMethods:[...defaultControlUiFeatureMethods,...queueMethods],operatorScopes:["operator.read"]});
+  await restrictedPage.goto(`${base}chat`);
+  await restrictedPage.getByRole("button",{name:"Enter Command Deck",exact:true}).click();
+  await restrictedPage.getByText("Priority queue unavailable.",{exact:false}).waitFor();
+  assert.equal((await restrictedGateway.getRequests("commanddesk.tasks.list")).length,0);
+  assert.equal((await restrictedGateway.getRequests("commanddesk.tasks.create")).length,0);
+  await restricted.close();
+  observations.push("Advertised queue methods without admin authority remain unavailable and cause no queue RPC. Missing capabilities also cause no queue read or fabricated empty ledger.");
   const running = await browser.newContext({viewport:{width:1280,height:720},serviceWorkers:"block"});
   const runningPage = await running.newPage(); activePage = runningPage;
   const runningGateway = await installMockGateway(runningPage,{
@@ -148,6 +262,7 @@ try {
     sessions:[{key:"agent:main:main",kind:"direct",label:"Main",updatedAt:Date.now(),hasActiveRun:true,activeRunIds:["active-run"],status:"running"}],
   });
   await runningPage.goto(`${base}chat`);
+  await runningPage.getByRole("button",{name:"Enter Quiet Desk",exact:true}).click();
   const stop = runningPage.getByRole("button",{name:"Stop generating",exact:true});
   await stop.waitFor({state:"visible"});
   await runningPage.locator(".agent-chat__composer-combobox textarea").fill("Keep this follow-up draft");
@@ -178,6 +293,7 @@ try {
   await stylePage.route("**/themes/lazykins-quiet-desk.css*", route => route.fulfill({status:404,contentType:"text/css",body:""}));
   const styleGateway = await installMockGateway(stylePage,{serverVersion:"2026.11.6",controlUiBuildSource:"configured",awaitInitialRoster:false});
   await stylePage.goto(`${base}chat`);
+  await stylePage.getByRole("button",{name:"Enter Quiet Desk",exact:true}).click();
   await stylePage.getByRole("heading",{name:"Quiet Desk styles could not load"}).waitFor();
   assert(await stylePage.getByRole("button",{name:"Reload",exact:true}).isVisible());
   assert.equal(await stylePage.locator(".agent-chat__composer-combobox textarea").count(),0);
@@ -188,7 +304,7 @@ try {
   await stylePage.locator(".agent-chat__composer-combobox textarea").waitFor({state:"visible"});
   await styleFailure.close();
   observations.push("A missing local appearance stylesheet blocks malformed work UI and exposes a visible Reload action and host rollback guidance.");
-  await fs.writeFile(path.join(proof,"results.json"),JSON.stringify({passed:true,version:"2026.11.6",sha:"06afb10d3272cc9deaf38ca6a3b7b839d5935638",observations,limits:["Synthetic Gateway fixture, no real provider or Linux deployment exercised.","CSS zoom is not native browser zoom.","Workboard route is a native plugin destination; plugin execution and legacy streaming/gear integrations need host verification."]},null,2));
+  await fs.writeFile(path.join(proof,"results.json"),JSON.stringify({passed:true,verifiedModes:["openclaw","quiet","command"],packageRevision:"modes-r2",version:"2026.11.6",sha:"06afb10d3272cc9deaf38ca6a3b7b839d5935638",observations,limits:["Synthetic Gateway fixture, no real provider or Linux deployment exercised.","CSS zoom is not native browser zoom.","Workboard route is a native plugin destination; plugin execution and legacy streaming/gear integrations need host verification."]},null,2));
   console.log(JSON.stringify({passed:true,proof,observations}));
 } catch (error) {
   if(activePage && !activePage.isClosed()) {

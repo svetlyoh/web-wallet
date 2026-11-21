@@ -1,3 +1,4 @@
+import { DeskModeEntries } from "./quiet-desk.tsx";
 import { For } from "solid-js";
 import type { SidebarRecentSession } from "../components/app-sidebar-session-types.ts";
 import { pathForAgentPanel, pathForRoute } from "../app-route-paths.ts";
@@ -38,6 +39,7 @@ export function QuietDeskSidebar(props: { host: AppSidebarRenderHost; recent: ()
         onClick={(event) => handleNavigationClick(event, () => props.host.onNavigate?.("sessions"))}>{new Text("All conversations")}</a>
     </div>
     <div class="lazykins-sidebar-bottom">
+      <DeskModeEntries mode={props.host.deskMode} onChange={props.host.onChangeDeskMode} />
       <a href={pathForRoute("appearance", props.host.basePath)} class="lazykins-nav-link"
         onClick={(event) => handleNavigationClick(event, () => props.host.onNavigate?.("appearance"))}><Icon name="settings" />Settings</a>
       {renderAppSidebarFooterBar(props.host)}

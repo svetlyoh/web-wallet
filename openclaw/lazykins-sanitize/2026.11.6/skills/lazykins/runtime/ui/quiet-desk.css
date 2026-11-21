@@ -107,3 +107,10 @@
    Quiet Desk prose surface, preserving personal catalog themes. */
 .shell--quiet-desk-default .chat-text { --chat-text-link: var(--link); --chat-text-link-hover: var(--link-hover); }
 .shell--quiet-desk-default { --chat-composer-surface: var(--card); --chat-user-surface: var(--bg-muted); }
+
+.lazykins-mode-entries { display: grid; gap: 8px; }
+.lazykins-mode-entries button { min-height: 36px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 8px; color: var(--text); background: var(--card); font: inherit; font-size: 12px; }
+.lazykins-mode-entries--compact { justify-items: center; padding-bottom: 8px; }
+.lazykins-mode-entries--compact button { width: 36px; font-size: 10px; }
+.lazykins-entry-error { font-size: 12px; color: var(--text); background: var(--card); }
+@media (pointer: coarse) { .lazykins-mode-entries button { min-height: 44px; } }

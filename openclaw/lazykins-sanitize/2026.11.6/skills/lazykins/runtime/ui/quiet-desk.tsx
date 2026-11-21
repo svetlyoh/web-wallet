@@ -4,23 +4,21 @@ import { controlUiPublicAssetPath } from "../app/public-assets.ts";
 import { LAZYKINS_VERSION, type DeskMode } from "./quiet-desk-preference.ts";
 
 export function DeskModeSwitch(props: { mode: DeskMode; onChange(mode: DeskMode): void }) {
-  return <button type="button" class="btn btn--sm lazykins-mode-switch"
-    aria-label={props.mode === "quiet" ? "OpenClaw view" : "Quiet Desk view"}
-    onClick={() => props.onChange(props.mode === "quiet" ? "openclaw" : "quiet")}>
-    {new Text(props.mode === "quiet" ? "OpenClaw view" : "Quiet Desk view")}
-  </button>;
+  return <Show when={props.mode !== "openclaw"}><button type="button" class="btn btn--sm lazykins-mode-switch"
+    aria-label={props.mode === "command" ? "Exit Command Deck" : "Exit Quiet Desk"}
+    onClick={() => props.onChange("openclaw")}>
+    {new Text(props.mode === "command" ? "Exit Command Deck" : "Exit Quiet Desk")}
+  </button></Show>;
 }
-export function DeskAppearance(props: { mode: DeskMode; error: string | null; onChange(mode: DeskMode): void }) {
-  return <section class="lazykins-settings" aria-label="LazyKins appearance">
-    <h2>{new Text("LazyKins \u00b7 Quiet Desk")}</h2>
-    <label>{new Text("Interface ")}<select aria-label="Interface appearance" value={props.mode}
-      onChange={(event) => props.onChange(event.currentTarget.value === "quiet" ? "quiet" : "openclaw")}>
-      <option value="quiet">Quiet Desk</option><option value="openclaw">OpenClaw</option>
-    </select></label>
-    <p class="lazykins-note">{new Text("Saved for this browser and profile.")}</p>
-    <Show when={props.error}><p role="alert">{props.error}</p></Show>
-      <p>{new Text("Ask the agent to enable Sanitize for this workspace. It also affects other channels.")}</p>
-  </section>;
+export function DeskModeEntries(props: { mode: DeskMode; compact?: boolean; onChange?: (mode: DeskMode) => string | null }) {
+  const [error, setError] = createSignal<string | null>(null);
+  return <div class={["lazykins-mode-entries", {"lazykins-mode-entries--compact": props.compact}]}>
+    <Show when={props.mode !== "quiet"}><button type="button" aria-label="Enter Quiet Desk" title="Enter Quiet Desk" disabled={!props.onChange}
+      onClick={() => setError(props.onChange?.("quiet") ?? null)}>{new Text(props.compact ? "QD" : "Enter Quiet Desk")}</button></Show>
+    <Show when={props.mode !== "command"}><button type="button" aria-label="Enter Command Deck" title="Enter Command Deck" disabled={!props.onChange}
+      onClick={() => setError(props.onChange?.("command") ?? null)}>{new Text(props.compact ? "CD" : "Enter Command Deck")}</button></Show>
+    <Show when={error()}><p class="lazykins-entry-error" role="alert">{error()}</p></Show>
+  </div>;
 }
 export function DeskCompatibilityFailure(props: { version: string }) {
   return <main class="lazykins-compatibility" role="alert">
