@@ -379,6 +379,7 @@ try {
   await crewPage.locator(".command-helm-child").getByText("completed",{exact:true}).waitFor();
   await crewPage.locator(".command-crew-roster").getByRole("button",{name:"Chat with Jace",exact:true}).click();
   await crewPage.locator(".command-deck-contact").getByText("Jace",{exact:false}).waitFor();
+  console.log("Crew Jace navigation",crewPage.url(),JSON.stringify(await crewGateway.getRequests("chat.startup")));
   await crewComposerFor("jace").fill("Synthetic direct message to Jace");
   await crewPage.getByRole("button",{name:"Send message",exact:true}).click();
   assert.equal(((await crewGateway.waitForRequest("chat.send")).params as {sessionKey:string}).sessionKey,"agent:jace:main");
@@ -438,7 +439,7 @@ try {
   console.error("Mode verification failed:",error);
   if(activePage && !activePage.isClosed()) {
     await activePage.screenshot({path:path.join(proof,"failure.png"),timeout:5000}).catch(()=>{});
-    await fs.writeFile(path.join(proof,"failure.txt"),String(error)+"\n"+await activePage.locator("body").innerText({timeout:5000}).catch(String));
+    await fs.writeFile(path.join(proof,"failure.txt"),String(error)+"\nURL: "+activePage.url()+"\n"+JSON.stringify(await activePage.locator("textarea").evaluateAll(elements=>elements.map(element=>({visible:element.getBoundingClientRect().height>0,description:element.getAttribute("aria-describedby")}))))+"\n"+await activePage.locator("body").innerText({timeout:5000}).catch(String));
   }
   throw error;
 } finally {

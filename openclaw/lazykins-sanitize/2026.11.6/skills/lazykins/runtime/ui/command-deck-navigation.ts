@@ -5,7 +5,7 @@ import { selectApplicationSession } from "../app/agent-selection.ts";
 import { loadGatewaySessionSelection, patchSettings } from "../app/settings.ts";
 import { sessionRefFromPath } from "../app-session-route-paths.ts";
 import { createChangeListeners } from "../../../src/shared/listeners.js";
-import { sessionNavigationTarget } from "../lib/sessions/route-navigation.ts";
+import { openPreferredApplicationSession, sessionNavigationTarget } from "../lib/sessions/route-navigation.ts";
 import { parseAgentSessionKey, resolveUiConversationIdentity } from "../lib/sessions/session-key.ts";
 import { getCommandCrewOwner, COMMAND_CREW_IDS } from "./command-crew-owner.ts";
 import { consumeDeckEntry, initialDeskLocation,  type DeskNavigation } from "./desk-session-preferences.ts";
@@ -72,9 +72,7 @@ export class CommandDeckNavigation {
     const identity=resolveUiConversationIdentity({agentsList:this.context.agents.state.agentsList,hello:this.context.gateway.snapshot.hello},sessionKey || "main",agentId);
     try { rememberDeckChoice(this.context.gateway.connection.gatewayUrl,this.context.gateway.snapshot.selfUser?.id,agentId); }
     catch(error) {this.state.error=error instanceof Error ? error.message : "The selected agent could not be saved.";}
-    selectApplicationSession({selection:this.context.agentSelection,gateway:this.context.gateway,sessionKey:identity.sessionKey,agentId});
-    const target=sessionNavigationTarget({context:this.context,face:"chat",sessionKey:identity.sessionKey,agentId});
-    this.context.navigate("chat",target.options);this.changes.publish();
+    openPreferredApplicationSession(this.context,identity.sessionKey,agentId);this.changes.publish();
   }
   makeDefault(agentId:string):void {
     if(!this.current() || !this.admitted(agentId)) return;
