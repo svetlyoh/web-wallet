@@ -13,7 +13,7 @@ import { consumeDeckEntry, deskPreferenceKey, initialDeskLocation, type DeskNavi
 import { quietDeskStorageKey, readQuietDeskMode } from "./quiet-desk-preference.ts";
 
 export class CommandDeckNavigation {
-  readonly state={error:"",defaultAgentId:"helm",explicitOther:null as string|null};
+  readonly state={error:"",defaultAgentId:"helm",explicitOther:null as string|null,otherExpanded:false};
   private readonly changes=createChangeListeners({snapshot:true});
   readonly subscribe=this.changes.subscribe;
   private scope="";
@@ -34,7 +34,7 @@ export class CommandDeckNavigation {
   start():()=>void {
     this.scope=quietDeskStorageKey(this.context);
     this.ordinary=loadGatewaySessionSelection(this.context.gateway.connection.gatewayUrl);
-    this.applied=false;this.state.error="";this.state.explicitOther=null;
+    this.applied=false;this.state.error="";this.state.explicitOther=null;this.state.otherExpanded=false;
     this.entryIntent=this.context.agentSelection.intentRevision;
     const url=this.context.gateway.connection.gatewayUrl;const profile=this.context.gateway.snapshot.selfUser?.id;
     const savedDefault=readDeckDefault(url,profile),optIn=readDeckStartupOptIn(url,profile);
@@ -65,6 +65,7 @@ export class CommandDeckNavigation {
     })];
     this.reconcile();return ()=>this.stop();
   }
+  toggleOthers():void {this.state.otherExpanded=!this.state.otherExpanded;this.changes.publish();}
   private current():boolean {return this.scope===quietDeskStorageKey(this.context) && readQuietDeskMode(this.context)==="command";}
   private remember(id:string):void {
     try {rememberDeckChoice(this.context.gateway.connection.gatewayUrl,this.context.gateway.snapshot.selfUser?.id,id);}

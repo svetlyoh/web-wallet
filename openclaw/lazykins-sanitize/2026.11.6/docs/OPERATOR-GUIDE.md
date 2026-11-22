@@ -1,3 +1,7 @@
+# Recommended: guided Command Deck setup
+
+For a fresh Ubuntu installation, use [the R7.1 first-run guide](COMMAND-DECK-R7.1-CREW-REGISTRATION.md) and run `python3 setup-command-deck.py --profile default --state-dir "$HOME/.openclaw"` from the extracted combined ZIP. The older skill-only steps below do not register the crew.
+
 # LazyKins and Sanitize â€” Linux operator guide
 
 This package contains exactly two OpenClaw skills: `lazykins` (displayed as LazyKins) and `sanitize`. It was built for **2026.11.6 only**. Nothing is installed or activated on a live Linux host by creating this Windows package.

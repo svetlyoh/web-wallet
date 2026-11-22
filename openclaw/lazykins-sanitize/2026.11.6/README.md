@@ -2,11 +2,30 @@
 
 Updated and verified November 20, 2026 against stable [OpenClaw 2026.11.6](https://github.com/openclaw/openclaw/releases/tag/v2026.11.6), source `06afb10d3272cc9deaf38ca6a3b7b839d5935638`. Newer beta releases are excluded.
 
-[Download Command Deck Helm R7](https://github.com/svetlyoh/web-wallet/releases/tag/lazykins-commanddeck-helm-2026.11.6-r7). Use the combined `LazyKins-CommandDeck-Helm-2026.11.6-r7.1.zip`; this source folder does not contain the generated UI payload.
+[Download Command Deck Helm R7.1](https://github.com/svetlyoh/web-wallet/releases/tag/lazykins-commanddeck-helm-2026.11.6-r7.1). Use the combined `LazyKins-CommandDeck-Helm-2026.11.6-r7.1.zip`; this source folder does not contain the generated UI payload.
 
 [Full installation and rollback guide](docs/OPERATOR-GUIDE.md) · [Verification](docs/VERIFICATION.md)
 
-## Install on Linux
+## Fresh Ubuntu installation: guided setup
+
+Requires already onboarded **OpenClaw 2026.11.6**, a ready configured default model, its native managed Gateway service, and Python 3.11+. Run as the Ubuntu service user, without sudo. This ZIP does not install the engine or create provider/bot accounts.
+
+From a fresh extracted combined ZIP directory:
+
+```bash
+sha256sum -c SHA256SUMS
+python3 setup-command-deck.py --profile default --state-dir "$HOME/.openclaw"
+```
+
+Use the actual service profile/state directory if different. Optional `--config-path` and `--openclaw` select custom targets. The wizard checks service identity and model readiness, requests maintenance approval, and restores an originally running service on failure/cancellation. It separately reviews Templates Labs and each agent Add, verifies all three bootstrap/avatar hashes and separate workspaces, installs both skills, and enables the built UI only after all three native agents are verified. Existing verified renamed crew are reused; collisions, edited/partial agents and shared workspaces require manual review.
+
+Type each displayed approval after reviewing it; there is no blanket --yes. Declining an agent retains completed agents and stops before UI activation. Rerunning reuses verified agents. Private receipt paths are printed. Inspect an uncertain Add before retrying.
+
+After service restoration, a separate optional Helm-to-Jace/Cruz target permission review uses native config hash checking and preserves existing effective targets. Declining leaves direct crew chats available; approve later in Crew setup & permissions. No model task starts during setup. Effective tool/sandbox/provider policies still apply.
+
+Open the usual dashboard, reload and select **Enter Command Deck**. Helm is the initial crew chat; Jace/Cruz are independent native agents. Ordinary main/default/models/channels stay intact. Sanitize remains separately controlled. An initially stopped service stays stopped unless you approve starting it. Unmanaged/mismatched services use the manual procedure below.
+
+## Manual skill-only installation on Linux
 
 Copy `LazyKins-CommandDeck-Helm-2026.11.6-r7.1.zip` to Downloads. Run as the same Linux user that runs OpenClaw, without sudo. Requires Python 3.11+ and OpenClaw **2026.11.6**.
 

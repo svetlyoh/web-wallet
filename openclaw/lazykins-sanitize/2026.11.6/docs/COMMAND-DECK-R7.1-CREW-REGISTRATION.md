@@ -1,6 +1,44 @@
 # Command Deck R7.1: reviewed crew registration and main guard
 
-Target: OpenClaw 2026.11.6 only. This is an incremental update to R7. The three original agent Templates and artwork are unchanged. Existing main/whatnot-expert workspaces, histories, models, providers, skills and channel bindings are not replaced. No external bot accounts are created.
+Target: OpenClaw 2026.11.6 only. This preserves R7 and adds a guided fresh-install path. The three original agent Templates and artwork are unchanged. Existing main/whatnot-expert workspaces, histories, models, providers, skills and channel bindings are not replaced. No external bot accounts are created.
+
+## Fresh Ubuntu installation: one guided setup command
+
+Use an already onboarded **OpenClaw 2026.11.6** installation with a configured, ready default model and its native managed Gateway service. Run as its Ubuntu user, without sudo. Python 3.11+ is required. This ZIP does not install the OpenClaw engine or create provider/bot accounts.
+
+After downloading and verifying the release ZIP, extract it into a new directory, enter that directory, and run:
+
+```bash
+sha256sum -c SHA256SUMS
+python3 setup-command-deck.py --profile default --state-dir "$HOME/.openclaw"
+```
+
+Use the actual service profile/state directory if different; `--config-path` and `--openclaw` are available for custom targets. The wizard verifies the managed service and model readiness, asks for a maintenance window, stops only that verified native service, and restores an originally running service even if a later step fails. It separately reviews Templates Labs and each native agent Add, verifies all three bootstrap/avatar hashes and distinct workspaces, installs both skills, and enables the built UI only after all three agents are verified. Existing verified renamed crew are reused. Edited/colliding/shared agents require manual review, not overwrite or suffixes.
+
+Type each displayed approval yourself after reviewing it; there is no blanket --yes flag. Declining an agent stops setup before UI activation and retains completed native agents. Rerunning reuses those verified agents. Receipt paths are printed and remain private under the selected state directory's lazykins folder. An uncertain Add must be inspected before retrying.
+
+After service restoration, the wizard offers a **separate** narrow Helm-to-Jace/Cruz target permission review using native config hash checking. Declining it leaves direct crew chats available; approve it later in Crew setup & permissions. An allowlist does not override tool/sandbox/provider policy, and no model task is started during installation.
+
+Open the usual OpenClaw dashboard, reload it and select **Enter Command Deck**. Helm is the initial verified crew chat. Jace and Cruz are independently selectable native agents. Ordinary main/default/models/channel bindings stay unchanged. Sanitize remains separately controlled. A service that was stopped initially stays stopped unless you explicitly approve starting it. Unmanaged or mismatched service installations use the manual procedure below.
+
+## Fresh Ubuntu installation: guided setup
+
+Requires already onboarded **OpenClaw 2026.11.6**, a ready configured default model, its native managed Gateway service, and Python 3.11+. Run as the Ubuntu service user, without sudo. This ZIP does not install the engine or create provider/bot accounts.
+
+From a fresh extracted combined ZIP directory:
+
+```bash
+sha256sum -c SHA256SUMS
+python3 setup-command-deck.py --profile default --state-dir "$HOME/.openclaw"
+```
+
+Use the actual service profile/state directory if different. Optional `--config-path` and `--openclaw` select custom targets. The wizard checks service identity and model readiness, requests maintenance approval, and restores an originally running service on failure/cancellation. It separately reviews Templates Labs and each agent Add, verifies all three bootstrap/avatar hashes and separate workspaces, installs both skills, and enables the built UI only after all three native agents are verified. Existing verified renamed crew are reused; collisions, edited/partial agents and shared workspaces require manual review.
+
+Type each displayed approval after reviewing it; there is no blanket --yes. Declining an agent retains completed agents and stops before UI activation. Rerunning reuses verified agents. Private receipt paths are printed. Inspect an uncertain Add before retrying.
+
+After service restoration, a separate optional Helm-to-Jace/Cruz target permission review uses native config hash checking and preserves existing effective targets. Declining leaves direct crew chats available; approve later in Crew setup & permissions. No model task starts during setup. Effective tool/sandbox/provider policies still apply.
+
+Open the usual dashboard, reload and select **Enter Command Deck**. Helm is the initial crew chat; Jace/Cruz are independent native agents. Ordinary main/default/models/channels stay intact. Sanitize remains separately controlled. An initially stopped service stays stopped unless you approve starting it. Unmanaged/mismatched services use the manual procedure below.
 
 ## New behavior
 
