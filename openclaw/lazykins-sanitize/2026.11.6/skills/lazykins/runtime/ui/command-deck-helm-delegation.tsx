@@ -1,3 +1,4 @@
+import { getCommandDeckNavigation } from "./command-deck-navigation.ts";
 import { createEffect, For, onSettled, Show } from "solid-js";
 import { createChangeListeners } from "../../../src/shared/listeners.js";
 import { useApplication } from "../lib/reactive/context.ts";
@@ -16,7 +17,7 @@ export function HelmDelegationBar(props:{sessionKey:string;agentId:string}) {
   const gateway=projectOwner(context.gateway,owner=>owner.snapshot);
   const crew=getCommandCrewOwner(context);const discovery=projectOwner(crew,owner=>owner.state);
   createEffect(()=>({sessionKey:props.sessionKey,agentId:props.agentId}),input=>data.sync({...input,presented:true}));
-  onSettled(()=>()=>data.dispose());
+  onSettled(()=>{const release=getCommandDeckNavigation(context).bindChildReads(key=>data.rows.some(row=>row.session.key===key && Boolean(COMMAND_CREW_IDS.find(id=>crew.verifiedAgentId(id)===parseAgentSessionKey(key)?.agentId))));return ()=>{release();data.dispose();};});
   const active=()=>state.read().rows.filter(row=>isUnfinishedSubagent(row.session)).length;
   const nativeActive=()=>state.read().nativeSnapshot?.children.filter(child=>child.status==="running").length ?? 0;
   const metadata=(key:string)=>{const id=parseAgentSessionKey(key)?.agentId;discovery.revision();const logical=COMMAND_CREW_IDS.find(candidate=>crew.verifiedAgentId(candidate)===id);return logical ? discovery.read().catalog?.agents.find(agent=>agent.id===logical) : undefined;};

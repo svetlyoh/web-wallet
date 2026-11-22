@@ -4,6 +4,7 @@ import { deskPreferenceKey, readDeskMode, type DeskNavigation } from "./desk-ses
 const navigation = new Map<string, DeskNavigation>();
 export function readDeckNavigation(gatewayUrl: string, profileId: string | null | undefined): DeskNavigation | null {
   const key = deskPreferenceKey(gatewayUrl, profileId) + ":command-navigation";
+  if(navigation.has(key))return navigation.get(key)!;
   try {
     const value = JSON.parse(getSafeLocalStorage()?.getItem(key) ?? "null");
     if (value && typeof value.sessionKey === "string" && typeof value.lastActiveSessionKey === "string" &&

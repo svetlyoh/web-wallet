@@ -1,4 +1,4 @@
-import { For, onSettled, Show } from "solid-js";
+import { createSignal, For, onSettled, Show } from "solid-js";
 import { useApplication } from "../lib/reactive/context.ts";
 import { projectOwner } from "../lib/reactive/projection.ts";
 import { getCommandCrewOwner, COMMAND_CREW_IDS, commandCrewAssetPath } from "./command-crew-owner.ts";
@@ -11,6 +11,7 @@ export function CommandDeckCrewRoster() {
   const selected=projectOwner(context.agentSelection,owner=>owner.state.selectedId);
   const prefs=projectOwner(navigation,owner=>owner.state);
   onSettled(()=>crew.bind());
+  const [showOthers,setShowOthers]=createSignal(false);
   const verified=(id:typeof COMMAND_CREW_IDS[number])=>{discovery.revision();return crew.verifiedAgentId(id);};
   return <section class="command-crew-roster" aria-label="Command Deck agents">
     <h2>{new Text("Helm’s Crew")}</h2>
@@ -24,16 +25,20 @@ export function CommandDeckCrewRoster() {
         <span><strong>{metadata()?.name ?? id[0].toUpperCase()+id.slice(1)}</strong><small>{metadata()?.role ?? "Crew setup"}</small><small>{status().state === "verified" ? "Installed" : status().state === "missing" ? "Add agent" : status().state === "checking" ? "Checking…" : "Needs review"}</small></span>
       </button>;
     }}</For>
+    <button type="button" class="command-crew-secondary" aria-expanded={showOthers() ? "true" : "false"} onClick={()=>setShowOthers(!showOthers())}>{new Text("Show other OpenClaw agents")}</button>
+    <Show when={showOthers()}>
     <h2>{new Text("Other OpenClaw agents")}</h2>
     <For each={agents.read().filter(agent=>!COMMAND_CREW_IDS.some(id=>verified(id)===agent.id))} keyed={agent=>agent.id}>{agent=>
-      <button type="button" class={["command-crew-other",{active:selected.read()===agent().id}]} onClick={()=>navigation.openAgent(agent().id,true)}>
-        <span>{agent().name || agent().identity?.name || agent().id}</span>
+      <button type="button" aria-label={`Chat with ${agent().id==='main' ? 'Main' : agent().name || agent().id}`} class={["command-crew-other",{active:selected.read()===agent().id}]} onClick={()=>navigation.openAgent(agent().id,true)}>
+        <span>{agent().id==='main' ? 'OpenClaw Main (main)' : agent().name || agent().identity?.name || agent().id}</span>
       </button>
     }</For>
+    </Show>
     <button type="button" class="command-crew-secondary" onClick={()=>crew.dismiss(false)}>{new Text("Crew setup & permissions")}</button>
     <Show when={verified("helm")}><button type="button" class="command-crew-secondary" onClick={()=>{const id=verified("helm");if(id)navigation.openAgent(id);}}>{new Text("Back to Helm")}</button></Show>
     <p class="command-deck-note">{new Text("Default: ")}{prefs.read().defaultAgentId}</p>
-    <button type="button" class="command-crew-secondary" disabled={!selected.read()} onClick={()=>{const id=selected.read();if(id)navigation.makeDefault(id);}}>{new Text("Use selected agent as default")}</button>
+    <button type="button" class="command-crew-secondary" disabled={!navigation.guardStatus().allowed} onClick={()=>{const id=selected.read();if(id)navigation.makeDefault(id);}}>{new Text("Set selected agent as Command Deck startup")}</button>
+    <button type="button" class="command-crew-secondary" onClick={()=>navigation.resetDefault()}>{new Text("Reset startup to Helm")}</button>
     <Show when={prefs.read().error}><p role="alert">{prefs.read().error}</p></Show>
   </section>;
 }

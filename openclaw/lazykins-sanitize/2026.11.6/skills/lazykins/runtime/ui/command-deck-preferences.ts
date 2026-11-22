@@ -18,3 +18,13 @@ export function writeDeckDefault(gatewayUrl: string, profileId: string | null | 
   if (!storage) throw new Error("Allow browser storage to save the Command Deck default.");
   storage.setItem(deskPreferenceKey(gatewayUrl, profileId) + ":command-default-agent", agentId);
 }
+
+export function readDeckStartupOptIn(url:string,profile:string|null|undefined):string|null {
+  try{return getSafeLocalStorage()?.getItem(deskPreferenceKey(url,profile)+":command-startup-opt-in") || null;}catch{return null;}
+}
+export function saveDeckStartup(url:string,profile:string|null|undefined,id:string,other:boolean):void {
+  writeDeckDefault(url,profile,id);
+  const storage=getSafeLocalStorage()!;
+  storage.setItem(deskPreferenceKey(url,profile)+":command-startup-opt-in",other ? id : "");
+  storage.setItem(deskPreferenceKey(url,profile)+":command-selected-agent","");
+}

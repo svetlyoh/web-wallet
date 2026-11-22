@@ -100,6 +100,8 @@ def main():
     shutil.copy2(RUNTIME / "tests" / "verify-ui.mts", source / "ui" / "lazykins-verify.mts")
     shutil.copy2(RUNTIME / "tests" / "verify-crew-owner.mts", source / "ui" / "lazykins-crew-owner-proof.mts")
     run(["node", "--import", str(source / "scripts" / "tsx.mjs"), "lazykins-crew-owner-proof.mts", str(RUNTIME / "crew")], source / "ui")
+    shutil.copy2(RUNTIME / "tests" / "verify-session-guard.mts", source / "ui" / "lazykins-session-guard-proof.mts")
+    run(["node", "--import", str(source / "scripts" / "tsx.mjs"), "lazykins-session-guard-proof.mts"], source / "ui")
     run([shutil.which("pnpm") or "pnpm", "ui:build"], source)
     shutil.copy2(RUNTIME / "scripts" / "compress-ui.mts", source / "ui" / "lazykins-compress.mts")
     run(["node", "--import", str(source / "scripts" / "tsx.mjs"), "lazykins-compress.mts", str(source / "dist" / "control-ui")], source / "ui")
@@ -111,7 +113,7 @@ def main():
         raise ValueError("Expected one successful UI verification attempt")
     proof = successful[0].parent
     evidence = json.loads((proof / "results.json").read_text(encoding="utf-8"))
-    if evidence.get("passed") is not True or evidence.get("version") != VERSION or evidence.get("sha") != SHA or evidence.get("verifiedModes") != ["openclaw", "quiet", "command"] or evidence.get("packageRevision") != "helm-r7":
+    if evidence.get("passed") is not True or evidence.get("version") != VERSION or evidence.get("sha") != SHA or evidence.get("verifiedModes") != ["openclaw", "quiet", "command"] or evidence.get("packageRevision") != "helm-r7.1":
         raise ValueError("UI integration verification did not confirm the exact generation")
     final_proof = RUNTIME / "evidence" / "final"
     if final_proof.exists():
@@ -129,7 +131,7 @@ def main():
         shutil.copy2(RUNTIME / "assets" / "fonts" / "Inter-OFL.txt", notices / "Inter-OFL.txt")
         manifest = {"schemaVersion": 1, "version": VERSION, "sha": SHA,
                     "integration": "exact-pinned-Solid2-LazyKins-modes-overlay",
-                    "modes": ["openclaw", "quiet", "command"], "packageRevision": "helm-r7", "headerRevision": "r3",
+                    "modes": ["openclaw", "quiet", "command"], "packageRevision": "helm-r7.1", "headerRevision": "r3",
                     "testedVersions": [VERSION], "node": node,
                     "packageManager": package["packageManager"], "sourcemap": "generated upstream; omitted from payload",
                     "lockfileSha256": digest(source / "pnpm-lock.yaml"),

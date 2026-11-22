@@ -5,16 +5,20 @@ import { commandCrewAssetPath, getCommandCrewOwner, type CommandCrewMetadata } f
 
 function packageFilename(metadata:CommandCrewMetadata):string { return metadata.templatePath.slice(metadata.templatePath.lastIndexOf("/")+1); }
 function setupCommands(metadata:CommandCrewMetadata):string {
-  const file=packageFilename(metadata);
-  const verify=metadata.templateSha256 ? `echo '${metadata.templateSha256}  ${file}' | sha256sum -c -\n` : "";
-  return `${verify}OC_PROFILE='default' # Match the selected Gateway's actual profile\nCREW_REVIEW="$(mktemp -d "$HOME/CommandDeck-${metadata.id}-review.XXXXXX")"\ntar -xzf "./${file}" -C "$CREW_REVIEW"\nSOURCE="$CREW_REVIEW/package"\nopenclaw --profile "$OC_PROFILE" templates inspect "$SOURCE"\nopenclaw --profile "$OC_PROFILE" templates add "$SOURCE" --agent-id ${metadata.id} --dry-run --json\n\n# Only after reviewing and approving this agent:\nopenclaw --profile "$OC_PROFILE" templates add "$SOURCE" --agent-id ${metadata.id} --json`;
+  return `OC_PROFILE='default' # Match the actual service profile
+OC_STATE_DIR="$HOME/.openclaw" # Match its state directory
+CREW_CTL="$HOME/.openclaw/workspace/skills/lazykins/scripts/crew-register.py" # Adjust to the installed LazyKins skill
+REVIEW_DIR="$(mktemp -d "$HOME/CommandDeck-${metadata.id}-review.XXXXXX")"
+python3 "$CREW_CTL" review ${metadata.id} --profile "$OC_PROFILE" --state-dir "$OC_STATE_DIR" --receipt "$REVIEW_DIR/${metadata.id}-review.json"`;
 }
+function applyCommand(metadata:CommandCrewMetadata):string {return `python3 "$CREW_CTL" apply ${metadata.id} --profile "$OC_PROFILE" --state-dir "$OC_STATE_DIR" --receipt "$REVIEW_DIR/${metadata.id}-review.json" --approve-agent ${metadata.id}`;}
 export function CommandCrewSetup(props:{onOpenAgent?:(agentId:string)=>void;onClose?:()=>void}) {
   const context=useApplication();
   const owner=getCommandCrewOwner(context);
   const projection=projectOwner(owner,current=>current.state);
   const state=()=>projection.read();
   const [reviewing,setReviewing]=createSignal(false);
+  const [approved,setApproved]=createSignal<string[]>([]);
   const [skipJace,setSkipJace]=createSignal(false);
   const [skipCruz,setSkipCruz]=createSignal(false);
   const selectedTargets=()=>{state();return [...(!skipJace() && owner.verifiedAgentId("jace") ? ["jace" as const] : []),...(!skipCruz() && owner.verifiedAgentId("cruz") ? ["cruz" as const] : [])];};
@@ -41,13 +45,16 @@ export function CommandCrewSetup(props:{onOpenAgent?:(agentId:string)=>void;onCl
         <Show when={state().statuses[metadata().id].state === "verified"}><button type="button" class="btn" disabled={!props.onOpenAgent} onClick={()=>{const id=owner.verifiedAgentId(metadata().id);if(id)props.onOpenAgent?.(id);}}>{new Text(`Chat with ${metadata().name}`)}</button></Show>
         <Show when={metadata().id === "jace"}><label class="command-crew-skip"><input type="checkbox" checked={skipJace()} onChange={event=>{setSkipJace(event.currentTarget.checked);owner.cancelDelegationReview();}} />{new Text("Skip Jace for now")}</label></Show>
         <Show when={metadata().id === "cruz"}><label class="command-crew-skip"><input type="checkbox" checked={skipCruz()} onChange={event=>{setSkipCruz(event.currentTarget.checked);owner.cancelDelegationReview();}} />{new Text("Skip Cruz for now")}</label></Show>
-        <Show when={reviewing() && (metadata().id === "helm" || (metadata().id === "jace" ? !skipJace() : !skipCruz()))}>
+        <Show when={reviewing() && state().statuses[metadata().id].state!=="verified" && (metadata().id === "helm" || (metadata().id === "jace" ? !skipJace() : !skipCruz()))}>
           <details class="command-crew-review"><summary>{new Text(`Review ${metadata().name} addition`)}</summary>
             <p>{new Text(`Template ${metadata().packageName} - ${metadata().version}. Proposed agent ID: ${metadata().id}. It gets its own workspace and chat; no plugins, model selection, schedules or channel bindings are added.`)}</p>
             <Show when={state().statuses[metadata().id].state === "review"} fallback={<>
               <a class="btn" href={commandCrewAssetPath(context,metadata().templatePath)} download={packageFilename(metadata())}>{new Text(`Download ${metadata().name} template`)}</a>
               <p class="command-crew-note">{new Text("On the Gateway host, set OC_PROFILE to its actual service profile and change into the folder containing this download. Stop that selected Gateway using its existing service manager before running native local Template Add. Inspect and review the dry-run output for this agent; run the final Add command only if you approve it.")}</p>
+              <p>{new Text("The helper uses the canonical Template already installed with LazyKins. First capture a baseline with the host guide, then stop the original Gateway service. Review the native inspection, workspace, warnings and dry-run printed by this command. It does not add this agent.")}</p>
               <pre><code>{setupCommands(metadata())}</code></pre>
+              <label class="command-crew-skip"><input type="checkbox" checked={approved().includes(metadata().id)} onChange={event=>setApproved(event.currentTarget.checked ? [...approved(),metadata().id] : approved().filter(id=>id!==metadata().id))}/>{new Text(`I reviewed ${metadata().name} files, workspace, warnings and native dry-run`)}</label>
+              <Show when={approved().includes(metadata().id)}><p>{new Text("Separate approval: run this only for this reviewed agent. It rechecks the roster, canonical source and native plan. Any conflict or uncertain previous outcome stops instead of repeating Add.")}</p><pre><code>{applyCommand(metadata())}</code></pre></Show>
             </>}><p>{new Text("This ID is already occupied. Review that existing agent in native settings and decide whether to use it. Command Deck will not replace, rename or overwrite it; do not run Add over that ID.")}</p></Show>
           </details>
         </Show>

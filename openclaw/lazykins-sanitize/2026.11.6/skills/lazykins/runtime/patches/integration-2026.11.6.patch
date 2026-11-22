@@ -1,3 +1,23 @@
+diff --git a/ui/src/api/gateway.ts b/ui/src/api/gateway.ts
+index 18148532..0b1bfe2d 100644
+--- a/ui/src/api/gateway.ts
++++ b/ui/src/api/gateway.ts
+@@ -72,6 +72,7 @@ export type GatewayBrowserClientOptions = GatewayBrowserConnectOptions & {
+   onReconnectScheduled?: (delayMs: number) => void;
+   onGap?: (info: { expected: number; received: number }) => void;
+   onRequestTiming?: (timing: GatewayProtocolRequestTiming) => void;
++  beforeRequest?: (method: string, params?: unknown) => void;
+   onRecoveryScopeChange?: () => void;
+ };
+ 
+@@ -686,6 +687,7 @@ export class GatewayBrowserClient {
+     params?: unknown,
+     options?: GatewayProtocolRequestOptions,
+   ): Promise<T> {
++    try { this.opts.beforeRequest?.(method, params); } catch (error) { return Promise.reject(error); }
+     const requestOptions: GatewayProtocolRequestOptions = {
+       ...options,
+       onSent: (requestId) => {
 diff --git a/ui/src/app/app-shell-view-state.ts b/ui/src/app/app-shell-view-state.ts
 index a9155b6d..49d0bfff 100644
 --- a/ui/src/app/app-shell-view-state.ts
@@ -62,7 +82,7 @@ index a9155b6d..49d0bfff 100644
      routeReady: host.routeState.routeId !== undefined || host.routeState.routeFailed,
      workspaceChromeVisible: host.workspaceChromeVisible,
 diff --git a/ui/src/app/app-shell-view.tsx b/ui/src/app/app-shell-view.tsx
-index ca041699..0f89e75d 100644
+index ca041699..4df3a4f9 100644
 --- a/ui/src/app/app-shell-view.tsx
 +++ b/ui/src/app/app-shell-view.tsx
 @@ -1,4 +1,6 @@
@@ -85,10 +105,11 @@ index ca041699..0f89e75d 100644
  const NavigationSidebar = lazy(async () => {
    await import("../components/app-sidebar.tsx");
    // Keep the native host that callers assign before registration and move between layouts.
-@@ -97,6 +105,13 @@ export function ApplicationShell(props: {
+@@ -97,6 +105,14 @@ export function ApplicationShell(props: {
      props.host.shellRevision();
      return readShellView(props.host);
    });
++  const [commandChatBlocked, setCommandChatBlocked] = createSignal(true);
 +  const [commandQueueOpen, setCommandQueueOpen] = createSignal<boolean | undefined>(undefined);
 +  const [deskError, setDeskError] = createSignal<string | null>(null);
 +  const changeDeskMode = (mode: DeskMode) => {
@@ -99,7 +120,7 @@ index ca041699..0f89e75d 100644
    const sessionOwner = createMemo(() => view().context.sessions);
    const sessionRows = createMemo(() =>
      projectOwner(sessionOwner(), (sessions) => sessions.state.result?.sessions),
-@@ -145,6 +160,11 @@ export function ApplicationShell(props: {
+@@ -145,6 +161,11 @@ export function ApplicationShell(props: {
          class={[
            "shell",
            {
@@ -111,7 +132,7 @@ index ca041699..0f89e75d 100644
              "shell--navigation-rail": view().railAvailable,
              "shell--chat": view().chatLikeRoute,
              "shell--nav-collapsed": view().navCollapsed,
-@@ -161,6 +181,7 @@ export function ApplicationShell(props: {
+@@ -161,6 +182,7 @@ export function ApplicationShell(props: {
              "shell--nav-resizing": navResizing(),
            },
          ]}
@@ -119,7 +140,7 @@ index ca041699..0f89e75d 100644
          data-background-managed={
            !view().backgroundReady || view().uiSettings.background !== undefined ? "" : undefined
          }
-@@ -207,6 +228,7 @@ export function ApplicationShell(props: {
+@@ -207,6 +229,7 @@ export function ApplicationShell(props: {
                  />
                </Show>
              )}
@@ -127,11 +148,11 @@ index ca041699..0f89e75d 100644
              prop:onOpenPalette={props.host.openPalette}
              prop:onToggleDrawer={props.host.toggleNavigationSurface}
            />
-@@ -397,6 +419,12 @@ export function ApplicationShell(props: {
+@@ -397,6 +420,12 @@ export function ApplicationShell(props: {
            <Show when={view().embedNavigation}>
              <LazySettingsSidebar host={props.host} sidebarProps={view().settingsSidebarProps} />
            </Show>
-+          <Show when={view().commandDesk && !view().settingsTakeover}><CommandDeckSurface sessionKey={(props.host.shellRevision(),props.host.activeSessionKey)} /></Show>
++          <Show when={view().commandDesk && !view().settingsTakeover}><CommandDeckSurface onGuardChange={setCommandChatBlocked} sessionKey={(props.host.shellRevision(),props.host.activeSessionKey)} /></Show>
 +          <Show when={view().quietDesk && view().activeRoute === "sessions"}><QuietDeskBackToChat /></Show>
 +          <Show when={view().activeRoute === "appearance"}>
 +            <DeskAppearance mode={view().deskMode} error={deskError()} onChange={changeDeskMode} />
@@ -140,15 +161,31 @@ index ca041699..0f89e75d 100644
            <ShellLayoutProvider
              value={{
                get owner() {
-@@ -420,6 +448,7 @@ export function ApplicationShell(props: {
+@@ -407,9 +436,11 @@ export function ApplicationShell(props: {
+               },
+             }}
+           >
++            <div class="command-deck-chat-region" style={{ display: view().commandDesk && commandChatBlocked() ? "none" : "contents" }} hidden={view().commandDesk && commandChatBlocked()} inert={view().commandDesk && commandChatBlocked()}>
+             <RouterOutlet
+               ref={(element) => (props.host.routeOutlet = element)}
+-              inert={view().reloadRequired}
++              presented={!(view().commandDesk && commandChatBlocked())}
++              inert={view().reloadRequired || (view().commandDesk && commandChatBlocked())}
+               aria-disabled={view().reloadRequired ? "true" : undefined}
+               router={view().runtime.router}
+               retryContext={view().context}
+@@ -418,8 +449,10 @@ export function ApplicationShell(props: {
+               onNotFound={() => props.host.shellNavigation.recoverNotFoundRoute()}
+               notFoundRecoveryReady={view().gatewayConnected}
              />
++            </div>
            </ShellLayoutProvider>
          </main>
 +        <Show when={view().commandDesk && !view().settingsTakeover}><CommandDeckQueue sessionKey={(props.host.shellRevision(), props.host.activeSessionKey)} open={commandQueueOpen()} onOpenChange={setCommandQueueOpen} /></Show>
          <span class="sr-only" role="status" aria-live="polite" aria-atomic="true">
            {connectionAnnouncement()}
          </span>
-@@ -541,6 +570,9 @@ export function ApplicationShell(props: {
+@@ -541,6 +574,9 @@ export function ApplicationShell(props: {
            return null;
          }}
        </Show>
@@ -158,7 +195,7 @@ index ca041699..0f89e75d 100644
        <Show when={view().routeReady} fallback={<ConnectingSplash />}>
          <PluginSurface
            surface="workspace"
-@@ -562,6 +594,8 @@ export function ApplicationShell(props: {
+@@ -562,6 +598,8 @@ export function ApplicationShell(props: {
            renderDefault={() => workspace}
          />
        </Show>
@@ -167,6 +204,60 @@ index ca041699..0f89e75d 100644
      </>
    );
  }
+diff --git a/ui/src/app/gateway-store.ts b/ui/src/app/gateway-store.ts
+index 007e6ef4..d9d973b3 100644
+--- a/ui/src/app/gateway-store.ts
++++ b/ui/src/app/gateway-store.ts
+@@ -1,6 +1,8 @@
++import { deskNavigation } from "../lazykins/desk-navigation-adapter.ts";
+ import {
+   ConnectErrorDetailCodes,
+   gatewayCredentialScope,
++  gatewayOriginScope,
+   isRetryableGatewayStartupUnavailableError,
+   readControlUiBuildMismatchId,
+ } from "@openclaw/gateway-client/browser";
+@@ -399,6 +401,7 @@ export function createApplicationGateway(
+       });
+     };
+     const clientOptions: GatewayBrowserClientOptions = {
++      beforeRequest: (method, params) => deskNavigation.request(gatewayOriginScope(nextConnection.gatewayUrl), snapshot.selfUser?.id, method, params),
+       ...credentials.prepare(nextConnection, credentialsChanged, client),
+       clientName: options.clientOptions?.clientName ?? "openclaw-control-ui",
+       clientVersion: CONTROL_UI_BUILD_INFO.version ?? "dev",
+diff --git a/ui/src/app/router-outlet.tsx b/ui/src/app/router-outlet.tsx
+index cfe90515..f75b7686 100644
+--- a/ui/src/app/router-outlet.tsx
++++ b/ui/src/app/router-outlet.tsx
+@@ -126,6 +126,7 @@ function renderRouterOutlet(
+ }
+ 
+ export type RouterOutletProps = {
++  presented?: boolean;
+   inert?: boolean;
+   "aria-disabled"?: "true" | "false";
+   router?: ApplicationRouter;
+@@ -492,9 +493,9 @@ export function RouterOutlet(props: RouterOutletProps): SolidJSX.Element {
+           <RoutePresentation
+             ref={(element) => (retainedRegion = element)}
+             presentation
+-            presented={presentation().presented}
++            presented={presentation().presented && props.presented !== false}
+             renderValue={() =>
+-              presentation().retained?.render(presentation().presented) ?? { state: "empty" }
++              presentation().retained?.render(presentation().presented && props.presented !== false) ?? { state: "empty" }
+             }
+           />
+         )}
+@@ -502,7 +503,7 @@ export function RouterOutlet(props: RouterOutletProps): SolidJSX.Element {
+       <Show when={Boolean(presentation().transient)}>
+         <RoutePresentation
+           ref={(element) => (transientRegion = element)}
+-          renderValue={() => presentation().transient?.render(true) ?? { state: "empty" }}
++          renderValue={() => presentation().transient?.render(props.presented !== false) ?? { state: "empty" }}
+         />
+       </Show>
+       <Show when={presentation().waiting}>
 diff --git a/ui/src/app/settings.ts b/ui/src/app/settings.ts
 index 2b09504f..c17ad6a2 100644
 --- a/ui/src/app/settings.ts

@@ -10,10 +10,10 @@
   "voiceMechanism": "agent-workspace-SOUL-marked-policy",
   "linuxDeploymentVerified": false,
   "ordinaryModelResponsesVerified": false,
-  "status": "production build and browser fixtures passed",
+  "status": "Incremental crew registration and main guard verification pending",
   "futureUpdatePolicy": "Retain files; validate each tagged release before admitting it.",
-  "browserFixtureVerified": true,
-  "packageRevision": "helm-r7",
+  "browserFixtureVerified": false,
+  "packageRevision": "helm-r7.1",
   "requestedModes": [
     "openclaw",
     "quiet",

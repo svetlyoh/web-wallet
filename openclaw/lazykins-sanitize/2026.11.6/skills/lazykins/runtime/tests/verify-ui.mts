@@ -224,6 +224,9 @@ try {
   const commandSockets=await commandGateway.getSocketCount();
   const queueSurface=commandPage.locator(".command-deck-queue:visible");
   await commandPage.getByRole("button",{name:"Enter Command Deck",exact:true}).click();
+  await commandPage.getByRole("button",{name:"Show other OpenClaw agents",exact:true}).click();
+  await commandPage.getByRole("button",{name:"Chat with Main",exact:true}).click();
+  await commandPage.getByRole("button",{name:"Not now",exact:true}).click();
   await commandPage.locator(".shell--command-deck").waitFor();
   await commandGateway.waitForRequest("commanddesk.tasks.list");
   await commandPage.locator(".command-deck-task:visible").getByText("Inspect draft",{exact:true}).waitFor();
@@ -277,6 +280,10 @@ try {
     console.log("Split mode transition:",button);
     await commandPage.getByRole("button",{name:button,exact:true}).click();
     console.log("Clicked transition:",button);
+    if(button==="Enter Command Deck"){
+      await commandPage.getByRole("button",{name:"Show other OpenClaw agents",exact:true}).click();
+      await commandPage.getByRole("button",{name:"Chat with Main",exact:true}).click();
+    }
     const remembered=await commandPage.evaluate(()=>((window as Window & {modePanes?:Element[]}).modePanes || []).map(element=>({connected:element.isConnected,value:(element as HTMLTextAreaElement).value})));
     assert.deepEqual(remembered,[{connected:true,value:"Independent left draft"},{connected:true,value:"Independent right draft"}]);
   }
@@ -406,11 +413,30 @@ try {
   await crewPage.getByRole("button",{name:"Enter Command Deck",exact:true}).click();
   await crewPage.locator(".command-deck-contact").getByText("Jace",{exact:false}).waitFor();
   await crewPage.screenshot({path:path.join(proof,"command-deck-crew-jace-restored.png"),animations:"disabled"});
+  assert.equal(await crewPage.getByRole("button",{name:"Chat with Main",exact:true}).count(),0);
+  await crewPage.getByRole("button",{name:"Show other OpenClaw agents",exact:true}).click();
+  await crewPage.getByRole("button",{name:"Chat with Main",exact:true}).click();
+  await crewComposerFor("main").waitFor({state:"visible"});
+  await crewPage.getByRole("button",{name:"Exit Command Deck",exact:true}).click();
+  await crewPage.getByRole("button",{name:"Enter Command Deck",exact:true}).click();
+  await crewPage.locator(".command-deck-contact").getByText("Jace",{exact:false}).waitFor();
   await crewPage.reload();
   await crewPage.locator(".command-deck-contact").getByText("Jace",{exact:false}).waitFor();
   await crewPage.getByRole("button",{name:"Exit Command Deck",exact:true}).click();
   await crewPage.locator(".shell:not(.shell--command-deck)").waitFor();
   assert.deepEqual(await ordinarySelection(),ordinaryBefore);
+  await crewPage.getByRole("button",{name:"Enter Command Deck",exact:true}).click();
+  await crewPage.getByRole("button",{name:"Show other OpenClaw agents",exact:true}).click();
+  await crewPage.getByRole("button",{name:"Chat with Main",exact:true}).click();
+  await crewComposerFor("main").waitFor({state:"visible"});
+  await crewPage.getByRole("button",{name:"Set selected agent as Command Deck startup",exact:true}).click();
+  await crewPage.getByRole("button",{name:"Exit Command Deck",exact:true}).click();
+  await crewPage.getByRole("button",{name:"Enter Command Deck",exact:true}).click();
+  await crewComposerFor("main").waitFor({state:"visible"});
+  await crewPage.getByRole("button",{name:"Reset startup to Helm",exact:true}).click();
+  await crewPage.getByRole("button",{name:"Exit Command Deck",exact:true}).click();
+  await crewPage.getByRole("button",{name:"Enter Command Deck",exact:true}).click();
+  await crewPage.locator(".command-deck-contact").getByText("Helm",{exact:false}).waitFor();
   for(const method of ["agents.create","templates.add.plan","templates.add.apply","config.patch"]) assert.equal((await crewGateway.getRequests(method)).length,0);
   assert.deepEqual(crewErrors,[]);
   await crewContext.close();
@@ -441,7 +467,7 @@ try {
   await stylePage.locator(".agent-chat__composer-combobox textarea").waitFor({state:"visible"});
   await styleFailure.close();
   observations.push("A missing local appearance stylesheet blocks malformed work UI and exposes a visible Reload action and host rollback guidance.");
-  await fs.writeFile(path.join(proof,"results.json"),JSON.stringify({passed:true,verifiedModes:["openclaw","quiet","command"],packageRevision:"helm-r7",version:"2026.11.6",sha:"06afb10d3272cc9deaf38ca6a3b7b839d5935638",observations,limits:["Synthetic Gateway fixture, no real provider or Linux deployment exercised.","CSS zoom is not native browser zoom.","Workboard route is a native plugin destination; plugin execution and legacy streaming/gear integrations need host verification."]},null,2));
+  await fs.writeFile(path.join(proof,"results.json"),JSON.stringify({passed:true,verifiedModes:["openclaw","quiet","command"],packageRevision:"helm-r7.1",version:"2026.11.6",sha:"06afb10d3272cc9deaf38ca6a3b7b839d5935638",observations,limits:["Synthetic Gateway fixture, no real provider or Linux deployment exercised.","CSS zoom is not native browser zoom.","Workboard route is a native plugin destination; plugin execution and legacy streaming/gear integrations need host verification."]},null,2));
   console.log(JSON.stringify({passed:true,proof,observations}));
 } catch (error) {
   console.error("Mode verification failed:",error);
