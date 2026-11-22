@@ -1,6 +1,16 @@
 import assert from "node:assert/strict";
 import { assertCommandSessionTarget } from "./src/lazykins/command-session-policy.ts";
 import { GatewayBrowserClient } from "./src/api/gateway.ts";
+import { coldDeskRequest } from "./src/lazykins/desk-navigation-adapter.ts";
+let savedMode="command";
+Object.defineProperty(globalThis,"localStorage",{configurable:true,value:{getItem:()=>savedMode}});
+for(const method of ["chat.send","chat.abort","chat.history","sessions.create","sessions.patch","sessions.describe"])
+  assert.throws(()=>coldDeskRequest("ws://127.0.0.1:18789","proof",method,{}),/Verify crew/);
+for(const method of ["chat.metadata","sessions.list","sessions.subscribe","sessions.unsubscribe","sessions.messages.subscribe","agents.list","config.get"])
+  assert.doesNotThrow(()=>coldDeskRequest("ws://127.0.0.1:18789","proof",method,{}));
+savedMode="openclaw";
+assert.doesNotThrow(()=>coldDeskRequest("ws://127.0.0.1:18789","proof","chat.send",{}));
+delete (globalThis as {localStorage?:unknown}).localStorage;
 const pending={allowed:false,agentId:null,sessionKey:null};
 const helm={allowed:true,agentId:"helm",sessionKey:"agent:helm:main"};
 const jace={allowed:true,agentId:"jace",sessionKey:"agent:jace:main"};

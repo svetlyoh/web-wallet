@@ -21,25 +21,6 @@ After service restoration, the wizard offers a **separate** narrow Helm-to-Jace/
 
 Open the usual OpenClaw dashboard, reload it and select **Enter Command Deck**. Helm is the initial verified crew chat. Jace and Cruz are independently selectable native agents. Ordinary main/default/models/channel bindings stay unchanged. Sanitize remains separately controlled. A service that was stopped initially stays stopped unless you explicitly approve starting it. Unmanaged or mismatched service installations use the manual procedure below.
 
-## Fresh Ubuntu installation: guided setup
-
-Requires already onboarded **OpenClaw 2026.11.6**, a ready configured default model, its native managed Gateway service, and Python 3.11+. Run as the Ubuntu service user, without sudo. This ZIP does not install the engine or create provider/bot accounts.
-
-From a fresh extracted combined ZIP directory:
-
-```bash
-sha256sum -c SHA256SUMS
-python3 setup-command-deck.py --profile default --state-dir "$HOME/.openclaw"
-```
-
-Use the actual service profile/state directory if different. Optional `--config-path` and `--openclaw` select custom targets. The wizard checks service identity and model readiness, requests maintenance approval, and restores an originally running service on failure/cancellation. It separately reviews Templates Labs and each agent Add, verifies all three bootstrap/avatar hashes and separate workspaces, installs both skills, and enables the built UI only after all three native agents are verified. Existing verified renamed crew are reused; collisions, edited/partial agents and shared workspaces require manual review.
-
-Type each displayed approval after reviewing it; there is no blanket --yes. Declining an agent retains completed agents and stops before UI activation. Rerunning reuses verified agents. Private receipt paths are printed. Inspect an uncertain Add before retrying.
-
-After service restoration, a separate optional Helm-to-Jace/Cruz target permission review uses native config hash checking and preserves existing effective targets. Declining leaves direct crew chats available; approve later in Crew setup & permissions. No model task starts during setup. Effective tool/sandbox/provider policies still apply.
-
-Open the usual dashboard, reload and select **Enter Command Deck**. Helm is the initial crew chat; Jace/Cruz are independent native agents. Ordinary main/default/models/channels stay intact. Sanitize remains separately controlled. An initially stopped service stays stopped unless you approve starting it. Unmanaged/mismatched services use the manual procedure below.
-
 ## New behavior
 
 Command Deck pauses its chat when no verified crew target is selected. It shows Helm setup/verification or reconnect actions; it does not use main as a fallback. Helm is the factory startup target. The last selected verified Jace/Cruz can be restored. If that crew member is unavailable, verified Helm is preferred; otherwise setup stays paused.

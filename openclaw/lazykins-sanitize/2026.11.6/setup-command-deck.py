@@ -185,13 +185,18 @@ def setup(cli):
     if not running:
         print("Gateway was originally stopped. Setup preserves that state.")
         if not approve("START GATEWAY"):
+            crew.private_write(receipts / "complete.json", {"version": ctl.VERSION, "crew": verified["crew"], "uiConfigured": True, "gatewayStarted": False, "providerChatsVerified": False, "liveDelegationVerified": False})
             print("Setup saved. Start the selected native Gateway when ready, then open Command Deck. Delegation review remains available in Crew setup & permissions.")
             return
         cli.run(["gateway", "start"])
     service_target(json_call(cli, ["gateway", "status", "--json", "--deep"]), cli.identity, True)
     # Separate permission review, using the existing native configuration authority.
-    snapshot = json_call(cli, ["gateway", "call", "config.get", "--json", "--params", "{}"])
-    plan = delegation_plan(snapshot, verified["crew"])
+    try:
+        snapshot = json_call(cli, ["gateway", "call", "config.get", "--json", "--params", "{}"])
+        plan = delegation_plan(snapshot, verified["crew"])
+    except RuntimeError:
+        snapshot, plan = None, None
+        print("Direct crew setup is ready. Delegation review is unavailable to this CLI session; use Crew setup & permissions with the authorized owner. No target grant was applied.")
     if plan:
         print("\nOptional Helm delegation target addition (preserves existing effective targets):\n" + plan["raw"])
         print("This permits Jace/Cruz as targets; it does not start a task or override effective tool/model policy.")
@@ -205,7 +210,7 @@ def setup(cli):
             if result.get("ok") is not True:
                 raise ctl.ControlError("Permission write was not acknowledged. Inspect native settings before retrying.")
             crew.private_write(receipts / "delegation-acknowledged.json", {"ok": True, "runtimeDelegationVerified": False})
-    else:
+    elif snapshot is not None:
         print("Existing effective delegation targets already include the crew; no permission change needed.")
     crew.private_write(receipts / "complete.json", {"version": ctl.VERSION, "crew": verified["crew"], "uiConfigured": True, "providerChatsVerified": False, "liveDelegationVerified": False})
     print("\nSetup complete. Open your usual OpenClaw dashboard, reload it, then click Enter Command Deck. It opens verified Helm; Jace and Cruz have independent native chats. Main remains the ordinary OpenClaw default.\nPrivate receipts: " + str(receipts))

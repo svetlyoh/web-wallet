@@ -4,9 +4,8 @@ type Persist = (url:string,profile:string|null|undefined,next:Navigation,ordinar
 type Read=(url:string,profile:string|null|undefined,ordinary:Navigation)=>Navigation;
 type RequestGuard=(url:string,profile:string|null|undefined,method:string,params?:unknown)=>void;
 function savedCommand(url:string,profile:string|null|undefined):boolean {try{return localStorage.getItem(`lazykins.quiet-desk.v1:${url}:${encodeURIComponent(profile || "unpaired")}`)==="command";}catch{return false;}}
-export const coldDeskRequest:RequestGuard=(url,profile,method,params)=>{
-  const p=params as {sessionKey?:unknown;key?:unknown}|undefined;
-  if(savedCommand(url,profile) && (p?.sessionKey || (p?.key && method.startsWith("session")) || method==="sessions.create"))throw Error("Verify crew");
+export const coldDeskRequest:RequestGuard=(url,profile,method)=>{
+  if(savedCommand(url,profile) && /^(chat\.(?!metadata$)|sessions\.(?!(list|subscribe|unsubscribe|messages\.subscribe)$))/.test(method))throw Error("Verify crew");
 };
 export const deskNavigation:{write:Persist;read:Read;request:RequestGuard}={request:coldDeskRequest,read:(_url,_profile,ordinary)=>ordinary,write:(url,profile,next,ordinary)=>{
   return savedCommand(url,profile) ? ordinary : next;
