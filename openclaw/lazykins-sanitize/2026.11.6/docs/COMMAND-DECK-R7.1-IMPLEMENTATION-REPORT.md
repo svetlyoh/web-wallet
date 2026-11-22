@@ -32,7 +32,7 @@ Main defaults, main/whatnot-expert workspaces/history/models/providers/channel b
 
 Local Python suite: 60 tests discovered; 59 passed, one POSIX-permission test skipped on Windows. Original 44 R7 controller/preservation cases remain included. New registration and first-run cases cover per-agent approvals, sanitized baseline, changed profile/registry/plan refusal, collisions, renamed reuse, shared-workspace refusal, uncertain Add no replay, service target mismatch, restoration on failure, unsupported running version and native delegation merge/CAS.
 
-Pinned patch applies cleanly against the exact unmodified source and its twelve native integration inputs. Production build/native transport/browser/performance and release ZIP checks are recorded in the final release evidence below when complete. Earlier fixture passes were synthetic and do not count as Ubuntu/provider verification.
+Pinned patch applies cleanly against the exact unmodified source and its twelve native integration inputs. Production build/native transport/browser/performance and release ZIP checks passed as recorded in the final release evidence below. Earlier fixture passes were synthetic and do not count as Ubuntu/provider verification.
 
 | Acceptance | Development evidence | Host/provider status |
 | --- | --- | --- |
@@ -64,3 +64,19 @@ openclaw --profile default gateway restart
 ```
 
 For custom targets use the same state/config environment as installation; do not reuse default examples against another service. Keep receipts and original workspaces. Disabling the UI does not remove crew agents/history or revert separately approved delegation/Labs settings. Review those exact host-specific configuration changes in native settings if desired; do not remove inherited/pre-existing grants or delete agents as automatic rollback. Original R7 release remains available unchanged.
+
+## Final release verification
+
+[Production build and validation run](https://github.com/svetlyoh/web-wallet/actions/runs/45055852841): **passed**. Built from `082d17c980068bfd8dc2cdcc87de10ae9230b8f5`. All **60 Linux controller/preservation checks passed**, including the original 44. Native transport/cold-request guard proof, native authored Template validate/build, production browser fixtures and unchanged performance gates passed. Final screenshot review confirmed the corrected crew heading and mobile Quiet Desk controls.
+
+Startup JS: **90,087 bytes gzip**, three requests, below the unchanged 90,771-byte enforcement limit and 90,195-byte upstream baseline. Compression sidecars were checked against exact executable bytes. The v4 Actions Node 20 deprecation annotation is a non-blocking warning; this final run succeeded. Existing GitHub authentication worked for publication; no relogin was required.
+
+The immutable CI ZIP is `LazyKins-CommandDeck-Helm-2026.11.6-r7.1.zip`, **40,935,068 bytes**. SHA-256:
+
+```text
+a5e9227181a8d655fa33bb81fdebff9cf50e1379e254fbe6521229d286b19dbb
+```
+
+ZIP CRC, all **5,581 transfer-file hashes**, all **5,393 payload-file hashes**, exactly two top-level skills, the guided first-run installer and production evidence revision helm-r7.1 were independently checked after download. The public report was finalized after archive verification; the ZIP retains its original CI bytes and embedded pre-publication report.
+
+[Download/release](https://github.com/svetlyoh/web-wallet/releases/tag/lazykins-commanddeck-helm-2026.11.6-r7.1). Use the attached INSTALL-UBUNTU-R7.1.md for checksum-verified direct GitHub download and the one-command wizard. The earlier R7 release remains unchanged. **No real Ubuntu agent Add, live provider reply or real Helm delegation was performed from this environment.** The wizard generates those host-side registration receipts only after each operator approval.
