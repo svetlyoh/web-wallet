@@ -1,6 +1,11 @@
 import importlib.util
 from pathlib import Path
 import unittest
+from unittest.mock import patch
+import contextlib
+import tempfile
+from types import SimpleNamespace
+import json
 
 spec = importlib.util.spec_from_file_location("first_run", Path(__file__).resolve().parents[1] / "setup-command-deck.py")
 wizard = importlib.util.module_from_spec(spec)
@@ -67,6 +72,77 @@ class FirstRunTests(unittest.TestCase):
         plan = wizard.delegation_plan(self.snapshot([]), crew)
         self.assertNotIn("old-target", plan["raw"])
         self.assertIsNone(wizard.delegation_plan(self.snapshot(["*"]), crew))
+
+    def interrupted_setup(self, model_failure=False):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            (root / "config.json").write_text("{}", encoding="utf-8")
+            existing, added, calls = set(), [], []
+            identity = {"config_path": str(root / "config.json"), "state_dir": str(root), "profile": "default"}
+            status = self.status()
+            for item in status["config"].values():
+                item["path"] = identity["config_path"]
+            status["service"]["runtime"]["status"] = "running"
+            status["rpc"] = {"ok": True, "server": {"version": wizard.ctl.VERSION}}
+
+            class CLI:
+                def __init__(self):
+                    self.identity = identity
+                def version(self):
+                    return wizard.ctl.VERSION
+                def root(self):
+                    return {"present": False}
+                def run(self, args, allow_failure=False):
+                    calls.append(args)
+                    if args[:2] == ["gateway", "stop"]:
+                        status["service"]["runtime"]["status"] = "stopped"
+                    if args[:2] == ["gateway", "start"]:
+                        status["service"]["runtime"]["status"] = "running"
+                    failed = model_failure and "--agent" in args and "cruz" in args
+                    return SimpleNamespace(returncode=int(failed), stdout=json.dumps(status))
+
+            class Registration:
+                def __init__(self, cli):
+                    pass
+                def baseline(self):
+                    return {"inventory": [{"id": "main", "workspace": str(root)}],
+                            "crew": {role: ({"state": "verified", "actualAgentId": role, "workspace": str(root / role)} if role in existing else {"state": "missing"}) for role in wizard.crew.IDS}}
+                def review(self, role):
+                    return {"agent": role, "nativeDryRun": {"agent": {"workspace": str(root / role)}}}
+                def apply(self, role, reviewed, approval, outcome):
+                    existing.add(role)
+                    added.append(role)
+
+            class Controller:
+                def __init__(self, *args):
+                    self.home = root
+                @contextlib.contextmanager
+                def locked(self):
+                    yield self
+                def verified_payload(self):
+                    return {}
+                def load(self):
+                    return None
+                def off(self):
+                    raise AssertionError("UI must not change before every crew agent is approved and model-ready")
+
+            allowed = {"SET UP COMMAND DECK", "ADD helm"}
+            if model_failure:
+                allowed.update({"ADD jace", "ADD cruz"})
+            with patch.object(wizard.ctl, "Controller", Controller), patch.object(wizard.crew, "Registration", Registration), \
+                    patch.object(wizard, "enable_templates"), patch.object(wizard, "approve", side_effect=lambda action: action in allowed), \
+                    patch.object(wizard.paired, "register") as install, patch("builtins.print"):
+                with self.assertRaises(RuntimeError):
+                    wizard.setup(CLI())
+                install.assert_not_called()
+            self.assertEqual(calls[-1], ["gateway", "start"])
+            self.assertEqual(added, ["helm", "jace", "cruz"] if model_failure else ["helm"])
+
+    def test_declining_second_agent_preserves_first_and_restores_service(self):
+        self.interrupted_setup()
+
+    def test_crew_model_failure_prevents_ui_activation_and_restores_service(self):
+        self.interrupted_setup(model_failure=True)
 
 
 if __name__ == "__main__":

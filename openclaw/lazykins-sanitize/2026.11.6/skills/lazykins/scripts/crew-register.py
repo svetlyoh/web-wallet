@@ -76,7 +76,7 @@ class Registration:
     def classify(self, agent, rows):
         metadata = next(item for item in self.catalog if item["id"] == agent)
         canonical = [row for row in rows if row["id"] == agent]
-        candidates = canonical or [row for row in rows if row.get("name") == metadata["name"] or row.get("identityName") == metadata["name"]]
+        candidates = canonical or [row for row in rows if row["id"] != "main" and (row.get("name") == metadata["name"] or row.get("identityName") == metadata["name"])]
         verified = [proof for row in candidates if (proof := self.proof(row, metadata))]
         if len(verified) == 1 and (not canonical or verified[0]["actualAgentId"] == agent):
             workspace = Path(verified[0]["workspace"]).resolve()

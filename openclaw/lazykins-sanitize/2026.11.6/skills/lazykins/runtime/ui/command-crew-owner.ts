@@ -195,7 +195,7 @@ export class CommandCrewOwner {
           const canonical=roster.agents.find(candidate=>candidate.id === metadata.id);
           // Names only identify candidates; authored file hashes establish identity.
           // An occupied canonical ID is never silently mapped to another agent.
-          const candidates=canonical ? [canonical] : roster.agents.filter(candidate=>candidate.name===metadata.name || candidate.identity?.name===metadata.name);
+          const candidates=canonical ? [canonical] : roster.agents.filter(candidate=>candidate.id!=="main" && (candidate.name===metadata.name || candidate.identity?.name===metadata.name));
           if (!candidates.length) { this.state.statuses[metadata.id]={state:"missing",message:"Not installed. Review this proposed agent before adding it."};this.changes.publish();continue; }
           if (!canCallGatewayMethod(this.context.gateway.snapshot,"agents.files.get","operator.read")) {
             this.state.statuses[metadata.id]={state:"review",actualAgentId:canonical?.id,message:"Already present / needs review. This operator cannot verify its authored instruction files."};this.changes.publish();continue;

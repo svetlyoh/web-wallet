@@ -31,7 +31,9 @@ jobs:
           pnpm --filter openclaw-control-ui exec playwright install --with-deps chromium
       - name: Build and verify production UI
         run: |
-          python3 "$PACKAGE/skills/lazykins/runtime/scripts/build.py" --source "$RUNNER_TEMP/openclaw" --output "$GITHUB_WORKSPACE/$PACKAGE/skills/lazykins/runtime/payload"
+          python3 -m venv "$RUNNER_TEMP/lazykins-build-tools"
+          "$RUNNER_TEMP/lazykins-build-tools/bin/python" -m pip install --only-binary=:all: --require-hashes -r "$PACKAGE/requirements-build.txt"
+          "$RUNNER_TEMP/lazykins-build-tools/bin/python" "$PACKAGE/skills/lazykins/runtime/scripts/build.py" --source "$RUNNER_TEMP/openclaw" --output "$GITHUB_WORKSPACE/$PACKAGE/skills/lazykins/runtime/payload"
           cd "$PACKAGE"
           python3 build-transfer.py
       - uses: actions/upload-artifact@v4

@@ -104,7 +104,7 @@ def main():
     run(["node", "--import", str(source / "scripts" / "tsx.mjs"), "lazykins-session-guard-proof.mts"], source / "ui")
     run([shutil.which("pnpm") or "pnpm", "ui:build"], source)
     shutil.copy2(RUNTIME / "scripts" / "compress-ui.mts", source / "ui" / "lazykins-compress.mts")
-    run(["node", "--import", str(source / "scripts" / "tsx.mjs"), "lazykins-compress.mts", str(source / "dist" / "control-ui")], source / "ui")
+    run(["node", "--import", str(source / "scripts" / "tsx.mjs"), "lazykins-compress.mts", str(source / "dist" / "control-ui"), sys.executable, str(RUNTIME / "scripts" / "compress-startup.py")], source / "ui")
     proof = source / ".artifacts" / "lazykins-verification"
     run(["node", "--import", str(source / "scripts" / "tsx.mjs"), "lazykins-verify.mts", str(proof)], source / "ui")
     run([shutil.which("pnpm") or "pnpm", "ui:check-performance"], source)

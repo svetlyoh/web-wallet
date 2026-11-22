@@ -15,7 +15,7 @@ ctl = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(ctl)
 
 def selected_files():
-    selected = [BASE / name for name in ("README.md", "setup-command-deck.py", "install-both.py", "build-transfer.py", "compatibility.json")]
+    selected = [BASE / name for name in ("README.md", "setup-command-deck.py", "requirements-build.txt", "install-both.py", "build-transfer.py", "compatibility.json")]
     for root in (BASE / "skills", BASE / "docs"):
         for path in sorted(root.rglob("*")):
             if path.is_symlink():

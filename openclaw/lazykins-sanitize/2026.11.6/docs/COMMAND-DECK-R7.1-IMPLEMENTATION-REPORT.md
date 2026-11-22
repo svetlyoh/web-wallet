@@ -10,7 +10,7 @@ R7.1 adds a guided fresh Ubuntu installer and the incremental crew/main guard co
 
 ## First-run installer
 
-`setup-command-deck.py` uses the existing deployment/paired-skill owners and new reviewed `crew-register.py` helper. It verifies version, config, profile/state directory, existing main workspace, default model readiness without live probes, UI payload hashes and the native managed service identity. An unrelated custom UI root or ambiguous/mismatched service is refused. It never guesses systemctl units or starts a competing Gateway.
+`setup-command-deck.py` uses the existing deployment/paired-skill owners and new reviewed `crew-register.py` helper. It verifies version, config, profile/state directory, existing main workspace, default and per-crew model readiness without live probes, UI payload hashes and the native managed service identity. An unrelated custom UI root or ambiguous/mismatched service is refused. It never guesses systemctl units or starts a competing Gateway.
 
 After explicit maintenance approval it stops the selected native service, separately reviews Templates Labs if needed and separately reviews each missing agent's native inspect/validate/dry-run, files, workspace and warnings. There is no blanket --yes. Approved Add uses the explicit canonical ID and native exclusive offline ownership. Registry/source/plan integrity are rechecked before effect; existing agent records and exact new ID/workspace/bootstrap/avatar proofs are checked afterward. Occupied, partial, edited, ambiguous or shared agents require manual review. Verified uniquely renamed crew are reused. No overwrites, silent suffixes or automatic deletes occur.
 
@@ -30,7 +30,7 @@ Main defaults, main/whatnot-expert workspaces/history/models/providers/channel b
 
 ## Validation and limits
 
-Local Python suite: 57 tests discovered; 56 passed, one POSIX-permission test skipped on Windows. Original 44 R7 controller/preservation cases remain included. New registration and first-run cases cover per-agent approvals, sanitized baseline, changed profile/registry/plan refusal, collisions, renamed reuse, shared-workspace refusal, uncertain Add no replay, service target mismatch, restoration on failure, unsupported running version and native delegation merge/CAS.
+Local Python suite: 60 tests discovered; 59 passed, one POSIX-permission test skipped on Windows. Original 44 R7 controller/preservation cases remain included. New registration and first-run cases cover per-agent approvals, sanitized baseline, changed profile/registry/plan refusal, collisions, renamed reuse, shared-workspace refusal, uncertain Add no replay, service target mismatch, restoration on failure, unsupported running version and native delegation merge/CAS.
 
 Pinned patch applies cleanly against the exact unmodified source and its twelve native integration inputs. Production build/native transport/browser/performance and release ZIP checks are recorded in the final release evidence below when complete. Earlier fixture passes were synthetic and do not count as Ubuntu/provider verification.
 
@@ -43,6 +43,8 @@ Pinned patch applies cleanly against the exact unmodified source and its twelve 
 | C12 denied/unavailable delegation | Permission owner remains separate; no implicit grant/task; config merge tests | Effective host/tool policy unverified |
 | C13 idempotency/profile separation | Receipt identity, collision/reuse/mixed profile tests and scoped browser preferences | Actual host rerun unverified |
 | C14 regressions/security | Original preservation/controller suite, production UI/native transport/build gates | Existing host records not directly read |
+
+Build-only precompression uses the native startup asset selectors and pinned [zopfli 0.4.3](https://pypi.org/project/zopfli/0.4.3/), with a SHA-256-checked Linux wheel. It accepts only smaller gzip sidecars after verifying both old/new decompression equal the exact original JavaScript bytes. No performance ceilings are raised and the Ubuntu installer needs no added dependency.
 
 ## Ubuntu install and recovery
 

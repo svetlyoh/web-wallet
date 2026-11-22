@@ -175,6 +175,11 @@ def setup(cli):
         verified = registration.baseline()
         if any(verified["crew"][role]["state"] != "verified" for role in crew.IDS):
             raise ctl.ControlError("Crew changed during registration. UI was not enabled.")
+        for role in crew.IDS:
+            actual = verified["crew"][role]["actualAgentId"]
+            readiness = cli.run(["models", "status", "--agent", actual, "--json", "--check"], True)
+            if readiness.returncode:
+                raise ctl.ControlError(role + " is registered but its native model/auth readiness check failed. Inspect openclaw models status --agent " + actual + " --json --check, configure authorization using native model settings, then rerun setup. No model/default or credential was copied or changed.")
         with ctl.Controller(cli, BASE / "skills/lazykins/runtime/payload").locked() as owner:
             owner.off()
         paired.register(cli, workspace, "main")

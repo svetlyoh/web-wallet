@@ -64,6 +64,12 @@ class RegistrationTests(unittest.TestCase):
         shutil.copytree(crew.CREW/"sources/jace-template/workspace",workspace)
         self.cli.rows.append({"id":"closer","name":"Jace","workspace":str(workspace)})
         result=self.owner.review("jace");self.assertEqual(result["classification"]["actualAgentId"],"closer");self.assertEqual(self.cli.adds,0)
+    def test_main_is_never_adopted_as_renamed_crew(self):
+        workspace=Path(self.temp.name)/"main-authored-helm"
+        shutil.copytree(crew.CREW/"sources/helm-template/workspace",workspace)
+        self.cli.rows[0].update(name="Helm",identityName="Helm",workspace=str(workspace))
+        self.assertEqual(self.owner.classify("helm",self.cli.rows)["state"],"missing")
+        self.assertEqual(self.cli.adds,0)
     def test_shared_workspace_is_not_verified_as_independent_crew(self):
         workspace=Path(self.temp.name)/"shared"
         shutil.copytree(crew.CREW/"sources/helm-template/workspace",workspace)

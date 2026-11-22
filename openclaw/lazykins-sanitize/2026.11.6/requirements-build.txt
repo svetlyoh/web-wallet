@@ -1,0 +1,2 @@
+# CI-only Linux x86_64 CPython stable-ABI wheel. Not needed by the Ubuntu installer.
+zopfli==0.4.3 --hash=sha256:769875152d0625c46707bcca57d4b2233fe653482067acd55fbf6ec525cb9bdc
