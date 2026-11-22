@@ -14,7 +14,7 @@ export function CommandDeckCrewRoster() {
   const canChat=()=>{prefs.revision();selected.revision();discovery.revision();return navigation.guardStatus().allowed;};
   const verified=(id:typeof COMMAND_CREW_IDS[number])=>{discovery.revision();return crew.verifiedAgentId(id);};
   return <section class="command-crew-roster" aria-label="Command Deck agents">
-    <h2>{new Text("Helmâ€™s Crew")}</h2>
+    <h2>{new Text("Helm's Crew")}</h2>
     <For each={COMMAND_CREW_IDS}>{id=>{
       const metadata=()=>discovery.read().catalog?.agents.find(agent=>agent.id===id);
       const status=()=>{discovery.revision();return crew.status(id);};
@@ -22,7 +22,7 @@ export function CommandDeckCrewRoster() {
         aria-label={verified(id) ? `Chat with ${metadata()?.name ?? id}` : `Review ${metadata()?.name ?? id}`}
         onClick={()=>{const actual=verified(id);if(actual)navigation.openAgent(actual);else crew.dismiss(false);}}>
         <Show when={metadata()}>{entry=><img src={commandCrewAssetPath(context,entry().avatarPath)} alt="" width="36" height="36"/>}</Show>
-        <span><strong>{metadata()?.name ?? id[0].toUpperCase()+id.slice(1)}</strong><small>{metadata()?.role ?? "Crew setup"}</small><small>{status().state === "verified" ? "Installed" : status().state === "missing" ? "Add agent" : status().state === "checking" ? "Checkingâ€¦" : "Needs review"}</small></span>
+        <span><strong>{metadata()?.name ?? id[0].toUpperCase()+id.slice(1)}</strong><small>{metadata()?.role ?? "Crew setup"}</small><small>{status().state === "verified" ? "Installed" : status().state === "missing" ? "Add agent" : status().state === "checking" ? "Checking..." : "Needs review"}</small></span>
       </button>;
     }}</For>
     <button type="button" class="command-crew-secondary" aria-expanded={prefs.read().otherExpanded ? "true" : "false"} onClick={()=>navigation.toggleOthers()}>{new Text("Show other OpenClaw agents")}</button>
