@@ -88,6 +88,9 @@ try {
     if(selector === ".shell--command-deck" && !introSeen) {
       await page.getByRole("heading",{name:"Meet Helm",exact:true}).waitFor();
       await page.getByText("Not installed - proposed template",{exact:true}).first().waitFor();
+      await page.getByText("Helm isn't installed yet",{exact:true}).waitFor();
+      assert.equal(await composer.isVisible(),false);
+      assert.equal(await page.getByRole("button",{name:"Chat with Main",exact:true}).count(),0);
       await page.screenshot({path:path.join(proof,"command-deck-crew-proposed-1440.png"),animations:"disabled"});
       for(const method of ["agents.create","templates.add.plan","templates.add.apply","config.patch"]) assert.equal((await gateway.getRequests(method)).length,0);
       await page.getByRole("button",{name:"Not now",exact:true}).click();
