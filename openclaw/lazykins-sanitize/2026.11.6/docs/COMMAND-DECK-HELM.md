@@ -1,3 +1,5 @@
+R7.1 incremental addendum: see [reviewed crew registration and main guard](COMMAND-DECK-R7.1-CREW-REGISTRATION.md). The original R7 implementation is preserved below; R7.1 adds the safe host helper, collapsed other-agent selector and fail-closed chat guard.
+
 # Command Deck with Helm, Jace and Cruz - R7
 
 Target: OpenClaw 2026.11.6, exact source 06afb10d3272cc9deaf38ca6a3b7b839d5935638. No engine update is performed. The ordinary main agent, model/provider configuration and external channel bindings are not replaced.

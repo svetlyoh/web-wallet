@@ -6,7 +6,7 @@ Copy the complete package to the Linux account that runs OpenClaw. Do not use su
 
 ```bash
 BUNDLE="$(mktemp -d "$HOME/LazyKins-Modes-r2.XXXXXX")"
-unzip LazyKins-CommandDeck-Helm-2026.11.6-r7.zip -d "$BUNDLE"
+unzip LazyKins-CommandDeck-Helm-2026.11.6-r7.1.zip -d "$BUNDLE"
 cd "$BUNDLE"
 ```
 
@@ -133,3 +133,5 @@ For each future version, build from its exact tagged source, review the narrow i
 ## Layout icons and returning to chat
 
 Quiet Desk and Command Deck are direct lower-left buttons. Quiet Desk retains its moon icon; Command Deck uses an outlined command-prompt icon (>_). There is no Apps button above them. Selecting one changes the layout; it does not start a new session or alter Sanitize. On Quiet Desk Conversations, the visible Back to chat link returns through OpenClaw chat routing. It has a 44px touch target and does not rely on browser history.
+
+For crew registration and guarded startup, follow [the R7.1 host guide](COMMAND-DECK-R7.1-CREW-REGISTRATION.md).

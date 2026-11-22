@@ -1,3 +1,4 @@
+import { gatewayOriginScope } from "@openclaw/gateway-client/browser";
 import { createEffect, onSettled, Show } from "solid-js";
 import { useApplication } from "../lib/reactive/context.ts";
 import { projectOwner } from "../lib/reactive/projection.ts";
@@ -21,7 +22,7 @@ function CommandDeckSurfaceBody(props:{sessionKey:string;onGuardChange?:(blocked
   onSettled(()=>{const stopCrew=crew.bind();const stopNavigation=navigation.start();return ()=>{stopNavigation();stopCrew();};});
   const guard=()=>{prefs.revision();discovery.revision();selected.revision();gateway.revision();return navigation.guardStatus();};
   const gateway=projectOwner(context.gateway,owner=>owner.snapshot);
-  createEffect(()=>!guard().allowed,blocked=>props.onGuardChange?.(blocked));
+  createEffect(()=>!guard().allowed,blocked=>{props.onGuardChange?.(blocked);});
   const setupOpen=()=>{discovery.revision();return !crew.dismissed();};
   const helm=()=>{discovery.revision();return crew.verifiedAgentId("helm");};
   const contact=()=>{
@@ -32,12 +33,12 @@ function CommandDeckSurfaceBody(props:{sessionKey:string;onGuardChange?:(blocked
     return metadata ? `${metadata.name} · ${metadata.role}` : actual?.name || actual?.identity?.name || selected.read() || "Select an available agent";
   };
   return <section class="command-deck-crew-surface" aria-label="Command Deck crew">
-    <div class="command-deck-contact"><span>{new Text("Chatting with ")}{contact()}</span>
+    <div class="command-deck-contact"><span>{guard().allowed ? `Chatting with ${contact()}` : "Crew setup required"}</span>
       <Show when={helm() && selected.read()!==helm()}><button type="button" onClick={()=>{const id=helm();if(id)navigation.openAgent(id);}}>{new Text("Back to Helm")}</button></Show>
       <button type="button" onClick={()=>crew.dismiss(!crew.dismissed())}>{new Text("Crew setup")}</button>
     </div>
-    <Show when={!guard().allowed}><section class="command-deck-pending" role="status"><strong>{guard().message}</strong><p>{new Text("Chat is paused. No message will fall back to main.")}</p><button type="button" onClick={()=>crew.dismiss(false)}>{new Text("Set up crew")}</button><button type="button" disabled={discovery.read().busy} onClick={()=>void crew.refresh(true)}>{new Text("Verify")}</button></section></Show>
-    <Show when={guard().allowed}><p class="command-deck-target">{new Text("Agent ID: ")}{guard().agentId}{new Text(" · Session: ")}{guard().sessionKey}{new Text(" · ")}{gateway.read().phase}</p></Show>
+    <Show when={!guard().allowed}><section class="command-deck-pending" role="status"><strong>{guard().message}</strong><p>{new Text("Chat is paused. No message will fall back to main.")}</p><button type="button" onClick={()=>crew.dismiss(false)}>{new Text("Set up crew")}</button><button type="button" disabled={discovery.read().busy} onClick={()=>void crew.refresh(true)}>{new Text("Verify")}</button><Show when={gateway.read().phase!=="connected"}><button type="button" onClick={()=>context.gateway.start()}>{new Text("Reconnect")}</button></Show></section></Show>
+    <Show when={guard().allowed}><p class="command-deck-target">{new Text("Agent ID: ")}{guard().agentId}{new Text(" · Session: ")}{guard().sessionKey}{new Text(" · ")}{gateway.read().phase}{new Text(" · Gateway: ")}{gatewayOriginScope(context.gateway.connection.gatewayUrl)}</p></Show>
     <Show when={setupOpen()}><CommandCrewSetup onOpenAgent={id=>navigation.openAgent(id)} onClose={()=>crew.dismiss(true)}/></Show>
     <Show when={prefs.read().error}><p role="alert">{prefs.read().error}</p></Show>
     <Show when={helm() && selected.read()===helm()}><HelmDelegationBar sessionKey={props.sessionKey} agentId={helm()!}/></Show>

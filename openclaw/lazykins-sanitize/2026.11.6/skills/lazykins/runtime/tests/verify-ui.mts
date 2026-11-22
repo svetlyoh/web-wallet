@@ -39,7 +39,7 @@ const crewErrors:string[]=[];
 const watchdog = setTimeout(async () => {
   console.error("Mode and crew verification exceeded 210 seconds");
   if (activePage && !activePage.isClosed()) {
-    await fs.writeFile(path.join(proof,"timeout.txt"),activePage.url()+"\n"+await activePage.locator("body").innerText({timeout:5000}).catch(String)).catch(()=>{});
+    await fs.writeFile(path.join(proof,"timeout.txt"),activePage.url()+"\n"+await activePage.locator("body").textContent({timeout:5000}).catch(String)).catch(()=>{});
     await activePage.screenshot({path:path.join(proof,"timeout.png"),timeout:5000}).catch(()=>{});
   }
   process.exit(1);
@@ -49,10 +49,11 @@ try {
   const page = await context.newPage(); activePage = page;
   page.setDefaultTimeout(20_000);
   const errors: string[] = [];
-  page.on("pageerror", error => errors.push(error.message));
+  page.on("pageerror", error => {errors.push(error.message);crewErrors.push(error.stack || error.message);});
   const gateway = await installMockGateway(page, {
     serverVersion: "2026.11.6", controlUiBuildSource: "configured",
     presenceUsers: [{self:true,id:"profile-a",name:"Alex"}],
+    methodResponses:{"agents.list":{agents:[{id:"main",name:"Main"},{id:"whatnot-expert",name:"Whatnot Expert"}],defaultId:"main",mainKey:"main",scope:"per-sender"}},
     featureMethods:[...defaultControlUiFeatureMethods,"agents.list","agents.files.get"],
     historyMessages: [{role:"assistant",content:[{type:"text",text:"Your workspace is ready. A [source](https://example.com) and selectable code.\n\n```json\n{\"saved\":true}\n```"}],timestamp:Date.now()}],
   });
@@ -474,7 +475,7 @@ try {
   if(activePage && !activePage.isClosed()) {
     await activePage.screenshot({path:path.join(proof,"failure.png"),timeout:5000}).catch(()=>{});
     await fs.writeFile(path.join(proof,"route-diagnostics.json"),JSON.stringify({errors:crewErrors,...await activePage.evaluate(()=>({snapshot:window.openclawControlUi?.snapshot(),requests:window.openclawControlUiE2eGateway?.findRequests().filter(request=>["chat.history","chat.startup","sessions.describe","sessions.resolve","sessions.dispatch"].includes(request.method))}))},null,2));
-    await fs.writeFile(path.join(proof,"failure.txt"),String(error)+"\nURL: "+activePage.url()+"\n"+JSON.stringify(await activePage.locator("textarea").evaluateAll(elements=>elements.map(element=>({visible:element.getBoundingClientRect().height>0,description:element.getAttribute("aria-describedby")}))))+"\n"+await activePage.locator("body").innerText({timeout:5000}).catch(String));
+    await fs.writeFile(path.join(proof,"failure.txt"),String(error)+"\nURL: "+activePage.url()+"\n"+JSON.stringify(await activePage.locator("textarea").evaluateAll(elements=>elements.map(element=>({visible:element.getBoundingClientRect().height>0,description:element.getAttribute("aria-describedby")}))))+"\n"+await activePage.locator("body").textContent({timeout:5000}).catch(String));
   }
   throw error;
 } finally {

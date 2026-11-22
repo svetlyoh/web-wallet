@@ -92,6 +92,9 @@ class Registration:
         state = self.classify(agent, rows)
         if state["state"] != "missing":
             return {"agent": agent, "classification": state, "changed": False}
+        help_text = self.cli.run(["templates", "add", "--help"]).stdout
+        if not all(flag in help_text for flag in ("--agent-id", "--dry-run", "--json")):
+            raise ctl.ControlError("Installed Templates CLI lacks the reviewed local Add flags. Inspect this build; do not apply.")
         source, source_hash = self.sources(agent)
         validation = self.call(["templates", "validate", str(source), "--json"])
         inspection = self.call(["templates", "inspect", str(source), "--json"])

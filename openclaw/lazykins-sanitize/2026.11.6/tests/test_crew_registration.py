@@ -16,6 +16,7 @@ class Cli:
         self.rows=[{"id":"main","name":"main","workspace":str(self.root/"main"),"isDefault":True,"bindings":2},{"id":"whatnot-expert","name":"Whatnot Expert","workspace":str(self.root/"whatnot"),"isDefault":False,"bindings":0}]
         self.plan_hash="native-plan-v1";self.adds=0;self.uncertain=False
     def run(self,args):
+        if "--help" in args:return SimpleNamespace(stdout="--agent-id --dry-run --json")
         if args[:2]==["agents","list"]:result=self.rows
         elif args[1] in ("validate","inspect"):result={"valid":True}
         else:
