@@ -345,6 +345,53 @@ try {
   await running.close();
   observations.push("The native abort action remains visible beside a sendable draft on desktop and mobile, aborting the selected run exactly once.");
   const crewCatalog=JSON.parse(await fs.readFile(path.join(root,"command-deck/crew/catalog.json"),"utf8"));
+  const pendingContext=await browser.newContext({viewport:{width:1280,height:800},serviceWorkers:"block"});
+  const pendingPage=await pendingContext.newPage();activePage=pendingPage;
+  const pendingGateway=await installMockGateway(pendingPage,{
+    serverVersion:"2026.11.6",controlUiBuildSource:"configured",awaitInitialRoster:false,
+    presenceUsers:[{self:true,id:"missing-crew-profile",name:"Missing crew operator"}],
+    featureMethods:[...defaultControlUiFeatureMethods,"agents.list","agents.files.get"],
+    methodResponses:{"agents.list":{agents:[{id:"main",name:"Main"},{id:"whatnot-expert",name:"Whatnot Expert"}],defaultId:"main",mainKey:"main",scope:"per-sender"}},
+  });
+  await pendingPage.goto(`${base}chat`);
+  await pendingPage.getByRole("button",{name:"Enter Command Deck",exact:true}).click();
+  await pendingPage.getByText("Helm isn't installed yet",{exact:true}).waitFor();
+  await pendingPage.getByRole("button",{name:"Not now",exact:true}).click();
+  assert.equal(await pendingPage.locator(".agent-chat__composer-combobox textarea:visible").count(),0);
+  await pendingPage.reload();
+  await pendingPage.getByText("Helm isn't installed yet",{exact:true}).waitFor();
+  assert.equal(await pendingPage.getByRole("button",{name:"Chat with Main",exact:true}).count(),0);
+  assert.equal(await pendingPage.locator(".agent-chat__composer-combobox textarea:visible").count(),0);
+  assert.equal((await pendingGateway.getRequests("chat.send")).length,0);
+  assert.equal((await pendingGateway.getRequests("sessions.create")).length,0);
+  await pendingPage.screenshot({path:path.join(proof,"command-deck-missing-crew-cold.png"),animations:"disabled"});
+  await pendingPage.goto(`${base}settings/appearance`);
+  await pendingPage.getByRole("heading",{name:"Appearance",exact:true}).waitFor();
+  assert(await pendingPage.locator("openclaw-router-outlet").isVisible());
+  await pendingContext.close();
+  const helmContext=await browser.newContext({viewport:{width:1440,height:900},serviceWorkers:"block"});
+  const helmPage=await helmContext.newPage();activePage=helmPage;
+  const helmGateway=await installMockGateway(helmPage,{
+    serverVersion:"2026.11.6",controlUiBuildSource:"configured",presenceUsers:[{self:true,id:"helm-only-profile",name:"Helm operator"}],
+    featureMethods:[...defaultControlUiFeatureMethods,"agents.list","agents.files.get","sessions.describe"],
+    sessions:[{key:"agent:main:main",label:"Main",kind:"direct",updatedAt:Date.now()},{key:"agent:helm:main",label:"Helm",kind:"direct",updatedAt:Date.now()}],
+    methodResponses:{"agents.list":{agents:[{id:"main",name:"Main"},{id:"helm",name:"Helm"}],defaultId:"main",mainKey:"main",scope:"per-sender"}},
+  },{requestHandlers:{"agents.files.get":async(params:unknown)=>{
+    const query=params as {agentId:string;name:string},metadata=crewCatalog.agents.find((entry:{id:string})=>entry.id===query.agentId);
+    return {agentId:query.agentId,workspace:`/synthetic/${query.agentId}`,file:{name:query.name,path:query.name,missing:!metadata,hash:metadata?.bootstrapHashes[query.name],content:"Synthetic authored-file receipt"}};
+  }}});
+  await helmPage.goto(`${base}chat`);
+  await helmPage.getByRole("button",{name:"Enter Command Deck",exact:true}).click();
+  await helmPage.locator(".command-deck-contact").getByText("Helm",{exact:false}).waitFor();
+  await helmPage.locator('.agent-chat__composer-combobox textarea[aria-describedby*="agent%3Ahelm%3Amain"]:visible').waitFor();
+  assert.equal(await helmPage.getByRole("button",{name:"Chat with Jace",exact:true}).count(),0);
+  assert.equal(await helmPage.getByRole("button",{name:"Chat with Cruz",exact:true}).count(),0);
+  assert.equal((await helmGateway.getRequests("agents.create")).length,0);
+  assert.equal((await helmGateway.getRequests("chat.send")).length,0);
+  await helmPage.screenshot({path:path.join(proof,"command-deck-helm-only.png"),animations:"disabled"});
+  await helmContext.close();
+  observations.push("R7.1: main/whatnot-only cold open and refresh remain paused without sends or creation; verified Helm-only opens its native composer with Jace/Cruz pending.");
+
   const crewContext=await browser.newContext({viewport:{width:1440,height:900},serviceWorkers:"block"});
   const crewPage=await crewContext.newPage();activePage=crewPage;crewPage.setDefaultTimeout(20_000);
   crewPage.on("pageerror",error=>crewErrors.push(String(error)));

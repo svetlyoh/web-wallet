@@ -17,7 +17,7 @@
   },
   "patchedFiles": {
     "ui/src/app/app-shell-view-state.ts": "b3a1c1cfa740401d4aeab2991b91fe91afa3292606416912d309a875b766b02c",
-    "ui/src/app/app-shell-view.tsx": "15f6fbee4ce49182938f24ae89cb84265fdd9f8b6fbaeb94f3c64f0eb1aec9ac",
+    "ui/src/app/app-shell-view.tsx": "1b84325ecfb66ecb109c9efdd0f1bb199ce0535f0014b15176733d5273603560",
     "ui/src/app/settings.ts": "330971030b569c2e1261a90db8840ea73c155676356a6ef322426babba25a374",
     "ui/src/components/app-sidebar-base.ts": "64668321e6899388bddd73e269a92fb7b5cadb36b1f40d1f7bb18d94c3044e3d",
     "ui/src/components/app-sidebar-owner.tsx": "2c1b62bb997a1f8d79cc8c623859b524952a44c30172baa0d94c04b794b7845a",
@@ -26,7 +26,7 @@
     "ui/src/pages/chat/components/chat-composer-controls.tsx": "34550c7d24546e7dc677c5e34319ee5f61687b2ee0838050767d96fe8a738ea2",
     "ui/vite.config.ts": "313d1db72ef49b96efca3d8e412854a8c23131ff6a246428d79d2d4e0272d912",
     "ui/src/api/gateway.ts": "176efe534570a55cc4634705a26e489558c8cc4b923294a1799990cbd785511e",
-    "ui/src/app/gateway-store.ts": "67e7a8b26761a32a563f303d6867aea307f18b85c32858e81192f3c5b39f391a",
-    "ui/src/app/router-outlet.tsx": "7a9c2f68ec415119df3e92dabc2d850ba77b89730cbcde5200db3b1aa5fb119f"
+    "ui/src/app/gateway-store.ts": "46d13cfcdb637d4acbdcc7fb4e555ab518eeb3a715972161bef2c794c1893284",
+    "ui/src/app/router-outlet.tsx": "d4855b3a806e17df95ee27af09313e30616b9fa5347dd063e48ad29a0188fb47"
   }
 }

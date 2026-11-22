@@ -64,6 +64,13 @@ class RegistrationTests(unittest.TestCase):
         shutil.copytree(crew.CREW/"sources/jace-template/workspace",workspace)
         self.cli.rows.append({"id":"closer","name":"Jace","workspace":str(workspace)})
         result=self.owner.review("jace");self.assertEqual(result["classification"]["actualAgentId"],"closer");self.assertEqual(self.cli.adds,0)
+    def test_shared_workspace_is_not_verified_as_independent_crew(self):
+        workspace=Path(self.temp.name)/"shared"
+        shutil.copytree(crew.CREW/"sources/helm-template/workspace",workspace)
+        self.cli.rows[0]["workspace"]=str(workspace)
+        self.cli.rows.append({"id":"helm","name":"Helm","workspace":str(workspace)})
+        self.assertEqual(self.owner.review("helm")["classification"]["state"],"manual-review")
+        self.assertEqual(self.cli.adds,0)
     def test_uncertain_add_retains_receipt_and_cannot_replay(self):
         review=self.owner.review("helm");self.cli.uncertain=True
         with self.assertRaises(crew.ctl.ControlError):self.owner.apply("helm",review,"helm",self.out)

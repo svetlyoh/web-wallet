@@ -116,8 +116,6 @@
 
 .command-deck-crew-surface .command-crew-setup { max-height: min(55dvh, 520px); overflow: auto; }
 
-.command-deck-chat-region { display: contents; }
-.command-deck-chat-region[hidden] { display: none; }
 .command-deck-pending { padding: 12px; border: 1px solid var(--border); border-radius: 8px; }
 .command-deck-pending button { margin: 4px; min-height: 44px; }
 .command-deck-target { margin: 4px 0; font-size: 11px; overflow-wrap: anywhere; color: var(--muted); }

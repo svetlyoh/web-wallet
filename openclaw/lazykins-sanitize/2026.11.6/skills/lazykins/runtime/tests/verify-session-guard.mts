@@ -13,6 +13,9 @@ for(const method of methods){
 }
 assert.throws(()=>assertCommandSessionTarget(jace,"chat.send",{sessionKey:"agent:jace:other"}),/blocked/);
 assert.doesNotThrow(()=>assertCommandSessionTarget(jace,"sessions.create",{agentId:"jace"}));
+assert.doesNotThrow(()=>assertCommandSessionTarget(jace,"sessions.create",{key:"agent:jace:new-proof"}));
+assert.throws(()=>assertCommandSessionTarget(jace,"sessions.create",{sessionKey:"agent:jace:main"}),/blocked/);
+assert.throws(()=>assertCommandSessionTarget(jace,"sessions.patchMany",{keys:["agent:jace:main","agent:main:main"]}),/blocked/);
 assert.doesNotThrow(()=>assertCommandSessionTarget(pending,"agents.list",{}));
 assert.doesNotThrow(()=>assertCommandSessionTarget(pending,"sessions.list",{agentId:"main"}));
 const child="agent:jace:subagent:proof";

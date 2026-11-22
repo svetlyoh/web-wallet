@@ -8,9 +8,9 @@ export function assertCommandSessionTarget(target:CommandTarget,method:string,pa
   if(target.allowed && ["chat.history","sessions.describe"].includes(method) && keys.length===1 && childRead?.(keys[0]))return;
   const declared=p.agentId;
   const resolution=method==="sessions.resolve" && typeof p.shortId==="string" && declared===target.agentId;
-  const creation=method==="sessions.create" && declared===target.agentId;
+  const creation=method==="sessions.create" && (declared===target.agentId || (declared===undefined && typeof p.key==="string" && p.key.startsWith(`agent:${target.agentId}:`)));
   const correctKeys=creation ? keys.every(key=>key.startsWith(`agent:${target.agentId}:`)) : keys.every(key=>key===target.sessionKey);
-  if(!target.allowed || (declared!==undefined && declared!==target.agentId) || (!keys.length && !resolution && !creation) || !correctKeys){
+  if(!target.allowed || (method==="sessions.create" && !creation) || (declared!==undefined && declared!==target.agentId) || (!keys.length && !resolution && !creation) || !correctKeys){
     throw new Error("Command Deck blocked a stale or unverified session target. Select verified crew, or explicitly choose an agent under Show other OpenClaw agents.");
   }
 }

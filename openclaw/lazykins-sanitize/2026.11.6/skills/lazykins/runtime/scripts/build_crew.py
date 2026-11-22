@@ -47,6 +47,9 @@ def main():
     subprocess.run([shutil.which("node") or "node", "--import", str(source / "scripts/tsx.mjs"),
                     str(RUNTIME / "scripts/native_crew_build.mts"), str(source), str(crew), str(output)],
                    cwd=source, check=True)
+    incremental = RUNTIME.parents[2] / "docs" / "COMMAND-DECK-R7.1-CREW-REGISTRATION.md"
+    guide = output / "INSTALL-AND-COMPATIBILITY.md"
+    guide.write_bytes(incremental.read_bytes() + b"\n\n---\n\n# Native R7 compatibility reference\n\n" + guide.read_bytes())
 
 
 if __name__ == "__main__":

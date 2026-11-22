@@ -79,6 +79,9 @@ class Registration:
         candidates = canonical or [row for row in rows if row.get("name") == metadata["name"] or row.get("identityName") == metadata["name"]]
         verified = [proof for row in candidates if (proof := self.proof(row, metadata))]
         if len(verified) == 1 and (not canonical or verified[0]["actualAgentId"] == agent):
+            workspace = Path(verified[0]["workspace"]).resolve()
+            if any(row["id"] != verified[0]["actualAgentId"] and row.get("workspace") and Path(row["workspace"]).resolve() == workspace for row in rows):
+                return {"state": "manual-review", "reason": "This workspace is shared with another agent. Preserve it and review separation before crew use."}
             return {"state": "verified", **verified[0]}
         if candidates:
             return {"state": "manual-review", "reason": "Occupied, modified, partial or ambiguous agent. No overwrite or suffix is permitted."}
@@ -129,6 +132,8 @@ class Registration:
         result = self.call(["templates", "add", str(source), "--agent-id", agent, "--json"])
         after = self.roster()
         existing = {row["id"]: row for row in before}
+        if {row["id"] for row in after} != set(existing) | {agent}:
+            raise ctl.ControlError("Unexpected registry additions/removals. Inspect the saved outcome; do not retry.")
         if any({row["id"]: row for row in after}.get(key) != row for key, row in existing.items()):
             raise ctl.ControlError("An existing agent changed. Preserve the outcome and inspect; no automatic rollback or retry.")
         proof = self.classify(agent, after)

@@ -51,14 +51,15 @@ export class CommandDeckNavigation {
     this.desired=optIn===this.state.defaultAgentId ? this.state.defaultAgentId : crewLink || crewChoice || this.state.defaultAgentId;
     if(optIn===this.desired)this.state.explicitOther=optIn;
     deskNavigation.request=(origin,user,method,params)=>{
-      if(deskPreferenceKey(origin,user)!==this.scope)return coldDeskRequest(origin,user,method,params);
+      if(deskPreferenceKey(origin,user)!==this.scope || !this.current())return coldDeskRequest(origin,user,method,params);
       this.guardRequest(method,params);
     };
     const crew=getCommandCrewOwner(this.context);
     this.stops=[crew.subscribe(()=>this.reconcile()),this.context.gateway.subscribe(()=>this.reconcile()),this.context.agents.subscribe(()=>this.reconcile()),this.context.agentSelection.subscribe(()=>{
       if(this.current() && this.context.agentSelection.intentRevision>this.entryIntent){
+        this.entryIntent=this.context.agentSelection.intentRevision;
         const id=this.context.agentSelection.state.selectedId,logical=this.logical(id);
-        if(logical){this.applied=true;this.remember(logical);}
+        if(logical){this.state.explicitOther=null;this.applied=true;this.remember(logical);}
       }
       this.changes.publish();
     })];
@@ -86,7 +87,7 @@ export class CommandDeckNavigation {
     if(this.applied && !owner.state.busy && !this.guardStatus().allowed)this.applied=false;
     if(this.applied)return;
     const crew=owner,logical=COMMAND_CREW_IDS.find(id=>id===this.desired) || this.logical(this.desired);
-    let target=logical ? crew.verifiedAgentId(logical) : this.state.explicitOther===this.desired && this.known(this.desired) ? this.desired : null;
+    let target=this.state.explicitOther===this.desired && this.known(this.desired) ? this.desired : logical ? crew.verifiedAgentId(logical) : null;
     if(!target && (logical ? crew.status(logical).state!=="checking" : !crew.state.busy)){
       target=crew.verifiedAgentId("helm");
       if(target)this.state.error="The previous crew member is unavailable. Returned to verified Helm.";
