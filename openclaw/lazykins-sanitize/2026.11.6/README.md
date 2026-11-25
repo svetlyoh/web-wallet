@@ -1,3 +1,7 @@
+# Use the corrected R7.2 installer
+
+[Download R7.2](https://github.com/svetlyoh/web-wallet/releases/tag/lazykins-commanddeck-helm-2026.11.6-r7.2). It fixes noninteractive service maintenance and startup recovery in R7.1. Use the new combined ZIP and its bundled setup-command-deck.py. The R7.1 material below is retained as implementation history.
+
 # LazyKins and Sanitize â€” OpenClaw 2026.11.6
 
 Updated and verified November 20, 2026 against stable [OpenClaw 2026.11.6](https://github.com/openclaw/openclaw/releases/tag/v2026.11.6), source `06afb10d3272cc9deaf38ca6a3b7b839d5935638`. Newer beta releases are excluded.
