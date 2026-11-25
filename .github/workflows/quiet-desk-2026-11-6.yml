@@ -1,10 +1,16 @@
 name: Build LazyKins Modes 2026.11.6
 on:
   workflow_dispatch:
+    inputs:
+      installer_hotfix:
+        description: Build installer-only R7.2 with verified R7.1 UI
+        type: boolean
+        default: false
 permissions:
   contents: read
 jobs:
   build:
+    if: ${{ !inputs.installer_hotfix }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
@@ -50,4 +56,28 @@ jobs:
             openclaw/lazykins-sanitize/LazyKins-2026.11.6.zip
             openclaw/lazykins-sanitize/Sanitize-2026.11.6.zip
             openclaw/lazykins-sanitize/archives.sha256
+          if-no-files-found: error
+
+  installer:
+    if: ${{ inputs.installer_hotfix }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PACKAGE: openclaw/lazykins-sanitize/2026.11.6
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Installer and preservation checks
+        run: python3 -m unittest discover -s "$PACKAGE/tests" -p 'test_*.py' -v
+      - name: Repackage immutable verified UI
+        run: |
+          curl -fL --retry 2 'https://github.com/svetlyoh/web-wallet/releases/download/lazykins-commanddeck-helm-2026.11.6-r7.1/LazyKins-CommandDeck-Helm-2026.11.6-r7.1.zip' -o "$RUNNER_TEMP/base-r7.1.zip"
+          python3 "$PACKAGE/build-installer-hotfix.py" "$RUNNER_TEMP/base-r7.1.zip" "$RUNNER_TEMP/LazyKins-CommandDeck-Helm-2026.11.6-r7.2.zip"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: CommandDeck-R7.2-installer-hotfix
+          path: |
+            ${{ runner.temp }}/LazyKins-CommandDeck-Helm-2026.11.6-r7.2.zip
+            ${{ runner.temp }}/LazyKins-CommandDeck-Helm-2026.11.6-r7.2.zip.sha256
           if-no-files-found: error
