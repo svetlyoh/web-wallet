@@ -40,16 +40,44 @@ class FirstRunTests(unittest.TestCase):
         calls, status = [], self.status()
         class CLI:
             identity = self.identity()
-            def run(self, args):
+            def run(self, args, allow_failure=False):
                 import json
                 from types import SimpleNamespace
                 calls.append(args)
+                if args[:2] == ["gateway", "start"]:
+                    status["service"]["runtime"]["status"] = "running"
+                    status["rpc"] = {"ok": True, "server": {"version": wizard.ctl.VERSION}}
                 return SimpleNamespace(stdout=json.dumps(status))
         with self.assertRaisesRegex(RuntimeError, "registration failed"):
             with wizard.maintenance(CLI(), True, True):
                 raise RuntimeError("registration failed")
-        self.assertEqual(calls[0], ["gateway", "stop"])
-        self.assertEqual(calls[-1], ["gateway", "start"])
+        self.assertEqual(calls[0], ["gateway", "stop", "--force"])
+        self.assertIn(["gateway", "start"], calls)
+        self.assertEqual(calls[-1], ["gateway", "status", "--json", "--deep"])
+
+    def test_native_start_timeout_then_healthy_is_not_restarted(self):
+        status = self.status()
+        calls = []
+        class CLI:
+            identity = self.identity()
+            def run(self, args, allow_failure=False):
+                calls.append(args)
+                if args[:2] == ["gateway", "start"]:
+                    return SimpleNamespace(returncode=1, stdout="native health timeout")
+                status["service"]["runtime"]["status"] = "running"
+                status["rpc"] = {"ok": True, "server": {"version": wizard.ctl.VERSION}}
+                return SimpleNamespace(returncode=0, stdout=json.dumps(status))
+        wizard.start_gateway(CLI())
+        self.assertEqual(sum(args[:2] == ["gateway", "start"] for args in calls), 1)
+
+    def test_recovery_error_preserves_original_failure(self):
+        class CLI:
+            def run(self, args, allow_failure=False):
+                raise RuntimeError("native stop refused")
+        with patch.object(wizard, "start_gateway", side_effect=RuntimeError("native recovery failed")):
+            with self.assertRaisesRegex(RuntimeError, "Original setup failure: native stop refused; recovery also failed: native recovery failed"):
+                with wizard.maintenance(CLI(), True, True):
+                    self.fail("must not enter")
 
     def test_no_permission_means_no_service_command(self):
         class CLI:
@@ -135,7 +163,8 @@ class FirstRunTests(unittest.TestCase):
                 with self.assertRaises(RuntimeError):
                     wizard.setup(CLI())
                 install.assert_not_called()
-            self.assertEqual(calls[-1], ["gateway", "start"])
+            self.assertIn(["gateway", "start"], calls)
+            self.assertEqual(calls[-1], ["gateway", "status", "--json", "--deep"])
             self.assertEqual(added, ["helm", "jace", "cruz"] if model_failure else ["helm"])
 
     def test_declining_second_agent_preserves_first_and_restores_service(self):

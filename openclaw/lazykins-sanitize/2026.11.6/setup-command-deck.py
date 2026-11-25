@@ -9,6 +9,7 @@ from pathlib import Path
 import re
 import sys
 import tempfile
+import time
 
 sys.dont_write_bytecode = True
 BASE = Path(__file__).resolve().parent
@@ -60,22 +61,50 @@ def service_target(status, identity, require_running=False):
     return running
 
 
+def start_gateway(cli):
+    # A native start may report a short readiness timeout after successfully
+    # starting the service. Reconcile the same target instead of restarting it.
+    result = cli.run(["gateway", "start"], True)
+    last_error = "Gateway readiness is not confirmed."
+    for attempt in range(15):
+        try:
+            status = json_call(cli, ["gateway", "status", "--json", "--deep"])
+            service_target(status, cli.identity, True)
+            return
+        except RuntimeError as error:
+            last_error = str(error)
+        if attempt < 14:
+            time.sleep(2)
+    raise ctl.ControlError("Gateway start/readiness failed after rechecking the selected service. " + last_error + " Run native gateway status --deep for diagnostics.")
+
+
 @contextlib.contextmanager
 def maintenance(cli, originally_running, approved):
     if not approved:
         raise ctl.ControlError("Maintenance was not approved; nothing changed.")
     # Mark intent before stopping: even an uncertain stop must restore the original service.
+    primary_error = None
     try:
         if originally_running:
-            cli.run(["gateway", "stop"])
+            # Native 2026.11.6 requires this acknowledgment when stdout is
+            # captured. The exact service maintenance was approved above.
+            cli.run(["gateway", "stop", "--force"])
         status = json_call(cli, ["gateway", "status", "--json", "--deep"])
         service_target(status, cli.identity)
         if status.get("service", {}).get("runtime", {}).get("status") != "stopped":
             raise ctl.ControlError("Gateway is not confirmed stopped. Local Template Add was not attempted.")
         yield
+    except BaseException as error:
+        primary_error = error
+        raise
     finally:
         if originally_running:
-            cli.run(["gateway", "start"])
+            try:
+                start_gateway(cli)
+            except RuntimeError as recovery_error:
+                if primary_error is not None:
+                    raise ctl.ControlError("Original setup failure: " + str(primary_error) + "; recovery also failed: " + str(recovery_error)) from primary_error
+                raise
 
 
 def delegation_plan(snapshot, verified):
@@ -193,7 +222,7 @@ def setup(cli):
             crew.private_write(receipts / "complete.json", {"version": ctl.VERSION, "crew": verified["crew"], "uiConfigured": True, "gatewayStarted": False, "providerChatsVerified": False, "liveDelegationVerified": False})
             print("Setup saved. Start the selected native Gateway when ready, then open Command Deck. Delegation review remains available in Crew setup & permissions.")
             return
-        cli.run(["gateway", "start"])
+        start_gateway(cli)
     service_target(json_call(cli, ["gateway", "status", "--json", "--deep"]), cli.identity, True)
     # Separate permission review, using the existing native configuration authority.
     try:
