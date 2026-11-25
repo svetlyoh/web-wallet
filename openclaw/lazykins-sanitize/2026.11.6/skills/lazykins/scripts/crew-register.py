@@ -111,7 +111,7 @@ class Registration:
     def review(self, agent):
         return self.plan(agent, self.roster())
 
-    def apply(self, agent, reviewed, approval, outcome_path):
+    def apply(self, agent, reviewed, approval, outcome_path, review_binding_change=None):
         if approval != agent or reviewed.get("agent") != agent or reviewed.get("target") != self.cli.identity:
             raise ctl.ControlError("Approval/receipt does not match this agent, profile, state directory and config.")
         outcome_path = Path(outcome_path)
@@ -134,13 +134,24 @@ class Registration:
         existing = {row["id"]: row for row in before}
         if {row["id"] for row in after} != set(existing) | {agent}:
             raise ctl.ControlError("Unexpected registry additions/removals. Inspect the saved outcome; do not retry.")
-        if any({row["id"]: row for row in after}.get(key) != row for key, row in existing.items()):
-            raise ctl.ControlError("An existing agent changed. Preserve the outcome and inspect; no automatic rollback or retry.")
         proof = self.classify(agent, after)
         if result.get("agent", {}).get("finalId") != agent or proof["state"] != "verified" or proof["workspace"] != current["nativeDryRun"]["agent"]["workspace"]:
             raise ctl.ControlError("Add outcome is uncertain or differs from review. Inspect actual IDs/workspaces; do not retry.")
+        after_by_id = {row["id"]: row for row in after}
+        changes = [{"agent": key, "fields": {field: {"before": row.get(field), "after": after_by_id[key].get(field)} for field in set(row) | set(after_by_id[key]) if row.get(field) != after_by_id[key].get(field)}} for key, row in existing.items() if row != after_by_id[key]]
+        if changes:
+            private_write(str(outcome_path) + ".existing-change.json", {"changes": changes, "creationResult": result, "verification": proof, "state": "review-required"})
+            # Only an increased Main binding count may be reviewed inline. All
+            # other existing-agent changes remain a hard stop, never ignored.
+            narrow = len(changes) == 1 and changes[0]["agent"] == "main" and set(changes[0]["fields"]) == {"bindings"}
+            count = changes[0]["fields"].get("bindings", {})
+            narrow = narrow and type(count.get("before")) is int and type(count.get("after")) is int and count["after"] > count["before"]
+            if not narrow or not review_binding_change or not review_binding_change(changes[0]):
+                raise ctl.ControlError("An existing agent changed. Preserve the outcome and inspect; no automatic rollback or retry.")
+            if self.roster() != after:
+                raise ctl.ControlError("Registry changed during routing review. Inspect before continuing.")
         # Keep the pre-effect receipt immutable. Write a separate completion receipt.
-        completed = {"state": "verified", "agent": agent, "target": self.cli.identity, "creationResult": result, "verification": proof, "existingAgentsUnchanged": True}
+        completed = {"state": "verified", "agent": agent, "target": self.cli.identity, "creationResult": result, "verification": proof, "existingAgentsUnchanged": not bool(changes), "operatorReviewedMainBindingChange": bool(changes)}
         private_write(str(outcome_path) + ".completed.json", completed)
         return completed
 

@@ -154,6 +154,30 @@ def enable_templates(cli):
     cli.run(args + (["--expect-current-absent"] if absent else ["--expect-current-json", "false"]))
 
 
+def review_main_binding_change(cli, change):
+    bindings = json_call(cli, ["config", "get", "bindings", "--json"])
+    if not isinstance(bindings, list):
+        return False
+    main = [row for row in bindings if isinstance(row, dict) and row.get("agentId") == "main"]
+    if len(main) != change["fields"]["bindings"]["after"]:
+        return False
+    print("Main's routing binding count increased during native Add. Main is still the same default agent; review its CURRENT bindings before continuing:")
+    print(json.dumps(main, indent=2))
+    print("The Add already occurred. Approval retains these observed Main bindings; declining preserves receipts and stops setup. No model, workspace or default change can be accepted through this review.")
+    return approve("KEEP REVIEWED MAIN ROUTING")
+
+
+def check_model(cli, agent=None):
+    args = ["models", "status", "--json", "--check"]
+    if agent:
+        args += ["--agent", agent]
+    result = cli.run(args, True)
+    if result.returncode == 2:
+        print((agent or "Default model") + ": authorization is usable but expiring; continuing with the native warning.")
+    elif result.returncode != 0:
+        raise ctl.ControlError((agent or "Default model") + " readiness failed. Run native models status --check" + (" --agent " + agent if agent else "") + " for diagnostics. No model defaults or credentials were changed.")
+
+
 def setup(cli):
     if cli.version() != ctl.VERSION:
         raise ctl.ControlError("This ZIP supports OpenClaw 2026.11.6 only. Install/onboard that release before setup.")
@@ -164,9 +188,7 @@ def setup(cli):
     main = [row for row in baseline["inventory"] if row["id"] == "main"]
     if len(main) != 1 or not Path(main[0].get("workspace", "")).is_absolute():
         raise ctl.ControlError("Expected onboarded main workspace is missing. Finish native onboarding first.")
-    model = cli.run(["models", "status", "--json", "--check"], True)
-    if model.returncode:
-        raise ctl.ControlError("Configure/renew a working default model using native OpenClaw setup, then rerun. No accounts or model defaults were changed.")
+    check_model(cli)
     status = json_call(cli, ["gateway", "status", "--json", "--deep"])
     running = service_target(status, cli.identity)
     print(json.dumps({"target": cli.identity, "gatewayService": status["service"].get("label"), "running": running,
@@ -200,15 +222,13 @@ def setup(cli):
             print(json.dumps(review, indent=2))
             if not approve("ADD " + role):
                 raise ctl.ControlError(role + " not approved. Existing verified agents are retained; rerun to continue.")
-            registration.apply(role, review, role, receipts / (role + "-outcome.json"))
+            registration.apply(role, review, role, receipts / (role + "-outcome.json"), review_binding_change=lambda change: review_main_binding_change(cli, change))
         verified = registration.baseline()
         if any(verified["crew"][role]["state"] != "verified" for role in crew.IDS):
             raise ctl.ControlError("Crew changed during registration. UI was not enabled.")
         for role in crew.IDS:
             actual = verified["crew"][role]["actualAgentId"]
-            readiness = cli.run(["models", "status", "--agent", actual, "--json", "--check"], True)
-            if readiness.returncode:
-                raise ctl.ControlError(role + " is registered but its native model/auth readiness check failed. Inspect openclaw models status --agent " + actual + " --json --check, configure authorization using native model settings, then rerun setup. No model/default or credential was copied or changed.")
+            check_model(cli, actual)
         with ctl.Controller(cli, BASE / "skills/lazykins/runtime/payload").locked() as owner:
             owner.off()
         paired.register(cli, workspace, "main")
@@ -240,10 +260,14 @@ def setup(cli):
                 raise ctl.ControlError("Crew changed. Review delegation again in the UI.")
             crew.private_write(receipts / "delegation-reviewed.json", plan)
             # No automatic retry if acknowledgment is lost. Gateway CAS checks baseHash.
-            result = json_call(cli, ["gateway", "call", "config.patch", "--json", "--params", json.dumps(plan)])
-            if result.get("ok") is not True:
-                raise ctl.ControlError("Permission write was not acknowledged. Inspect native settings before retrying.")
-            crew.private_write(receipts / "delegation-acknowledged.json", {"ok": True, "runtimeDelegationVerified": False})
+            try:
+                result = json_call(cli, ["gateway", "call", "config.patch", "--json", "--params", json.dumps(plan)])
+                if result.get("ok") is not True:
+                    raise ctl.ControlError("Permission write was not acknowledged.")
+                crew.private_write(receipts / "delegation-acknowledged.json", {"ok": True, "runtimeDelegationVerified": False})
+            except RuntimeError as error:
+                crew.private_write(receipts / "delegation-unconfirmed.json", {"state": "unconfirmed-inspect-before-retry", "error": str(error), "automaticRetry": False})
+                print("UI and direct crew setup are complete. The optional delegation write is UNCONFIRMED. Use Crew setup & permissions to read current policy before any new approval; no automatic retry was made.")
     elif snapshot is not None:
         print("Existing effective delegation targets already include the crew; no permission change needed.")
     crew.private_write(receipts / "complete.json", {"version": ctl.VERSION, "crew": verified["crew"], "uiConfigured": True, "providerChatsVerified": False, "liveDelegationVerified": False})

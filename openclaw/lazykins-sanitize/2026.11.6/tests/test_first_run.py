@@ -21,6 +21,25 @@ class FirstRunTests(unittest.TestCase):
         return {"service": {"loaded": True, "targetRole": "target", "runtime": {"status": "stopped"}, "command": {"environment": {}}},
                 "config": {"cli": {"exists": True, "valid": True, "path": path}, "daemon": {"exists": True, "valid": True, "path": path}}}
 
+    def test_expiring_usable_model_warns_for_default_and_crew(self):
+        calls=[]
+        class CLI:
+            def run(self, args, allow_failure=False):
+                calls.append(args)
+                return SimpleNamespace(returncode=2)
+        with patch("builtins.print") as warning:
+            wizard.check_model(CLI())
+            wizard.check_model(CLI(), "helm")
+            self.assertEqual(warning.call_count, 2)
+        self.assertIn("helm", calls[-1])
+
+    def test_unavailable_model_still_blocks(self):
+        class CLI:
+            def run(self, args, allow_failure=False):
+                return SimpleNamespace(returncode=1)
+        with self.assertRaisesRegex(RuntimeError, "readiness failed"):
+            wizard.check_model(CLI(), "cruz")
+
     def test_wrong_service_or_config_refused(self):
         for mutate in (lambda s: s["service"].update(targetRole="diagnostic-only"), lambda s: s["config"].update(mismatch=True),
                        lambda s: s["service"]["command"]["environment"].update(OPENCLAW_PROFILE="other")):
@@ -101,7 +120,7 @@ class FirstRunTests(unittest.TestCase):
         self.assertNotIn("old-target", plan["raw"])
         self.assertIsNone(wizard.delegation_plan(self.snapshot(["*"]), crew))
 
-    def interrupted_setup(self, model_failure=False):
+    def interrupted_setup(self, model_failure=False, optional_failure=False):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
             (root / "config.json").write_text("{}", encoding="utf-8")
@@ -126,6 +145,10 @@ class FirstRunTests(unittest.TestCase):
                         status["service"]["runtime"]["status"] = "stopped"
                     if args[:2] == ["gateway", "start"]:
                         status["service"]["runtime"]["status"] = "running"
+                    if args[:3] == ["gateway", "call", "config.get"]:
+                        return SimpleNamespace(returncode=0, stdout=json.dumps({"hash":"test-cas","valid":True,"sourceConfig":{"agents":{"entries":{"helm":{}}}}}))
+                    if args[:3] == ["gateway", "call", "config.patch"]:
+                        raise RuntimeError("permission acknowledgment unavailable")
                     failed = model_failure and "--agent" in args and "cruz" in args
                     return SimpleNamespace(returncode=int(failed), stdout=json.dumps(status))
 
@@ -137,7 +160,7 @@ class FirstRunTests(unittest.TestCase):
                             "crew": {role: ({"state": "verified", "actualAgentId": role, "workspace": str(root / role)} if role in existing else {"state": "missing"}) for role in wizard.crew.IDS}}
                 def review(self, role):
                     return {"agent": role, "nativeDryRun": {"agent": {"workspace": str(root / role)}}}
-                def apply(self, role, reviewed, approval, outcome):
+                def apply(self, role, reviewed, approval, outcome, **kwargs):
                     existing.add(role)
                     added.append(role)
 
@@ -151,21 +174,40 @@ class FirstRunTests(unittest.TestCase):
                     return {}
                 def load(self):
                     return None
+                def install(self):
+                    pass
+                def on(self):
+                    pass
                 def off(self):
+                    if optional_failure:
+                        return
                     raise AssertionError("UI must not change before every crew agent is approved and model-ready")
 
             allowed = {"SET UP COMMAND DECK", "ADD helm"}
-            if model_failure:
-                allowed.update({"ADD jace", "ADD cruz"})
+            if model_failure or optional_failure:
+                allowed.update({"ADD jace", "ADD cruz", "ALLOW HELM CREW TARGETS"})
             with patch.object(wizard.ctl, "Controller", Controller), patch.object(wizard.crew, "Registration", Registration), \
                     patch.object(wizard, "enable_templates"), patch.object(wizard, "approve", side_effect=lambda action: action in allowed), \
                     patch.object(wizard.paired, "register") as install, patch("builtins.print"):
-                with self.assertRaises(RuntimeError):
+                if optional_failure:
                     wizard.setup(CLI())
-                install.assert_not_called()
+                    install.assert_called_once()
+                    complete=list(root.glob("setup-*/complete.json"))
+                    self.assertEqual(len(complete),1)
+                    self.assertTrue(json.loads(complete[0].read_text())["uiConfigured"])
+                    self.assertEqual(len(list(root.glob("setup-*/delegation-unconfirmed.json"))),1)
+                    self.assertEqual(sum(args[:3]==["gateway","call","config.patch"] for args in calls),1)
+                else:
+                    with self.assertRaises(RuntimeError):
+                        wizard.setup(CLI())
+                    install.assert_not_called()
             self.assertIn(["gateway", "start"], calls)
-            self.assertEqual(calls[-1], ["gateway", "status", "--json", "--deep"])
-            self.assertEqual(added, ["helm", "jace", "cruz"] if model_failure else ["helm"])
+            if not optional_failure:
+                self.assertEqual(calls[-1], ["gateway", "status", "--json", "--deep"])
+            self.assertEqual(added, ["helm", "jace", "cruz"] if model_failure or optional_failure else ["helm"])
+
+    def test_optional_delegation_failure_still_completes_ui_without_retry(self):
+        self.interrupted_setup(optional_failure=True)
 
     def test_declining_second_agent_preserves_first_and_restores_service(self):
         self.interrupted_setup()

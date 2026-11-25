@@ -34,6 +34,41 @@ class RegistrationTests(unittest.TestCase):
     def setUp(self):
         self.temp=tempfile.TemporaryDirectory();self.addCleanup(self.temp.cleanup)
         self.cli=Cli(self.temp.name);self.owner=crew.Registration(self.cli);self.out=Path(self.temp.name)/"outcome.json"
+    def drift_on_add(self, field, value):
+        original=self.cli.run
+        def run(args):
+            result=original(args)
+            if args[:2]==["templates","add"] and "--dry-run" not in args and "--help" not in args:
+                self.cli.rows[0][field]=value
+            return result
+        self.cli.run=run
+
+    def test_main_binding_increase_requires_explicit_review(self):
+        review=self.owner.review("helm");self.drift_on_add("bindings",3)
+        seen=[]
+        result=self.owner.apply("helm",review,"helm",self.out,lambda change: seen.append(change) or True)
+        self.assertEqual(result["state"],"verified")
+        self.assertTrue(result["operatorReviewedMainBindingChange"])
+        self.assertFalse(result["existingAgentsUnchanged"])
+        self.assertEqual(len(seen),1)
+        self.assertTrue(Path(str(self.out)+".existing-change.json").is_file())
+        self.assertEqual(self.cli.adds,1)
+
+    def test_binding_drift_without_approval_keeps_agent_and_receipt(self):
+        review=self.owner.review("helm");self.drift_on_add("bindings",3)
+        with self.assertRaisesRegex(RuntimeError,"existing agent changed"):
+            self.owner.apply("helm",review,"helm",self.out,lambda change: False)
+        self.assertEqual(self.owner.classify("helm",self.cli.rows)["state"],"verified")
+        self.assertTrue(Path(str(self.out)+".existing-change.json").is_file())
+        self.assertFalse(Path(str(self.out)+".completed.json").exists())
+
+    def test_model_change_cannot_be_accepted_by_binding_review(self):
+        review=self.owner.review("helm");self.drift_on_add("model","wrong/model")
+        def forbidden(change):
+            self.fail("must not offer routing acceptance for model changes")
+        with self.assertRaisesRegex(RuntimeError,"existing agent changed"):
+            self.owner.apply("helm",review,"helm",self.out,forbidden)
+
     def test_baseline_is_sanitized_and_does_not_install(self):
         self.cli.rows[0]["model"]="provider/model@private-profile"
         baseline=self.owner.baseline()

@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
     inputs:
       installer_hotfix:
-        description: Build installer-only R7.2 with verified R7.1 UI
+        description: Build installer-only R7.3 with verified R7.1 UI
         type: boolean
         default: false
 permissions:
@@ -73,11 +73,11 @@ jobs:
       - name: Repackage immutable verified UI
         run: |
           curl -fL --retry 2 'https://github.com/svetlyoh/web-wallet/releases/download/lazykins-commanddeck-helm-2026.11.6-r7.1/LazyKins-CommandDeck-Helm-2026.11.6-r7.1.zip' -o "$RUNNER_TEMP/base-r7.1.zip"
-          python3 "$PACKAGE/build-installer-hotfix.py" "$RUNNER_TEMP/base-r7.1.zip" "$RUNNER_TEMP/LazyKins-CommandDeck-Helm-2026.11.6-r7.2.zip"
+          python3 "$PACKAGE/build-installer-hotfix.py" "$RUNNER_TEMP/base-r7.1.zip" "$RUNNER_TEMP/LazyKins-CommandDeck-Helm-2026.11.6-r7.3.zip"
       - uses: actions/upload-artifact@v4
         with:
-          name: CommandDeck-R7.2-installer-hotfix
+          name: CommandDeck-R7.3-installer-hotfix
           path: |
-            ${{ runner.temp }}/LazyKins-CommandDeck-Helm-2026.11.6-r7.2.zip
-            ${{ runner.temp }}/LazyKins-CommandDeck-Helm-2026.11.6-r7.2.zip.sha256
+            ${{ runner.temp }}/LazyKins-CommandDeck-Helm-2026.11.6-r7.3.zip
+            ${{ runner.temp }}/LazyKins-CommandDeck-Helm-2026.11.6-r7.3.zip.sha256
           if-no-files-found: error

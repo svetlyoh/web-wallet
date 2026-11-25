@@ -1,3 +1,7 @@
+# Recommended: R7.3 guided installation
+
+[Download R7.3](https://github.com/svetlyoh/web-wallet/releases/tag/lazykins-commanddeck-helm-2026.11.6-r7.3). Use its combined ZIP and `bash install.sh`; no expiry-warning patch is needed. Includes Quiet Desk, Command Deck and reviewed native Helm/Jace/Cruz setup. Requires onboarded OpenClaw 2026.11.6, a working model, native managed Gateway and Python 3.11+. Historical release instructions below are superseded.
+
 # Use the corrected R7.2 installer
 
 [Download R7.2](https://github.com/svetlyoh/web-wallet/releases/tag/lazykins-commanddeck-helm-2026.11.6-r7.2). It fixes noninteractive service maintenance and startup recovery in R7.1. Use the new combined ZIP and its bundled setup-command-deck.py. The R7.1 material below is retained as implementation history.
